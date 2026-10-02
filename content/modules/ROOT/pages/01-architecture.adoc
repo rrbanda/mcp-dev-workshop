@@ -1,0 +1,127 @@
+= Architecture and Inference Flow
+:navtitle: Architecture and Inference Flow
+
+Understanding the platform you are building on — from keystroke to model
+response and back.
+
+== The inference traffic path
+
+When you type a message in OpenCode inside DevSpaces, here is the path your
+request takes:
+
+[mermaid]
+....
+flowchart TD
+    IDE["OpenCode<br/>(DevSpaces)"]
+    MaaS["maas-default-gateway<br/>(API key auth)"]
+    LLMd["llm-d Gateway"]
+    EPP["Endpoint Picker (EPP)<br/>Filter → Score → Pick"]
+    vLLM1["vLLM Pod 1<br/>(GPU)"]
+    vLLM2["vLLM Pod 2<br/>(GPU)"]
+
+    IDE -->|"Bearer sk-oai-*"| MaaS
+    MaaS -->|"HTTPRoute"| LLMd
+    LLMd --> EPP
+    EPP -->|"prefix-cache + queue-depth"| vLLM1
+    EPP -.->|"or"| vLLM2
+....
+
+*MaaS (Model as a Service)* authenticates every request with an API key.
+Each participant has a unique key provisioned by the facilitator. Without a
+valid key, the gateway returns `403 Forbidden`.
+
+*llm-d* is the inference gateway that manages the vLLM backend pods.
+The *Endpoint Picker (EPP)* runs a Filter → Score → Pick pipeline: it scores
+each vLLM pod by prefix cache hit ratio (weight 3), queue depth (weight 2),
+and KV-cache utilization (weight 2), then routes to the best candidate.
+This achieves up to 69% p90 TTFT reduction compared to round-robin.
+
+*vLLM* pods run on GPU nodes and serve the actual model
+(default: `{model_id}`).
+
+== Where MCP fits in
+
+MCP servers are *separate from the inference path*. They are tool backends
+that the agent calls when it needs to take an action — query a database,
+list pods, read a file. The flow is:
+
+[mermaid]
+....
+flowchart LR
+    Agent["OpenCode Agent"]
+    LLM["LLM (via MaaS)"]
+    MCP1["MCP Server A<br/>(your server)"]
+    MCP2["MCP Server B<br/>(OpenShift MCP)"]
+
+    Agent <-->|"reasoning"| LLM
+    Agent <-->|"tool calls"| MCP1
+    Agent <-->|"tool calls"| MCP2
+....
+
+. The agent sends your prompt to the LLM for reasoning.
+. The LLM decides a tool call is needed and returns a structured tool-call request.
+. The agent executes the tool call against the MCP server.
+. The MCP server runs the tool and returns the result.
+. The agent feeds the result back to the LLM for the next reasoning step.
+
+The MCP server never talks to the LLM directly. It only talks to the agent.
+
+== MCP protocol basics
+
+[cols="1,2",options="header"]
+|===
+| Concept | Description
+
+| *Server*
+| A process that exposes tools, resources, and prompts over the MCP protocol.
+
+| *Tool*
+| A function the agent can call. Defined with name, description, typed parameters, and a return value.
+
+| *Resource*
+| Read-only context the agent can fetch (e.g., cluster info, config files).
+
+| *Transport*
+| How agent and server communicate: *stdio* (local), *streamable-http* (remote/deployed).
+
+| *Client*
+| The agent (OpenCode) that connects to one or more MCP servers.
+|===
+
+== Agent Skills architecture
+
+Agent Skills are SKILL.md files that live in the project directory structure:
+
+----
+.opencode/skills/build-mcp-server/SKILL.md
+.claude/skills/build-mcp-server/SKILL.md
+.cursor/skills/build-mcp-server/SKILL.md
+----
+
+Skills are *lazy-loaded*: the agent sees a list of skill names and one-line
+descriptions. When the agent decides a skill is relevant, it loads the full
+SKILL.md body — which can contain API references, code patterns, best
+practices, and complete examples. This keeps the context window efficient while
+giving the agent deep knowledge on demand.
+
+In this workshop, the `build-mcp-server` skill teaches the agent:
+
+* MCP Python SDK v2 API (`MCPServer`, `@mcp.tool()`, `mcp.run()`)
+* Type hints → JSON Schema mapping
+* Transport configuration (stdio vs streamable-http)
+* Containerfile and deployment patterns for OpenShift
+* Error handling and security best practices
+
+== DevSpaces environment
+
+Your workspace runs inside OpenShift DevSpaces — a Kubernetes-native cloud IDE.
+Each participant gets their own namespace (`<username>-devspaces`) with:
+
+* An OpenCode Web UI on port 4096 (password-protected)
+* Terminal access with `oc` CLI pre-authenticated
+* The workshop repository pre-cloned at `/projects/mcp-dev-workshop`
+* Agent Skills pre-loaded in the project structure
+* Python and `uv` available for running MCP servers locally
+
+You do no platform configuration. The facilitator has set up the AI serving
+stack, MaaS gateway, API keys, and DevSpaces operator before the workshop.

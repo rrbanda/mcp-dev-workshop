@@ -1,0 +1,161 @@
+= Module 7: Multi-Server Composition
+:navtitle: Multi-Server Composition
+
+Real-world agents connect to *multiple* MCP servers — each providing tools for
+a different domain. In this module you build a second MCP server and wire both
+into OpenCode, then observe the agent orchestrating cross-server tool calls.
+
+== Learning objectives
+
+* Build a second MCP server with a different tool set.
+* Configure the agent to connect to multiple MCP servers simultaneously.
+* Observe the agent routing tool calls to the correct server.
+* Understand the composition model: one agent, many tool providers.
+
+== Exercise 1: Build a project-helper server
+
+Ask the agent to build a second server:
+
+----
+Build me a second MCP server called "project-helper" in a new file
+scaffold/project-helper.py with these tools:
+
+1. search_code - Search for a pattern in source files using grep
+2. list_files - List files in a directory with optional extension filter
+3. read_yaml - Read and parse a YAML file
+4. get_git_status - Get the current git status
+
+Use the same patterns as the first server.
+----
+
+Expected result: The agent generates `scaffold/project-helper.py` with four
+tools, using the same MCP SDK v2 patterns.
+
+== Exercise 2: Test the second server locally
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+timeout 5 python project-helper.py 2>&1 || true
+----
+
+Expected result: The server starts without errors.
+
+Verify the tools:
+
+[source,bash,role="execute"]
+----
+python -c "
+from importlib.util import spec_from_file_location, module_from_spec
+spec = spec_from_file_location('project_helper', 'project-helper.py')
+mod = module_from_spec(spec)
+spec.loader.exec_module(mod)
+tools = mod.mcp.list_tools()
+for t in tools:
+    print(f'Tool: {t.name} — {t.description[:60]}')
+" 2>/dev/null || echo "Use 'mcp dev project-helper.py' if available"
+----
+
+== Exercise 3: Connect both servers to OpenCode
+
+Now configure OpenCode with both MCP servers. In the chat:
+
+----
+I have two MCP servers now:
+
+1. openshift-devops (the one we already deployed) at
+   http://my-mcp-server.<namespace>.svc.cluster.local:8080/mcp
+   with tools: list_pods, get_pod_logs, get_route_url, describe_resource
+
+2. project-helper (local, not yet deployed) at
+   scaffold/project-helper.py via stdio
+   with tools: search_code, list_files, read_yaml, get_git_status
+
+Configure both.
+----
+
+== Exercise 4: Cross-server queries
+
+Ask the agent questions that require tools from both servers:
+
+----
+Find all Python files in my project that contain "subprocess" and also show me
+which pods are running in my namespace.
+----
+
+Expected result: The agent calls `search_code` from the project-helper server
+AND `list_pods` from the openshift-devops server, combining results from both
+into a single response.
+
+Try another:
+
+----
+Check the git status of my project, then describe the my-mcp-server deployment
+to see if it matches what I have locally.
+----
+
+The agent uses `get_git_status` (project-helper) and `describe_resource`
+(openshift-devops) in sequence.
+
+== Exercise 5: Understand the composition model
+
+[mermaid]
+....
+flowchart TD
+    Agent["OpenCode Agent"]
+    LLM["LLM (reasoning)"]
+    S1["openshift-devops<br/>list_pods, get_logs, describe"]
+    S2["project-helper<br/>search_code, list_files, git_status"]
+    S3["future server<br/>database, monitoring, ..."]
+
+    Agent <--> LLM
+    Agent <-->|streamable-http| S1
+    Agent <-->|stdio| S2
+    Agent <-.->|any transport| S3
+....
+
+Key properties of MCP composition:
+
+[cols="1,2",options="header"]
+|===
+| Property | Detail
+
+| *Independent servers*
+| Each server is a separate process or container. They do not know about each other.
+
+| *Agent-side routing*
+| The agent (LLM) decides which server's tool to call based on the tool name
+  and description.
+
+| *Mixed transports*
+| Some servers can be local (stdio), others deployed (streamable-http).
+  The agent handles both.
+
+| *Dynamic discovery*
+| When the agent connects to a server, it discovers all tools automatically.
+  No hardcoded tool list.
+
+| *Additive*
+| Adding a new server adds capabilities. Existing servers are unaffected.
+|===
+
+[TIP]
+====
+*Falling behind?* Copy the reference solution:
+
+[source,bash,role="execute"]
+----
+cp solutions/lab-07/multi-server.py scaffold/project-helper.py
+----
+====
+
+== Checkpoint
+
+You should now have:
+
+* [x] A second MCP server (`project-helper`) with different tools
+* [x] Both servers connected to OpenCode (one remote, one local)
+* [x] Agent routing tool calls to the correct server
+* [x] Cross-server queries working
+
+Proceed to xref:10-module-08-governance.adoc[Module 8: Enterprise Governance].

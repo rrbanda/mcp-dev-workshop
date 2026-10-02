@@ -1,0 +1,20 @@
+name: modules
+title: "Build MCP Servers on Red Hat OpenShift AI"
+version: ~
+nav:
+  - modules/ROOT/nav.adoc
+
+asciidoc:
+  attributes:
+    experimental: true
+    page-pagination: true
+    guid: '%GUID%'
+    devspaces_url: '%DEVSPACES_URL%'
+    maas_base_url: '%MAAS_BASE_URL%'
+    model_id: 'Qwen/Qwen3.6-35B-A3B-FP8'
+    ai_namespace: 'ai-serving'
+    mcp_sdk_version: '2.0'
+    opencode_version: '1.15.13'
+    workshop_repo: 'https://github.com/rrbanda/mcp-dev-workshop.git'
+    workshop_branch: 'main'
+    internal_registry: 'image-registry.openshift-image-registry.svc:5000'

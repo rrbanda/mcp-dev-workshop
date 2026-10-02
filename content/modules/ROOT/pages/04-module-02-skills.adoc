@@ -1,0 +1,153 @@
+= Module 2: Understand Agent Skills
+:navtitle: Understand Agent Skills
+
+Agent Skills are how you teach an AI agent new capabilities without retraining
+the model. In this module you inspect how skills work, observe the agent
+discovering and loading one, and understand the mechanism that makes the
+next module — building an MCP server — possible.
+
+== Learning objectives
+
+* Explain what an Agent Skill is and how it differs from a system prompt.
+* Locate skill files in the standard directory structure.
+* Observe lazy loading: the agent lists skills by name, then loads the full
+  body on demand.
+* Trigger the agent to use a skill and identify it in the response.
+
+== What is an Agent Skill?
+
+A skill is a Markdown file (`SKILL.md`) placed in a known directory. It contains
+instructions, API references, code patterns, and examples that the agent can
+load when it needs them.
+
+Skills differ from system prompts:
+
+[cols="1,1",options="header"]
+|===
+| System Prompt | Agent Skill
+
+| Always loaded into context
+| Loaded on demand (lazy)
+
+| Uses context window constantly
+| Zero cost until needed
+
+| Same for every task
+| Task-specific knowledge
+
+| Hard to version or share
+| A file in your repo — versioned, shareable, portable
+|===
+
+The agent sees a *directory listing* of skill names and their first-line
+descriptions. When a task matches, the agent loads the full skill body into
+its context. This is lazy loading — the skill only consumes context when it
+is relevant.
+
+== Exercise 1: List available skills
+
+In the OpenCode chat, ask:
+
+----
+What skills do you have available?
+----
+
+Expected result: The agent lists `build-mcp-server` (and any others in the
+project). It shows the skill name and a short description, but does *not*
+load the full content yet.
+
+== Exercise 2: Read the skill file directly
+
+In the terminal, read the full skill:
+
+[source,bash,role="execute"]
+----
+cat .opencode/skills/build-mcp-server/SKILL.md
+----
+
+Observe the structure:
+
+* *Title and description* — first two lines, what the agent sees in the listing.
+* *When to use* — tells the agent when this skill is relevant.
+* *API reference* — MCP Python SDK v2 imports, decorators, patterns.
+* *Best practices* — error handling, timeouts, type hints.
+* *File structure* — what files to generate (server.py, requirements.txt,
+  Containerfile, deployment.yaml).
+* *Complete example* — a full working MCP server the agent can reference.
+
+This single file teaches the agent everything it needs to produce a working MCP
+server. The agent does not have this knowledge built in — the skill provides it.
+
+== Exercise 3: Observe skill loading
+
+In the OpenCode chat, ask:
+
+----
+I want to build an MCP server. What would the basic structure look like? Don't write any files yet.
+----
+
+Expected result: The agent loads the `build-mcp-server` skill and describes
+the structure — `MCPServer` class, `@mcp.tool()` decorators, `mcp.run()`,
+requirements.txt, Containerfile. You may see an indicator that the skill was
+loaded.
+
+.How does the agent decide to load the skill?
+[%collapsible]
+====
+The agent matches your intent ("build an MCP server") against the skill's
+name and "When to use" section. The match triggers a full load of the
+SKILL.md body into the context window. From that point on, the agent has
+the complete API reference, patterns, and examples available for its
+response.
+
+If you asked something unrelated (e.g., "explain Kubernetes networking"),
+the skill would not be loaded — saving context for what matters.
+====
+
+== Exercise 4: Cross-harness portability
+
+The same skill is available in multiple directories for different AI tools:
+
+[source,bash,role="execute"]
+----
+ls -la .opencode/skills/build-mcp-server/SKILL.md
+ls -la .claude/skills/build-mcp-server/SKILL.md
+ls -la .cursor/skills/build-mcp-server/SKILL.md
+----
+
+Expected result: The same SKILL.md exists in all three paths. This means the
+skill works with OpenCode, Claude Code, and Cursor — any tool that supports
+the Agent Skills convention. Write once, use with any agent.
+
+== Key takeaways
+
+[cols="1,2",options="header"]
+|===
+| Concept | Detail
+
+| *Lazy loading*
+| Skills are listed by name; full body loaded only when relevant.
+
+| *Portable*
+| Same SKILL.md works across OpenCode, Claude Code, Cursor, Agents.
+
+| *Versioned*
+| Skills live in your repo — PR reviews, git history, branch-per-experiment.
+
+| *Composable*
+| Multiple skills can be loaded in a single conversation.
+
+| *Zero platform change*
+| Adding a skill is adding a file. No operator, no CRD, no restart.
+|===
+
+== Checkpoint
+
+You should now understand:
+
+* [x] What Agent Skills are and how they differ from system prompts
+* [x] Where skill files live in the project structure
+* [x] How lazy loading works (name listing → on-demand full load)
+* [x] That skills are portable across AI coding tools
+
+Proceed to xref:05-module-03-build.adoc[Module 3: Build an MCP Server].

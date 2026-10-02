@@ -1,0 +1,208 @@
+= Module 8: Enterprise Governance
+:navtitle: Enterprise Governance
+
+MCP servers give agents powerful capabilities. In an enterprise, those
+capabilities need governance: who can use which tools, what gets logged, how
+sensitive data is handled, and when a human must approve an action. This module
+is a guided discussion with hands-on inspection — you do not deploy new
+resources, but you examine the patterns that production deployments require.
+
+== Learning objectives
+
+* Describe the governance requirements for MCP servers in a regulated
+  enterprise.
+* Inspect audit evidence from your deployed MCP server.
+* Discuss RBAC patterns for tool-level access control.
+* Understand PII redaction and human-in-the-loop patterns.
+
+== Discussion 1: Why governance matters
+
+When you deployed your MCP server in Module 5, any agent in your namespace
+could connect to it and call any tool. In a production environment, this is
+not acceptable:
+
+* A `describe_resource` tool with broad access could expose secrets.
+* A `get_pod_logs` tool could return PII from application logs.
+* An agent with unsupervised tool access could make destructive changes.
+
+The enterprise question is not *can the agent use the tool?* but *should
+this user, for this task, at this time, use this tool?*
+
+== Exercise 1: Inspect your server's access pattern
+
+Look at the service account your MCP server runs under:
+
+[source,bash,role="execute"]
+----
+oc get deployment my-mcp-server -o jsonpath='{.spec.template.spec.serviceAccountName}' ; echo
+----
+
+Expected result: `default` — the namespace's default service account. This
+has whatever RBAC your namespace has. In a production deployment, you would:
+
+. Create a dedicated ServiceAccount per MCP server.
+. Bind a minimal ClusterRole with only the permissions the tools need.
+. Audit the ServiceAccount's API calls.
+
+[source,bash,role="execute"]
+----
+oc auth can-i --list --as=system:serviceaccount:$(oc project -q):default | head -20
+----
+
+Expected result: A list of API permissions. Note how broad they are — the
+`default` service account often has `edit` role in the namespace.
+
+== Exercise 2: Audit trail — what happened?
+
+Check the Kubernetes audit evidence for your MCP server's actions:
+
+[source,bash,role="execute"]
+----
+oc get events --field-selector involvedObject.name=my-mcp-server --sort-by=.lastTimestamp
+----
+
+For the pod-level activity:
+
+[source,bash,role="execute"]
+----
+oc logs deployment/my-mcp-server --tail=20
+----
+
+In a production MCP server, you would add structured logging:
+
+[source,python]
+----
+import logging
+import json
+
+logger = logging.getLogger("mcp-audit")
+
+@mcp.tool()
+def list_pods(namespace: str, label: str = "") -> str:
+    """List pods in a namespace."""
+    logger.info(json.dumps({
+        "event": "tool_call",
+        "tool": "list_pods",
+        "namespace": namespace,
+        "label": label,
+        "timestamp": datetime.utcnow().isoformat()
+    }))
+    # ... tool implementation
+----
+
+This structured log integrates with:
+
+* *OpenShift Logging (Loki/Elasticsearch)* — centralized log aggregation.
+* *Langfuse* — LLM observability (tool call tracing, latency, cost).
+* *OCSF audit trail* — compliance-grade event format.
+
+== Discussion 2: RBAC patterns for MCP
+
+Enterprise RBAC for MCP operates at multiple levels:
+
+[cols="1,2,1",options="header"]
+|===
+| Level | Control | Mechanism
+
+| *Server access*
+| Who can connect to this MCP server?
+| NetworkPolicy, Service mesh, authentication on the transport.
+
+| *Tool access*
+| Which tools can this user call?
+| Middleware layer between agent and server that filters tool calls by identity.
+
+| *Data access*
+| What data can this tool return?
+| Server-side filtering based on caller identity and data classification.
+|===
+
+.OpenShift AI MCPServer CRD
+[%collapsible]
+====
+Red Hat OpenShift AI 3.5 includes a Technology Preview `MCPServer` Custom Resource:
+
+[source,yaml]
+----
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  name: my-server
+spec:
+  image: image-registry.../my-mcp-server:latest
+  port: 8080
+  transport: streamable-http
+----
+
+The MCP Lifecycle Operator creates the Deployment, Service, and NetworkPolicy
+automatically. The AI Hub MCP Catalog provides a browse-and-deploy experience
+for pre-curated servers (Red Hat, Partner, and Community tiers).
+
+This is Technology Preview — for production, the plain Deployment + Service
+pattern (what you deployed in Module 5) is recommended.
+====
+
+== Discussion 3: PII redaction and human-in-the-loop
+
+Two patterns that production MCP servers need:
+
+*In-flight PII redaction:* A middleware layer between the MCP server's response
+and the agent that scans for patterns (SSN, credit card, email) and replaces
+them before they reach the model context.
+
+*Human-in-the-loop gates:* For high-risk tools (e.g., delete resource, modify
+config), the server can return a confirmation request instead of executing
+immediately. The agent presents the confirmation to the user, and only after
+approval does the tool execute.
+
+[source,python]
+----
+@mcp.tool()
+def delete_deployment(name: str, namespace: str) -> str:
+    """Delete a deployment (requires human confirmation).
+
+    Args:
+        name: Deployment name.
+        namespace: Target namespace.
+    """
+    return json.dumps({
+        "action": "confirm",
+        "message": f"Delete deployment '{name}' in '{namespace}'?",
+        "risk": "high",
+        "tool": "delete_deployment",
+        "args": {"name": name, "namespace": namespace}
+    })
+----
+
+== Discussion 4: Compliance requirements
+
+[cols="1,1,1",options="header"]
+|===
+| Industry | Retention | Key requirement
+
+| Healthcare (HIPAA)
+| 6 years
+| Every tool call that accesses patient data must be logged with user identity.
+
+| Financial (SOX/PCI)
+| 7 years
+| Audit trail must prove who authorized which tool action and when.
+
+| Government (FedRAMP)
+| 3 years
+| Tools must operate within authorized boundary; no data leaves the enclave.
+|===
+
+== Checkpoint
+
+You should now understand:
+
+* [x] Why MCP governance matters in enterprise settings
+* [x] The three levels of RBAC (server, tool, data)
+* [x] Structured audit logging patterns
+* [x] PII redaction and human-in-the-loop concepts
+* [x] Compliance requirements by industry
+
+== Workshop complete!
+
+You have finished the extended track. Proceed to xref:11-cleanup.adoc[Cleanup].

@@ -1,0 +1,165 @@
+= Module 4: Test with Your Agent
+:navtitle: Test with Your Agent
+
+Before deploying anywhere, test the MCP server locally. You will run it with
+the MCP Inspector (a developer tool), then wire it directly into OpenCode so
+the agent can call your tools through the stdio transport.
+
+== Learning objectives
+
+* Install Python dependencies with `uv`.
+* Use the MCP Inspector (`mcp dev`) to interactively test tools.
+* Configure OpenCode to connect to a local MCP server via stdio.
+* Observe the agent discovering and calling tools from your server.
+
+== Exercise 1: Install dependencies
+
+In the terminal, install the MCP SDK and its development tools:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+pip install -r requirements.txt
+----
+
+Verify the installation:
+
+[source,bash,role="execute"]
+----
+python -c "import mcp; print(f'MCP SDK version: {mcp.__version__}')"
+----
+
+Expected result: The MCP SDK version prints (2.x or higher).
+
+== Exercise 2: Quick smoke test
+
+Run the server directly to check it starts without errors:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+timeout 5 python server.py 2>&1 || true
+----
+
+Expected result: The server starts and waits for stdio input. It may print a
+startup message or simply hang waiting — both are correct for stdio mode.
+The `timeout 5` ensures it exits after 5 seconds.
+
+[CAUTION]
+====
+If you see an `ImportError` or `ModuleNotFoundError`, the dependency was not
+installed correctly. Re-run `pip install -r requirements.txt` and check for
+errors in the output.
+====
+
+== Exercise 3: Test with the MCP Inspector
+
+The MCP Inspector is a developer tool that lets you interactively call tools
+on an MCP server. If `mcp` CLI is available:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+mcp dev server.py
+----
+
+If `mcp dev` is not available, you can test manually using a Python script.
+Create a quick test:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+python -c "
+from server import mcp
+import json
+
+# List the tools the server exposes
+tools = mcp.list_tools()
+for t in tools:
+    print(f'Tool: {t.name}')
+    print(f'  Description: {t.description}')
+    print(f'  Parameters: {json.dumps(t.inputSchema, indent=2)[:200]}')
+    print()
+"
+----
+
+Expected result: You see all your tools listed with their names, descriptions,
+and JSON Schema parameters derived from the type hints.
+
+== Exercise 4: Wire OpenCode to the local server
+
+Now connect OpenCode to your MCP server so the agent can call your tools.
+The connection uses the stdio transport — OpenCode spawns the server as a child
+process and communicates through stdin/stdout.
+
+In the OpenCode chat, tell the agent:
+
+----
+I have an MCP server at scaffold/server.py. Can you help me configure it?
+The server runs with: python /projects/mcp-dev-workshop/scaffold/server.py
+Use stdio transport.
+----
+
+Alternatively, if OpenCode supports MCP configuration, you can add it manually.
+The configuration varies by OpenCode version, but the concept is:
+
+[source,json]
+----
+{
+  "mcpServers": {
+    "openshift-devops": {
+      "command": "python",
+      "args": ["/projects/mcp-dev-workshop/scaffold/server.py"],
+      "transport": "stdio"
+    }
+  }
+}
+----
+
+Expected result: OpenCode connects to your MCP server and discovers the tools.
+
+== Exercise 5: Call tools through the agent
+
+With the MCP server connected, ask the agent to use your tools:
+
+----
+Using the openshift-devops MCP server, list all pods in my current namespace.
+----
+
+Expected result: The agent calls the `list_pods` tool on your MCP server, which
+runs `oc get pods` and returns the output. The agent formats and presents the
+results.
+
+Try more tool calls:
+
+----
+What routes are available in the {ai_namespace} namespace?
+----
+
+----
+Show me the logs from one of the vLLM pods in {ai_namespace}.
+----
+
+Each request should trigger a different tool call. Watch the agent's output —
+you should see it identify which tool to call, pass the right arguments, and
+present the results.
+
+[TIP]
+====
+If the agent does not find your MCP server, check:
+
+. Is the server path correct? `ls /projects/mcp-dev-workshop/scaffold/server.py`
+. Does the server start? `python /projects/mcp-dev-workshop/scaffold/server.py`
+. Did you restart OpenCode after adding the MCP config?
+====
+
+== Checkpoint
+
+You should now have:
+
+* [x] MCP SDK installed and server starts without errors
+* [x] Tools listed with correct names, descriptions, and schemas
+* [x] OpenCode connected to the local MCP server via stdio
+* [x] Agent successfully calling tools and returning results
+
+Proceed to xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift].

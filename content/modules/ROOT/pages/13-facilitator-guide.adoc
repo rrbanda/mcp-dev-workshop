@@ -1,0 +1,244 @@
+= Facilitator Guide
+:navtitle: Facilitator Guide
+
+For facilitators provisioning workshop environments ahead of class.
+Participants can skip this page.
+
+The facilitator sets up the cluster, deploys the AI serving stack, configures
+DevSpaces with skills and bash enabled, pre-clones the workshop repo, and
+provisions participant credentials. Participants do zero platform work.
+
+== Cluster requirements
+
+[cols="1,2",options="header"]
+|===
+| Component | Requirement
+
+| OpenShift
+| 4.16+ with GPU nodes (NVIDIA A10G or better)
+
+| Red Hat OpenShift AI
+| 3.4+ with llm-d, vLLM deployed
+
+| DevSpaces operator
+| Installed and CheCluster created
+
+| GPU Operator
+| NVIDIA GPU Operator with ClusterPolicy
+
+| MaaS (optional)
+| Model as a Service gateway for API key auth
+|===
+
+== Pre-workshop setup
+
+=== Step 1: Deploy the AI serving stack
+
+Use the PCA (Private AI Coding Assistant) charts:
+
+[source,bash]
+----
+# From the pca repo:
+make ai-serving-deploy-existing-openshift
+----
+
+Or deploy llm-d + vLLM manually. The workshop needs:
+
+* At least one vLLM pod serving `{model_id}`
+* A reachable inference endpoint (MaaS gateway or direct llm-d)
+* API keys for each participant (if using MaaS)
+
+=== Step 2: Configure DevSpaces with skills and bash enabled
+
+The default PCA DevSpaces image has `"skill": false` and `"bash": false` in
+the OpenCode config. The workshop requires both to be `true`.
+
+Modify the `opencode.json` template in `charts/pca-devspaces/templates/_helpers.tpl`
+to change the agent tools:
+
+[source,json]
+----
+"tools": {
+  "write": true,
+  "edit": true,
+  "read": true,
+  "bash": true,
+  "glob": true,
+  "grep": true,
+  "webfetch": false,
+  "websearch": false,
+  "task": false,
+  "skill": true,
+  "lsp": false,
+  "todowrite": false,
+  "todoread": false,
+  "question": false
+}
+----
+
+The critical changes: `"bash": true` and `"skill": true`.
+
+Alternatively, override the config in `values-devspaces.yaml`:
+
+[source,yaml]
+----
+# Enable skills and bash for the workshop
+opencodeTools:
+  bash: true
+  skill: true
+  glob: true
+  grep: true
+----
+
+=== Step 3: Install Python tooling in the DevSpaces image
+
+The default UDI image does not include `uv` or `mcp`. Add to the
+`assets/Dockerfile.opencode` or the BuildConfig:
+
+[source,dockerfile]
+----
+# Add after OpenCode install
+RUN pip install --no-cache-dir uv mcp[cli]>=2.0
+----
+
+Or install `pip` as part of the workshop postStart (slower but no image change).
+
+=== Step 4: Pre-clone the workshop repo
+
+Configure the DevWorkspace to clone the workshop repo on start. Add to the
+DevWorkspace template:
+
+[source,yaml]
+----
+spec:
+  template:
+    projects:
+      - name: mcp-dev-workshop
+        git:
+          remotes:
+            origin: "{workshop_repo}"
+          checkoutFrom:
+            revision: "{workshop_branch}"
+----
+
+Or modify the dashboard sample to point to the workshop repo.
+
+=== Step 5: Provision participant namespaces
+
+Use the setup script:
+
+[source,bash]
+----
+./scripts/setup-workshop.sh --participants 10 --namespace-prefix dev-user
+----
+
+This creates namespaces, grants RBAC, and sets up image puller permissions.
+
+=== Step 6: Create participant credentials
+
+For each participant, prepare a credentials card with:
+
+[cols="1,2",options="header"]
+|===
+| Field | Value
+
+| Username | `dev-user1` through `dev-userN`
+| Password | HTPasswd password
+| DevSpaces URL | `https://devspaces.<cluster-domain>`
+| OpenCode Web password | From `opencode-web-password` Secret in their namespace
+| API key (if MaaS) | Their per-namespace MaaS API key
+|===
+
+Generate credentials cards:
+
+[source,bash]
+----
+for i in $(seq 1 10); do
+  NS="dev-user${i}-devspaces"
+  OC_PASS=$(oc get secret opencode-web-password -n "$NS" -o jsonpath='{.data.password}' | base64 -d 2>/dev/null || echo "TBD")
+  echo "=== dev-user${i} ==="
+  echo "  Namespace: ${NS}"
+  echo "  OpenCode password: ${OC_PASS}"
+  echo ""
+done
+----
+
+== Day of class
+
+* Verify all workspaces can start: navigate to each DevSpaces URL and confirm
+  the workspace reaches Running state.
+* Confirm model connectivity: from any workspace terminal, run
+  `curl -s $OPENAI_BASE_URL/models` — it should return the model list.
+* Share the workshop guide URL: `https://rrbanda.github.io/mcp-dev-workshop/`
+* Hand out credentials cards.
+* Walk through xref:02-prerequisites.adoc[Prerequisites] as a group to verify
+  everyone is connected before starting Module 1.
+
+== Timing guide
+
+[cols="1,1,1",options="header"]
+|===
+| Block | Duration | Modules
+
+| Welcome + prerequisites check
+| 15 min
+| Prerequisites verification as a group
+
+| Core track
+| 90 min
+| Modules 1-6
+
+| Break
+| 10 min
+|
+
+| Extended track (optional)
+| 60 min
+| Modules 7-8
+
+| Cleanup + Q&A
+| 15 min
+| Cleanup
+|===
+
+*Total: 2 hours (core) or 3 hours (extended), including breaks.*
+
+== Troubleshooting
+
+[cols="1,2",options="header"]
+|===
+| Issue | Resolution
+
+| Workspace stuck in Starting
+| Check DevSpaces operator logs. May need to increase node resources.
+
+| Model connection timeout
+| Verify vLLM pods are Running in `{ai_namespace}`. Check MaaS gateway logs.
+
+| `oc` not authenticated
+| The DevWorkspace injects a ServiceAccount token. If missing, check the
+  workspace pod's service account binding.
+
+| `skill: false` in OpenCode
+| The global config overrides the project config. Rebuild the DevSpaces image
+  with skills enabled per Step 2 above.
+
+| Build fails — image pull error
+| The cluster may need a pull secret for `registry.access.redhat.com`.
+  Create one in the participant namespace.
+
+| `pip install` fails
+| Network policies may block egress to PyPI. Pre-install in the image or
+  configure a cluster-internal PyPI mirror.
+|===
+
+== Post-workshop cleanup
+
+[source,bash]
+----
+for i in $(seq 1 10); do
+  NS="dev-user${i}-devspaces"
+  echo "Cleaning $NS..."
+  oc delete namespace "$NS" --ignore-not-found
+done
+----

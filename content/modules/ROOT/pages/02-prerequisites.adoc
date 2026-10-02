@@ -1,0 +1,136 @@
+= Prerequisites and Environment
+:navtitle: Prerequisites and Environment
+
+Everything is pre-configured. This page tells you what you need and how to
+verify it works.
+
+== What you need
+
+[cols="1,2",options="header"]
+|===
+| Item | Details
+
+| *Web browser*
+| Chrome, Firefox, or Edge. Safari works but may have minor layout differences.
+
+| *Workshop credentials card*
+| Provided by the facilitator at the start of class. Contains: username,
+  password, DevSpaces URL, and OpenCode Web password.
+
+| *No local tooling*
+| You do not need `oc`, Python, Docker, or any CLI on your laptop. Everything
+  runs inside the DevSpaces workspace.
+|===
+
+== What the facilitator has set up
+
+[cols="1,2",options="header"]
+|===
+| Component | Status
+
+| OpenShift cluster with GPUs
+| Running — you do not touch it.
+
+| Red Hat OpenShift AI (RHOAI)
+| Installed — provides the inference stack.
+
+| llm-d + vLLM
+| Deployed in `{ai_namespace}` — serves `{model_id}`.
+
+| MaaS gateway
+| Configured — authenticates your API key.
+
+| DevSpaces operator
+| Installed — provides your cloud workspace.
+
+| Your namespace
+| Created — `<username>-devspaces` with `edit` role.
+
+| Workshop repo
+| Pre-cloned in your workspace at `/projects/mcp-dev-workshop`.
+
+| Agent Skills
+| Pre-loaded — `build-mcp-server` skill is in the project.
+
+| OpenCode
+| Configured with skills and bash tools enabled.
+|===
+
+== Verify your environment
+
+=== Step 1: Log in to the OpenShift console
+
+Open the console URL from your credentials card and log in with your username
+and password.
+
+Expected result: You see the OpenShift web console with your namespace listed.
+
+=== Step 2: Open DevSpaces
+
+Navigate to the DevSpaces dashboard:
+
+----
+{devspaces_url}
+----
+
+Or use the application launcher (grid icon, top-right) → *Red Hat OpenShift Dev Spaces*.
+
+Expected result: The DevSpaces dashboard loads and shows your workspace.
+
+=== Step 3: Start your workspace
+
+If your workspace is stopped, click *Start*. Wait for it to reach the *Running*
+state — this may take 1-2 minutes on first launch.
+
+Expected result: The workspace opens with an IDE in your browser.
+
+=== Step 4: Open OpenCode Web UI
+
+Your workspace has an OpenCode Web UI endpoint. Find it in:
+
+* The DevSpaces dashboard → your workspace → *Endpoints* tab → `opencode-web`
+* Or the IDE's port forwarding panel → port 4096
+
+Open it in a new tab and enter the password from your credentials card.
+
+Expected result: OpenCode chat interface loads. You see a prompt input at the
+bottom.
+
+=== Step 5: Verify model connectivity
+
+In the OpenCode chat, type:
+
+----
+Hello, what model are you?
+----
+
+Expected result: The model responds with its name (a variant of
+`{model_id}`). If you get a connection error, check with the facilitator.
+
+=== Step 6: Verify the terminal
+
+In the IDE, open a terminal (*Terminal* → *New Terminal* or `Ctrl+``).
+
+[source,bash,role="execute"]
+----
+oc whoami
+----
+
+Expected result: Your username is printed. This confirms `oc` is authenticated.
+
+[source,bash,role="execute"]
+----
+ls /projects/mcp-dev-workshop/.opencode/skills/
+----
+
+Expected result: You see `build-mcp-server` listed. The skill is ready.
+
+[IMPORTANT]
+====
+If any step fails, do not proceed. Raise your hand or message the facilitator.
+The workshop depends on a working workspace with model connectivity.
+====
+
+== Ready?
+
+Proceed to xref:03-module-01-launch.adoc[Module 1: Launch Your Workspace].

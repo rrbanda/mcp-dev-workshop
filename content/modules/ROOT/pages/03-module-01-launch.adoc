@@ -1,0 +1,125 @@
+= Module 1: Launch Your Workspace
+:navtitle: Launch Your Workspace
+
+Get oriented in your cloud development environment before you start building.
+This module ensures you can navigate the IDE, talk to the AI agent, and use the
+terminal — the three interfaces you will use for the rest of the workshop.
+
+== Learning objectives
+
+* Navigate the OpenCode Web UI and send a chat message.
+* Open a terminal in DevSpaces and run basic `oc` commands.
+* Confirm the AI model responds to prompts through the MaaS gateway.
+* Locate the workshop files and Agent Skills in the project tree.
+
+== Exercise 1: Explore the OpenCode Web UI
+
+Open the OpenCode Web UI from your workspace endpoints (port 4096). Enter the
+password from your credentials card.
+
+Take a moment to identify:
+
+* *Chat panel* — where you type prompts and see the agent's responses.
+* *File context* — the agent can read and write files in your project.
+* *Tool indicators* — when the agent uses a tool (write, edit, bash), you see
+  the tool name in the response.
+
+Type a simple message to verify the connection:
+
+----
+What directory am I in, and what files do you see?
+----
+
+Expected result: The agent responds describing the `/projects/mcp-dev-workshop`
+directory and lists files like `scaffold/`, `Makefile`, `.opencode/skills/`, etc.
+
+[IMPORTANT]
+====
+If the agent returns a connection error or timeout, the model endpoint may not
+be reachable. Verify `OPENAI_BASE_URL` is set in the terminal:
+
+[source,bash,role="execute"]
+----
+echo $OPENAI_BASE_URL
+----
+
+This should print the MaaS gateway URL. If empty, contact the facilitator.
+====
+
+== Exercise 2: Explore the terminal
+
+Open a terminal in the IDE. Verify your identity and namespace:
+
+[source,bash,role="execute"]
+----
+oc whoami
+----
+
+[source,bash,role="execute"]
+----
+oc project
+----
+
+Expected result: Your username and your DevSpaces namespace
+(`<username>-devspaces`).
+
+Check the AI serving namespace to see what is running:
+
+[source,bash,role="execute",subs="attributes+"]
+----
+oc get pods -n {ai_namespace} | head -20
+----
+
+Expected result: You see vLLM pods, EPP pods, and other AI serving components
+running. You have read access to the AI namespace but cannot modify it.
+
+== Exercise 3: Browse the project structure
+
+In the terminal, examine the workshop repo:
+
+[source,bash,role="execute"]
+----
+find /projects/mcp-dev-workshop -maxdepth 3 -type f | head -30
+----
+
+Key directories:
+
+* `.opencode/skills/build-mcp-server/SKILL.md` — the Agent Skill that teaches
+  the agent to build MCP servers.
+* `scaffold/` — reference files: a working server, Containerfile, deployment
+  manifest.
+* `solutions/` — checkpoint solutions if you fall behind.
+* `Makefile` — workshop commands (`make validate`, `make deploy`, etc.).
+* `content/` — the Antora source for this workshop guide (you can ignore this).
+
+[source,bash,role="execute"]
+----
+cat .opencode/skills/build-mcp-server/SKILL.md | head -20
+----
+
+Expected result: You see the beginning of the skill file — it describes itself
+as "Build a production-ready MCP server using the Python SDK v2."
+
+== Exercise 4: Test the LLM with a coding question
+
+Back in the OpenCode chat, ask the agent a coding question to make sure the
+model handles code well:
+
+----
+Write a Python function that takes a list of pod names and returns the longest one. Just the function, nothing else.
+----
+
+Expected result: The agent writes a short Python function. This confirms the
+full path works: OpenCode → MaaS (API key auth) → llm-d → vLLM → response.
+
+== Checkpoint
+
+You should now have:
+
+* [x] OpenCode Web UI open and responsive
+* [x] Terminal with `oc` authenticated to your namespace
+* [x] Project files visible in the workspace
+* [x] Model responding to prompts
+
+If all four checks pass, proceed to xref:04-module-02-skills.adoc[Module 2:
+Understand Agent Skills].

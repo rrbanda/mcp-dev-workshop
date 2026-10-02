@@ -1,0 +1,64 @@
+= Cleanup
+:navtitle: Cleanup
+
+Remove the resources you created during the workshop to free cluster capacity
+for the next session.
+
+== Delete your MCP server deployment
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop
+make clean
+----
+
+Or manually:
+
+[source,bash,role="execute"]
+----
+oc delete deployment my-mcp-server --ignore-not-found
+oc delete service my-mcp-server --ignore-not-found
+oc delete bc my-mcp-server --ignore-not-found
+oc delete is my-mcp-server --ignore-not-found
+----
+
+== Verify cleanup
+
+[source,bash,role="execute"]
+----
+oc get all -l app=my-mcp-server
+----
+
+Expected result: `No resources found` — everything is deleted.
+
+== Stop your workspace
+
+In the DevSpaces dashboard, click *Stop* on your workspace. This releases the
+compute resources (CPU, memory) used by the workspace pod.
+
+[NOTE]
+====
+The facilitator may clean up namespaces after the workshop. Your workspace data
+is stored on a PVC and survives workspace restarts, but may be deleted when the
+namespace is removed.
+====
+
+== Thank you
+
+Thank you for attending the workshop. Key takeaways:
+
+* Agent Skills teach AI agents new capabilities without retraining.
+* MCP provides a standard protocol for agent-tool communication.
+* The developer loop — ask → build → test → deploy → use — can be completed
+  in under 90 minutes.
+* OpenShift DevSpaces + OpenCode provide the cloud IDE environment.
+* Enterprise governance (RBAC, audit, PII redaction) is essential for
+  production MCP deployments.
+
+== Resources
+
+* https://modelcontextprotocol.io/[MCP Specification]
+* https://github.com/modelcontextprotocol/python-sdk[MCP Python SDK]
+* https://docs.redhat.com/en/documentation/red_hat_openshift_ai[Red Hat OpenShift AI Documentation]
+* https://opencode.ai/[OpenCode]
+* https://www.redhat.com/en/products/ai/openshift-ai/mcp-servers[Red Hat MCP Catalog]

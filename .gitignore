@@ -1,0 +1,8 @@
+www/
+node_modules/
+.cache/
+*.pyc
+__pycache__/
+.env
+*.secret
+values-secret.yaml

@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-mcp-server
+  labels:
+    app: my-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-mcp-server
+  template:
+    metadata:
+      labels:
+        app: my-mcp-server
+    spec:
+      containers:
+        - name: server
+          # After running: oc new-build --binary --name=my-mcp-server
+          # and:           oc start-build my-mcp-server --from-dir=. --follow
+          # the image lands in the internal registry at this path.
+          # Replace MY_NAMESPACE with your actual namespace.
+          image: image-registry.openshift-image-registry.svc:5000/MY_NAMESPACE/my-mcp-server:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MCP_TRANSPORT
+              value: "streamable-http"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-mcp-server
+spec:
+  selector:
+    app: my-mcp-server
+  ports:
+    - port: 8080
+      targetPort: 8080

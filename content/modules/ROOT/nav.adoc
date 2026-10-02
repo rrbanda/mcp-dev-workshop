@@ -1,0 +1,22 @@
+* xref:index.adoc[Introduction]
+* xref:01-architecture.adoc[Architecture and Inference Flow]
+* xref:02-prerequisites.adoc[Prerequisites and Environment]
+
+.Core Track (~90 Minutes)
+* xref:03-module-01-launch.adoc[Module 1: Launch Your Workspace]
+* xref:04-module-02-skills.adoc[Module 2: Understand Agent Skills]
+* xref:05-module-03-build.adoc[Module 3: Build an MCP Server]
+* xref:06-module-04-test.adoc[Module 4: Test with Your Agent]
+* xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift]
+* xref:08-module-06-use.adoc[Module 6: Close the Feedback Loop]
+
+.Extended Track (+60 Minutes)
+* xref:09-module-07-compose.adoc[Module 7: Multi-Server Composition]
+* xref:10-module-08-governance.adoc[Module 8: Enterprise Governance]
+
+.Wrap-up
+* xref:11-cleanup.adoc[Cleanup]
+* xref:12-reference.adoc[Technical Reference]
+
+.Facilitators
+* xref:13-facilitator-guide.adoc[Facilitator Guide]

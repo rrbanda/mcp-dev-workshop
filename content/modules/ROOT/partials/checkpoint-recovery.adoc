@@ -1,0 +1,19 @@
+// Checkpoint recovery partial — include in any module.
+// Usage: include::partial$checkpoint-recovery.adoc[]
+
+[TIP]
+====
+*Falling behind?* Each module has a solution checkpoint in the `solutions/`
+directory. Copy the relevant files to catch up:
+
+[source,bash,role="execute"]
+----
+ls solutions/
+----
+
+For example, to recover Lab 3 artifacts:
+[source,bash,role="execute"]
+----
+cp solutions/lab-03/server.py scaffold/server.py
+----
+====

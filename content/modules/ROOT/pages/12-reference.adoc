@@ -1,0 +1,209 @@
+= Technical Reference
+:navtitle: Technical Reference
+
+Quick reference for the technologies used in this workshop.
+
+== MCP Python SDK v2
+
+=== Server creation
+
+[source,python]
+----
+from mcp.server import MCPServer
+
+mcp = MCPServer("server-name")
+----
+
+=== Tool definition
+
+[source,python]
+----
+@mcp.tool()
+def my_tool(param1: str, param2: int = 10) -> str:
+    """Tool description shown to the agent.
+
+    Args:
+        param1: Description of param1.
+        param2: Description of param2 (default: 10).
+    """
+    return "result"
+----
+
+=== Resource definition
+
+[source,python]
+----
+@mcp.resource("config://my-resource")
+def my_resource() -> str:
+    """Read-only context for the agent."""
+    return "resource content"
+----
+
+=== Transport modes
+
+[cols="1,2,2",options="header"]
+|===
+| Transport | Code | Use case
+
+| stdio
+| `mcp.run()`
+| Local development, agent-direct connection
+
+| streamable-http
+| `mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)`
+| Container deployment on OpenShift
+
+| ASGI (uvicorn)
+| `app = mcp.streamable_http_app()`
+| Production with process manager
+|===
+
+=== Type hint → JSON Schema mapping
+
+[cols="1,1",options="header"]
+|===
+| Python type | JSON Schema
+
+| `str` | `{"type": "string"}`
+| `int` | `{"type": "integer"}`
+| `float` | `{"type": "number"}`
+| `bool` | `{"type": "boolean"}`
+| `list[str]` | `{"type": "array", "items": {"type": "string"}}`
+| `Optional[str]` | `{"type": "string"}` (not required)
+| default value | sets `"required": false`
+|===
+
+== OpenShift commands used
+
+[cols="1,2",options="header"]
+|===
+| Command | Purpose
+
+| `oc whoami` | Verify current identity
+| `oc project` | Show current namespace
+| `oc get pods -n <ns>` | List pods
+| `oc logs <pod>` | View pod logs
+| `oc get route <name>` | Get route URL
+| `oc describe <kind> <name>` | Detailed resource info
+| `oc new-build --binary` | Create build config for container image
+| `oc start-build <name> --from-dir=.` | Build image from local directory
+| `oc apply -f <file>` | Create/update resources from manifest
+| `oc rollout status` | Wait for deployment rollout
+| `oc port-forward` | Forward a local port to a service
+|===
+
+== Agent Skills directory structure
+
+[source]
+----
+project-root/
+├── .opencode/skills/<name>/SKILL.md    # OpenCode
+├── .claude/skills/<name>/SKILL.md      # Claude Code
+├── .cursor/skills/<name>/SKILL.md      # Cursor
+└── .agents/skills/<name>/SKILL.md      # Generic agents
+----
+
+== Deployment manifest reference
+
+=== Deployment + Service (recommended for production)
+
+[source,yaml]
+----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-mcp-server
+  labels:
+    app: my-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-mcp-server
+  template:
+    metadata:
+      labels:
+        app: my-mcp-server
+    spec:
+      containers:
+        - name: server
+          image: image-registry.openshift-image-registry.svc:5000/<namespace>/my-mcp-server:latest
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MCP_TRANSPORT
+              value: "streamable-http"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-mcp-server
+spec:
+  selector:
+    app: my-mcp-server
+  ports:
+    - port: 8080
+      targetPort: 8080
+----
+
+=== MCPServer CRD (Technology Preview, RHOAI 3.5)
+
+[source,yaml]
+----
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  name: my-mcp-server
+spec:
+  image: image-registry.../my-mcp-server:latest
+  port: 8080
+  transport: streamable-http
+----
+
+NOTE: Technology Preview. Known issue: `$CONFIG_PATH` literal reference can
+cause pod crashes. Use Deployment + Service for production.
+
+== Containerfile reference
+
+[source,dockerfile]
+----
+FROM registry.access.redhat.com/ubi9/python-312:latest
+
+WORKDIR /opt/app-root/src
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY server.py .
+
+ENV MCP_TRANSPORT=streamable-http
+EXPOSE 8080
+CMD ["python", "server.py"]
+----
+
+== Red Hat MCP Catalog
+
+[cols="1,1,2",options="header"]
+|===
+| Tier | Server | Use case
+
+| Red Hat | OpenShift | Cluster state — pods, events, deployments, routes
+| Red Hat | Ansible Automation Platform | Trigger playbooks, check job status
+| Red Hat | Lightspeed | Platform intelligence and recommendations
+| Partner | Microsoft Azure | Azure resource management
+| Partner | Dynatrace | Real-time performance insights
+| Community | MariaDB | DB schema + query
+| Community | MongoDB | Document collection queries
+|===
+
+Source: https://www.redhat.com/en/products/ai/openshift-ai/mcp-servers[Red Hat MCP Catalog]
