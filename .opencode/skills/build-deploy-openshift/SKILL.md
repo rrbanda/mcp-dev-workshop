@@ -181,9 +181,26 @@ echo ""
 echo "External access:  http://$ROUTE/mcp"
 ```
 
+### Step 12: Inform the user to start a new session
+
+> **IMPORTANT**: After registering the MCP server, the tools are only visible
+> in a **new** OpenCode session. Tell the user:
+
+```bash
+echo ""
+echo "⚠️  To use the MCP tools, start a NEW OpenCode session."
+echo "   Press Ctrl+N or click '+ New Session' in the sidebar."
+echo "   Then ask: 'Use the stock market tools to get the AAPL stock price'"
+echo ""
+```
+
 ## Testing the MCP server from OpenCode
 
-After registration (Step 10), start a **new OpenCode session** and ask:
+After registration (Step 10), the user must start a **new OpenCode session**.
+The MCP tools will NOT appear in the current session. This is an OpenCode
+limitation — MCP server connections are loaded at session start.
+
+In the new session, ask:
 
 > "Use the stock market MCP tools to get the current price of AAPL"
 

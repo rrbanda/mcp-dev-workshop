@@ -1,7 +1,8 @@
-.PHONY: help test-local validate build-image deploy verify clean antora
+.PHONY: help test-local validate build-image deploy expose connect-mcp test-mcp verify verify-mcp clean antora
 
 NAMESPACE ?= $(shell oc project -q 2>/dev/null || echo "my-namespace")
 SERVER_NAME ?= stock-market-mcp
+MCP_SVC_URL = http://$(SERVER_NAME).$(NAMESPACE).svc:8080/mcp
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -9,7 +10,7 @@ help: ## Show this help
 test-local: ## Run the MCP server locally with mcp dev (Inspector)
 	cd scaffold && uv run mcp dev server.py
 
-validate: ## Validate the MCP server starts and exposes tools
+validate: ## Validate scaffold files exist and are well-formed
 	@echo "==> Checking server.py exists..."
 	@test -f scaffold/server.py && echo "PASS: server.py found" || (echo "FAIL: scaffold/server.py not found"; exit 1)
 	@echo "==> Checking requirements.txt..."
@@ -20,29 +21,81 @@ validate: ## Validate the MCP server starts and exposes tools
 	@test -f scaffold/deployment.yaml && echo "PASS: deployment.yaml found" || (echo "FAIL: scaffold/deployment.yaml not found"; exit 1)
 	@echo "==> All checks passed."
 
-build-image: ## Build container image via oc new-build
-	cd scaffold && oc new-build --binary --name=$(SERVER_NAME) -n $(NAMESPACE) --to=$(SERVER_NAME):latest 2>/dev/null || true
+build-image: ## Build container image via oc new-build (handles Dockerfile)
+	@cd scaffold && if [ -f Containerfile ] && [ ! -f Dockerfile ]; then \
+		cp Containerfile Dockerfile; \
+		echo "Copied Containerfile → Dockerfile (required by oc build)"; \
+	fi
+	cd scaffold && oc new-build --binary --name=$(SERVER_NAME) --strategy=docker -n $(NAMESPACE) 2>/dev/null || true
 	cd scaffold && oc start-build $(SERVER_NAME) --from-dir=. --follow -n $(NAMESPACE)
 
-deploy: ## Deploy MCP server to OpenShift
-	oc apply -f scaffold/deployment.yaml -n $(NAMESPACE)
+deploy: ## Deploy MCP server to OpenShift (build + service + route)
+	@cd scaffold && if [ -f deployment.yaml ]; then \
+		sed 's|MY_NAMESPACE|$(NAMESPACE)|g' deployment.yaml | oc apply -n $(NAMESPACE) -f -; \
+	else \
+		oc new-app $(SERVER_NAME) -n $(NAMESPACE); \
+	fi
 	oc rollout status deployment/$(SERVER_NAME) -n $(NAMESPACE) --timeout=120s
 
-verify: ## Verify the deployed MCP server is running and reachable
+expose: ## Create external route for the MCP server
+	@oc get route $(SERVER_NAME) -n $(NAMESPACE) >/dev/null 2>&1 && \
+		echo "Route already exists" || \
+		oc expose svc/$(SERVER_NAME) --port=8080 -n $(NAMESPACE)
+	@echo "Route: http://$$(oc get route $(SERVER_NAME) -n $(NAMESPACE) -o jsonpath='{.spec.host}')/mcp"
+
+connect-mcp: ## Register deployed MCP server in OpenCode
+	@opencode mcp add $(SERVER_NAME) --url "$(MCP_SVC_URL)" 2>/dev/null || \
+		echo "MCP server already registered or opencode not available"
+	@opencode mcp list 2>/dev/null || true
+	@echo ""
+	@echo "Start a NEW OpenCode session to use the MCP tools."
+
+test-mcp: ## Test the deployed MCP endpoint (initialize + tools/list)
+	@ROUTE=$$(oc get route $(SERVER_NAME) -n $(NAMESPACE) -o jsonpath='{.spec.host}' 2>/dev/null); \
+	if [ -z "$$ROUTE" ]; then \
+		echo "No route found — testing via internal service..."; \
+		SVC_IP=$$(oc get svc $(SERVER_NAME) -n $(NAMESPACE) -o jsonpath='{.spec.clusterIP}' 2>/dev/null); \
+		ROUTE="$$SVC_IP:8080"; \
+	fi; \
+	echo "==> MCP initialize..."; \
+	INIT=$$(curl -s -X POST "http://$$ROUTE/mcp" \
+		-H "Content-Type: application/json" \
+		-d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'); \
+	echo "$$INIT" | head -c 200; echo; \
+	echo "$$INIT" | grep -q '"result"' && echo "PASS: MCP initialize" || echo "FAIL: MCP initialize"; \
+	echo "==> MCP tools/list..."; \
+	SESSION=$$(echo "$$INIT" | grep -o '"sessionId":"[^"]*"' | head -1 | cut -d'"' -f4); \
+	TOOLS=$$(curl -s -X POST "http://$$ROUTE/mcp" \
+		-H "Content-Type: application/json" \
+		-H "Mcp-Session-Id: $$SESSION" \
+		-d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'); \
+	TOOL_COUNT=$$(echo "$$TOOLS" | grep -o '"name"' | wc -l); \
+	echo "Tools found: $$TOOL_COUNT"; \
+	[ "$$TOOL_COUNT" -ge 9 ] && echo "PASS: all 9 tools registered" || echo "FAIL: expected 9 tools, got $$TOOL_COUNT"
+
+verify: ## Verify deployment is ready and service is reachable
 	@echo "==> Checking deployment..."
 	@oc get deployment $(SERVER_NAME) -n $(NAMESPACE) -o jsonpath='{.status.readyReplicas}' | grep -q "1" && \
 		echo "PASS: deployment ready" || (echo "FAIL: deployment not ready"; exit 1)
 	@echo "==> Checking service..."
 	@oc get service $(SERVER_NAME) -n $(NAMESPACE) -o jsonpath='{.spec.ports[0].port}' | grep -q "8080" && \
 		echo "PASS: service port 8080" || (echo "FAIL: service not found or wrong port"; exit 1)
+	@echo "==> Checking route..."
+	@oc get route $(SERVER_NAME) -n $(NAMESPACE) -o jsonpath='{.spec.host}' 2>/dev/null && echo " — PASS: route exists" || echo "WARN: no route (run: make expose)"
 	@echo "==> Checking pod logs for startup..."
 	@oc logs deployment/$(SERVER_NAME) -n $(NAMESPACE) --tail=5 2>/dev/null | head -3
 	@echo "==> Deployment verified."
 
-clean: ## Delete the MCP server deployment and build
-	oc delete -f scaffold/deployment.yaml -n $(NAMESPACE) --ignore-not-found
+verify-mcp: verify test-mcp ## Full verification: deployment + MCP protocol test
+
+clean: ## Delete ALL MCP server resources (deployment, build, route, MCP registration)
+	oc delete route $(SERVER_NAME) -n $(NAMESPACE) --ignore-not-found
+	oc delete -f scaffold/deployment.yaml -n $(NAMESPACE) --ignore-not-found 2>/dev/null || true
+	oc delete deployment $(SERVER_NAME) -n $(NAMESPACE) --ignore-not-found 2>/dev/null || true
+	oc delete svc $(SERVER_NAME) -n $(NAMESPACE) --ignore-not-found 2>/dev/null || true
 	oc delete bc $(SERVER_NAME) -n $(NAMESPACE) --ignore-not-found
 	oc delete is $(SERVER_NAME) -n $(NAMESPACE) --ignore-not-found
+	@echo "All $(SERVER_NAME) resources cleaned up."
 
 antora: ## Build the workshop site locally
 	npx antora site.yml
