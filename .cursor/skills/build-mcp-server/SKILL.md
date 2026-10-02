@@ -1,3 +1,8 @@
+---
+name: build-mcp-server
+description: Build a production-ready MCP server using Python SDK v2. Use when asked to create, build, scaffold, or generate an MCP server, MCP tools, or anything related to extending an AI agent with external capabilities.
+---
+
 # Build MCP Server
 
 Build a production-ready MCP (Model Context Protocol) server using the Python SDK v2.

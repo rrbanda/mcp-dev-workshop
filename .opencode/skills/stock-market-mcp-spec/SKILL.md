@@ -1,3 +1,8 @@
+---
+name: stock-market-mcp-spec
+description: Exact specification for a stock market MCP server with 9 tools, 3 enums, 4 helpers. Use when asked to build a stock market MCP server, financial data server, or anything involving stock prices, financial statements, options chains, or analyst recommendations via MCP.
+---
+
 # Stock Market MCP Server Specification
 
 Exact specification for a stock market data MCP server. Follow this spec precisely to produce a server with 9 tools, 3 enum types, 4 helper functions, and dual-transport support.

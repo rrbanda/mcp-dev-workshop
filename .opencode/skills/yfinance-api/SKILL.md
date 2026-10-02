@@ -1,3 +1,8 @@
+---
+name: yfinance-api
+description: Complete yfinance Python library API reference — Ticker methods, return types, DataFrame serialization. Use when building anything that needs stock market data including prices, financials, news, options, holders, or analyst recommendations.
+---
+
 # yfinance API Reference
 
 Complete reference for the `yfinance` Python library — free financial data from Yahoo Finance, no API key required.
