@@ -27,8 +27,7 @@ spec:
             - name: MCP_TRANSPORT
               value: "streamable-http"
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10

@@ -50,10 +50,11 @@ from importlib.util import spec_from_file_location, module_from_spec
 spec = spec_from_file_location('project_helper', 'project-helper.py')
 mod = module_from_spec(spec)
 spec.loader.exec_module(mod)
-tools = mod.mcp.list_tools()
-for t in tools:
-    print(f'Tool: {t.name} — {t.description[:60]}')
-" 2>/dev/null || echo "Use 'mcp dev project-helper.py' if available"
+print('Server name:', mod.mcp.name)
+print('Registered tools:')
+for name, tool in mod.mcp._tool_manager._tools.items():
+    print(f'  {name}: {tool.description[:60]}')
+" 2>/dev/null || echo "Tools will be discovered when you wire the server to OpenCode"
 ----
 
 == Exercise 3: Connect both servers to OpenCode

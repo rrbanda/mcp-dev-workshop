@@ -129,17 +129,23 @@ kind: MCPServer
 metadata:
   name: my-server
 spec:
-  image: image-registry.../my-mcp-server:latest
-  port: 8080
-  transport: streamable-http
+  source:
+    type: ContainerImage
+    containerImage:
+      ref: image-registry.openshift-image-registry.svc:5000/my-ns/my-mcp-server:latest
+  config:
+    port: 8080
 ----
 
 The MCP Lifecycle Operator creates the Deployment, Service, and NetworkPolicy
-automatically. The AI Hub MCP Catalog provides a browse-and-deploy experience
-for pre-curated servers (Red Hat, Partner, and Community tiers).
+automatically. Enable it by patching the DataScienceCluster:
+`spec.components.mcplifecycleoperator.managementState: Managed`. The AI Hub
+MCP Catalog provides a browse-and-deploy experience for pre-curated servers
+(Red Hat, Partner, and Community tiers).
 
-This is Technology Preview — for production, the plain Deployment + Service
-pattern (what you deployed in Module 5) is recommended.
+This is Technology Preview (`v1alpha1`) — no backward compatibility commitment.
+For production, the plain Deployment + Service pattern (what you deployed in
+Module 5) is recommended.
 ====
 
 == Discussion 3: PII redaction and human-in-the-loop

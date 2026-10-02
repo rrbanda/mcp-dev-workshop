@@ -78,9 +78,11 @@ if __name__ == "__main__":
 **With uvicorn (production ASGI)**:
 
 ```python
-app = mcp.streamable_http_app()
+app = mcp.streamable_http_app(stateless_http=True, json_response=True)
 # Then run: uvicorn server:app --host 0.0.0.0 --port 8080
 ```
+
+> For production HTTP deployments, pass `stateless_http=True` and `json_response=True` to avoid session tracking overhead.
 
 ## Best Practices
 
@@ -147,8 +149,7 @@ spec:
             - name: MCP_TRANSPORT
               value: "streamable-http"
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
@@ -177,8 +178,10 @@ spec:
 | Transport | Use Case | How to Start |
 |-----------|----------|-------------|
 | stdio | Local dev, agent-direct | `mcp.run()` or `mcp dev server.py` |
-| streamable-http | Container deployment | `mcp.run(transport="streamable-http", port=8080)` |
+| streamable-http | Container deployment | `mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)` |
 | SSE | Legacy (deprecated 2025-03-26) | Do not use for new servers |
+
+> **Important**: The default host for streamable-http is `127.0.0.1` (localhost only). For container deployments, you MUST set `host="0.0.0.0"` so the server accepts connections from outside the container. The default port is `8000`; the default endpoint path is `/mcp`.
 
 ## Example: Complete DevOps MCP Server
 

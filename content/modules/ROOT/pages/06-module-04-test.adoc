@@ -7,7 +7,7 @@ the agent can call your tools through the stdio transport.
 
 == Learning objectives
 
-* Install Python dependencies with `uv`.
+* Install Python dependencies with `pip`.
 * Use the MCP Inspector (`mcp dev`) to interactively test tools.
 * Configure OpenCode to connect to a local MCP server via stdio.
 * Observe the agent discovering and calling tools from your server.
@@ -26,10 +26,10 @@ Verify the installation:
 
 [source,bash,role="execute"]
 ----
-python -c "import mcp; print(f'MCP SDK version: {mcp.__version__}')"
+python -c "import mcp; print('MCP SDK installed successfully')"
 ----
 
-Expected result: The MCP SDK version prints (2.x or higher).
+Expected result: The confirmation message prints without errors.
 
 == Exercise 2: Quick smoke test
 
@@ -55,7 +55,7 @@ errors in the output.
 == Exercise 3: Test with the MCP Inspector
 
 The MCP Inspector is a developer tool that lets you interactively call tools
-on an MCP server. If `mcp` CLI is available:
+on an MCP server. It requires Node.js (`npx`) on your PATH.
 
 [source,bash,role="execute"]
 ----
@@ -63,24 +63,28 @@ cd /projects/mcp-dev-workshop/scaffold
 mcp dev server.py
 ----
 
-If `mcp dev` is not available, you can test manually using a Python script.
-Create a quick test:
+[NOTE]
+====
+`mcp dev` launches a Node.js-based Inspector UI. If `npx` is not installed in
+your workspace, skip to the fallback test below — you will test your tools
+through OpenCode in Exercise 5 instead.
+====
+
+If `mcp dev` is not available (it requires Node.js/npx), you can verify the
+server starts and inspect its tool registrations:
 
 [source,bash,role="execute"]
 ----
 cd /projects/mcp-dev-workshop/scaffold
 python -c "
 from server import mcp
-import json
 
-# List the tools the server exposes
-tools = mcp.list_tools()
-for t in tools:
-    print(f'Tool: {t.name}')
-    print(f'  Description: {t.description}')
-    print(f'  Parameters: {json.dumps(t.inputSchema, indent=2)[:200]}')
-    print()
-"
+# Inspect registered tools via the internal tool manager
+print('Server name:', mcp.name)
+print('Registered tools:')
+for name, tool in mcp._tool_manager._tools.items():
+    print(f'  {name}: {tool.description[:80]}')
+" 2>/dev/null || echo "Fallback: tools will be discovered when you wire the server to OpenCode"
 ----
 
 Expected result: You see all your tools listed with their names, descriptions,

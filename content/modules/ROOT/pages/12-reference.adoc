@@ -134,8 +134,7 @@ spec:
             - name: MCP_TRANSPORT
               value: "streamable-http"
           readinessProbe:
-            httpGet:
-              path: /health
+            tcpSocket:
               port: 8080
             initialDelaySeconds: 5
           resources:
@@ -167,13 +166,19 @@ kind: MCPServer
 metadata:
   name: my-mcp-server
 spec:
-  image: image-registry.../my-mcp-server:latest
-  port: 8080
-  transport: streamable-http
+  source:
+    type: ContainerImage
+    containerImage:
+      ref: image-registry.openshift-image-registry.svc:5000/<namespace>/my-mcp-server:latest
+  config:
+    port: 8080
 ----
 
-NOTE: Technology Preview. Known issue: `$CONFIG_PATH` literal reference can
-cause pod crashes. Use Deployment + Service for production.
+NOTE: Technology Preview (`v1alpha1`). No backward compatibility commitment.
+Enable via DataScienceCluster patch:
+`spec.components.mcplifecycleoperator.managementState: Managed`.
+The operator creates the Deployment, Service, and NetworkPolicy automatically.
+Use Deployment + Service for production.
 
 == Containerfile reference
 

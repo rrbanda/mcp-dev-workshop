@@ -48,10 +48,12 @@ produce structured Python code.
 
 [IMPORTANT]
 ====
-If the agent produces code that uses `FastMCP` instead of `MCPServer`, or uses
-an older SDK pattern, that is fine — both work. The skill teaches `MCPServer`
-but the agent may blend its own knowledge. What matters is that the server
-defines tools, has type hints, and calls `mcp.run()`.
+If the agent produces code that uses `FastMCP` instead of `MCPServer`, ask it
+to update the import. `FastMCP` was the v1 name — it is *removed* in SDK v2
+(`from mcp.server.fastmcp import FastMCP` raises `ModuleNotFoundError`). The
+correct v2 import is `from mcp.server import MCPServer`. What matters is that
+the server defines tools with `@mcp.tool()`, has type hints, and calls
+`mcp.run()`.
 ====
 
 == Exercise 2: Review the generated code

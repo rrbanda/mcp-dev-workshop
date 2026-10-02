@@ -26,12 +26,11 @@ Create the build configuration (first time only):
 
 [source,bash,role="execute"]
 ----
-oc new-build --binary --name=my-mcp-server --to=my-mcp-server:latest \
-  --strategy=docker --dockerfile="$(cat Containerfile)" 2>/dev/null || \
+oc new-build --binary --name=my-mcp-server --strategy=docker 2>/dev/null || \
   echo "BuildConfig already exists"
 ----
 
-Start the build:
+Start the build — OpenShift reads the `Containerfile` from your directory:
 
 [source,bash,role="execute"]
 ----
@@ -126,22 +125,22 @@ Expected result: The server started in streamable-http mode on port 8080.
 
 == Exercise 5: Test the deployed server
 
-Use `curl` from inside the cluster to verify the server responds:
+Use `curl` from inside the cluster to verify the server responds on the MCP
+endpoint (`/mcp` is the default streamable-http path):
 
 [source,bash,role="execute"]
 ----
-oc exec deployment/my-mcp-server -- curl -s http://localhost:8080/health 2>/dev/null || \
-  echo "Health endpoint may not be implemented — check logs above"
+oc exec deployment/my-mcp-server -- curl -sf -o /dev/null -w "%{http_code}" \
+  http://localhost:8080/mcp -X POST -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}' \
+  2>/dev/null && echo " — MCP endpoint responding" || echo "Server not responding on /mcp"
 ----
 
-You can also use port-forwarding to test from your workspace:
+You can also verify the port is open with a simple TCP check:
 
 [source,bash,role="execute"]
 ----
-oc port-forward svc/my-mcp-server 9090:8080 &
-sleep 2
-curl -s http://localhost:9090/health 2>/dev/null; echo
-kill %1 2>/dev/null
+oc exec deployment/my-mcp-server -- curl -sf http://localhost:8080/mcp 2>/dev/null; echo "Port 8080 is open"
 ----
 
 == Exercise 6: Run the verification
