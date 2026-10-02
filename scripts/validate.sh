@@ -69,18 +69,21 @@ validate_lab6() {
         fi
 
         info "Testing MCP endpoint at $ENDPOINT..."
-        INIT=$(curl -s -m 10 -X POST "$ENDPOINT" \
+        HDRFILE=$(mktemp)
+        INIT=$(curl -sD "$HDRFILE" -m 10 -X POST "$ENDPOINT" \
             -H "Content-Type: application/json" \
             -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"validate","version":"1.0"}}}' 2>/dev/null || echo "")
 
         if echo "$INIT" | grep -q '"result"'; then
             pass "MCP initialize succeeded"
         else
+            rm -f "$HDRFILE"
             fail "MCP initialize failed — server may not be running"
         fi
 
-        # Test tools/list
-        SESSION=$(echo "$INIT" | grep -o '"sessionId":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "")
+        # Test tools/list (session ID is in HTTP response header)
+        SESSION=$(grep -i 'mcp-session-id' "$HDRFILE" | tr -d '\r' | awk '{print $2}')
+        rm -f "$HDRFILE"
         if [ -n "$SESSION" ]; then
             TOOLS=$(curl -s -m 10 -X POST "$ENDPOINT" \
                 -H "Content-Type: application/json" \

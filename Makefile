@@ -58,13 +58,15 @@ test-mcp: ## Test the deployed MCP endpoint (initialize + tools/list)
 		ROUTE="$$SVC_IP:8080"; \
 	fi; \
 	echo "==> MCP initialize..."; \
-	INIT=$$(curl -s -X POST "http://$$ROUTE/mcp" \
+	HDRFILE=$$(mktemp); \
+	INIT=$$(curl -sD "$$HDRFILE" -X POST "http://$$ROUTE/mcp" \
 		-H "Content-Type: application/json" \
 		-d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'); \
 	echo "$$INIT" | head -c 200; echo; \
 	echo "$$INIT" | grep -q '"result"' && echo "PASS: MCP initialize" || echo "FAIL: MCP initialize"; \
 	echo "==> MCP tools/list..."; \
-	SESSION=$$(echo "$$INIT" | grep -o '"sessionId":"[^"]*"' | head -1 | cut -d'"' -f4); \
+	SESSION=$$(grep -i 'mcp-session-id' "$$HDRFILE" | tr -d '\r' | awk '{print $$2}'); \
+	rm -f "$$HDRFILE"; \
 	TOOLS=$$(curl -s -X POST "http://$$ROUTE/mcp" \
 		-H "Content-Type: application/json" \
 		-H "Mcp-Session-Id: $$SESSION" \
