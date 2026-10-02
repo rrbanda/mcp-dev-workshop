@@ -7,6 +7,10 @@ Build a production-ready MCP (Model Context Protocol) server using the Python SD
 Use this skill when asked to create, build, scaffold, or generate an MCP server,
 MCP tools, or anything related to extending an AI agent with external capabilities.
 
+**Related skills** (load these when building a stock market MCP server):
+- `yfinance-api` — Complete yfinance library API reference (Ticker methods, return types, DataFrame serialization)
+- `stock-market-mcp-spec` — Exact specification for a stock market MCP server (9 tools, 3 Enums, 4 helpers)
+
 ## MCP Python SDK v2 API
 
 The SDK is `mcp` (pip package). Import the server class and use decorators:
@@ -14,36 +18,59 @@ The SDK is `mcp` (pip package). Import the server class and use decorators:
 ```python
 from mcp.server import MCPServer
 
-mcp = MCPServer("server-name")
+server = MCPServer("server-name")
 ```
 
 ### Defining Tools
 
-Use the `@mcp.tool()` decorator. Type hints become JSON Schema. Docstrings become descriptions.
+Use the `@server.tool()` decorator with explicit name and description. Type hints become JSON Schema. Async functions recommended.
 
 ```python
-@mcp.tool()
-def list_pods(namespace: str, label: str = "") -> str:
-    """List pods in the given namespace, optionally filtered by label.
+@server.tool(
+    name="get_data",
+    description="Get data for a given identifier.",
+)
+async def get_data(identifier: str, limit: int = 10) -> str:
+    """Get data for a given identifier.
 
     Args:
-        namespace: Kubernetes namespace to query.
-        label: Optional label selector (e.g. 'app=nginx').
+        identifier: The ID to look up.
+        limit: Maximum results to return (default 10).
     """
-    import subprocess
-    cmd = ["oc", "get", "pods", "-n", namespace, "-o", "wide"]
-    if label:
-        cmd.extend(["-l", label])
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-    if result.returncode != 0:
-        return f"Error: {result.stderr.strip()}"
-    return result.stdout.strip() or "No pods found."
+    try:
+        # implementation
+        return json.dumps(result)
+    except Exception as e:
+        return f"Error: {e}"
+```
+
+### Using Enum Types for Validated Parameters
+
+When a tool parameter has a fixed set of valid values, use `str, Enum` subclasses.
+The Enum values appear in the JSON Schema as `{"enum": [...]}` so agents know
+exactly what values are valid.
+
+```python
+from enum import Enum
+
+class DataType(str, Enum):
+    summary = "summary"
+    detailed = "detailed"
+    raw = "raw"
+
+@server.tool(
+    name="fetch_report",
+    description="Fetch a report. type must be: summary, detailed, or raw.",
+)
+async def fetch_report(name: str, type: str) -> str:
+    if type == DataType.summary:
+        # ...
 ```
 
 ### Defining Resources (read-only context)
 
 ```python
-@mcp.resource("config://cluster-info")
+@server.resource("config://cluster-info")
 def cluster_info() -> str:
     """Current cluster and user context."""
     import subprocess
@@ -60,25 +87,28 @@ def cluster_info() -> str:
 
 ```python
 if __name__ == "__main__":
-    mcp.run()  # defaults to stdio
+    server.run()  # defaults to stdio
 ```
 
-**Production deployment (streamable HTTP)** — used when deployed as a container:
+**Dual-transport (recommended)** — stdio for dev, HTTP for deployment:
 
 ```python
-if __name__ == "__main__":
+def main() -> None:
     import os
     transport = os.environ.get("MCP_TRANSPORT", "stdio")
     if transport == "streamable-http":
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)
+        server.run(transport="streamable-http", host="0.0.0.0", port=8080)
     else:
-        mcp.run()
+        server.run(transport="stdio")
+
+if __name__ == "__main__":
+    main()
 ```
 
 **With uvicorn (production ASGI)**:
 
 ```python
-app = mcp.streamable_http_app(stateless_http=True, json_response=True)
+app = server.streamable_http_app(stateless_http=True, json_response=True)
 # Then run: uvicorn server:app --host 0.0.0.0 --port 8080
 ```
 
@@ -86,12 +116,13 @@ app = mcp.streamable_http_app(stateless_http=True, json_response=True)
 
 ## Best Practices
 
-1. **Error handling**: Always wrap subprocess/network calls in try/except. Return error strings, never raise exceptions from tools.
+1. **Error handling**: Always wrap logic in try/except. Return error strings, never raise exceptions from tools.
 2. **Timeouts**: Set `timeout=` on every subprocess.run() and network call.
-3. **Type hints**: Use `str`, `int`, `bool`, `list[str]`, `Optional[str]` — they map to JSON Schema for the caller.
+3. **Type hints**: Use `str`, `int`, `float`, `bool`, `list[str]`, `float | None` — they map to JSON Schema for the caller.
 4. **Docstrings**: First line is the tool description. `Args:` section describes each parameter.
 5. **Security**: Never embed credentials in code. Use environment variables or mounted secrets.
 6. **Stateless**: Each tool call should be independent. Do not store state between calls.
+7. **Async**: Prefer `async def` for tools, especially when doing I/O operations.
 
 ## File Structure
 
@@ -102,9 +133,9 @@ The main server file with tools defined as shown above.
 
 ### requirements.txt
 ```
-mcp>=2.0
+mcp[cli]>=2.1.0,<3
 ```
-Add any additional dependencies the tools need (e.g., `kubernetes`, `requests`).
+Add any additional dependencies the tools need (e.g., `yfinance>=1.6.0,<2`).
 
 ### Containerfile
 ```dockerfile
@@ -151,15 +182,15 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 8080
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
               memory: "256Mi"
-              cpu: "500m"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
 ---
 apiVersion: v1
 kind: Service
@@ -177,116 +208,8 @@ spec:
 
 | Transport | Use Case | How to Start |
 |-----------|----------|-------------|
-| stdio | Local dev, agent-direct | `mcp.run()` or `mcp dev server.py` |
-| streamable-http | Container deployment | `mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)` |
+| stdio | Local dev, agent-direct | `server.run()` or `mcp dev server.py` |
+| streamable-http | Container deployment | `server.run(transport="streamable-http", host="0.0.0.0", port=8080)` |
 | SSE | Legacy (deprecated 2025-03-26) | Do not use for new servers |
 
 > **Important**: The default host for streamable-http is `127.0.0.1` (localhost only). For container deployments, you MUST set `host="0.0.0.0"` so the server accepts connections from outside the container. The default port is `8000`; the default endpoint path is `/mcp`.
-
-## Example: Complete DevOps MCP Server
-
-```python
-from mcp.server import MCPServer
-import subprocess
-
-mcp = MCPServer("openshift-devops")
-
-@mcp.tool()
-def list_pods(namespace: str, label: str = "") -> str:
-    """List pods in a namespace with optional label filter.
-
-    Args:
-        namespace: The OpenShift namespace to query.
-        label: Optional label selector like 'app=web'.
-    """
-    cmd = ["oc", "get", "pods", "-n", namespace, "-o", "wide"]
-    if label:
-        cmd.extend(["-l", label])
-    try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-        if result.returncode != 0:
-            return f"Error: {result.stderr.strip()}"
-        return result.stdout.strip() or "No pods found."
-    except subprocess.TimeoutExpired:
-        return "Error: command timed out after 30s"
-
-@mcp.tool()
-def get_pod_logs(pod_name: str, namespace: str, tail: int = 50) -> str:
-    """Get recent log lines from a pod.
-
-    Args:
-        pod_name: Name of the pod.
-        namespace: The OpenShift namespace.
-        tail: Number of recent lines to return (default 50).
-    """
-    try:
-        result = subprocess.run(
-            ["oc", "logs", pod_name, "-n", namespace, f"--tail={tail}"],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode != 0:
-            return f"Error: {result.stderr.strip()}"
-        return result.stdout.strip() or "No logs available."
-    except subprocess.TimeoutExpired:
-        return "Error: command timed out after 30s"
-
-@mcp.tool()
-def get_route_url(route_name: str, namespace: str) -> str:
-    """Get the public URL for an OpenShift Route.
-
-    Args:
-        route_name: Name of the Route resource.
-        namespace: The OpenShift namespace.
-    """
-    try:
-        result = subprocess.run(
-            ["oc", "get", "route", route_name, "-n", namespace,
-             "-o", "jsonpath={.spec.host}"],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode != 0:
-            return f"Error: {result.stderr.strip()}"
-        host = result.stdout.strip()
-        if not host:
-            return f"Route '{route_name}' not found in namespace '{namespace}'."
-        tls = subprocess.run(
-            ["oc", "get", "route", route_name, "-n", namespace,
-             "-o", "jsonpath={.spec.tls}"],
-            capture_output=True, text=True, timeout=10
-        )
-        scheme = "https" if tls.stdout.strip() else "http"
-        return f"{scheme}://{host}"
-    except subprocess.TimeoutExpired:
-        return "Error: command timed out"
-
-@mcp.tool()
-def describe_resource(kind: str, name: str, namespace: str) -> str:
-    """Describe any Kubernetes resource.
-
-    Args:
-        kind: Resource type (e.g. 'deployment', 'service', 'pod').
-        name: Resource name.
-        namespace: The OpenShift namespace.
-    """
-    try:
-        result = subprocess.run(
-            ["oc", "describe", kind, name, "-n", namespace],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode != 0:
-            return f"Error: {result.stderr.strip()}"
-        output = result.stdout.strip()
-        if len(output) > 4000:
-            return output[:4000] + "\n... (truncated)"
-        return output
-    except subprocess.TimeoutExpired:
-        return "Error: command timed out after 30s"
-
-if __name__ == "__main__":
-    import os
-    transport = os.environ.get("MCP_TRANSPORT", "stdio")
-    if transport == "streamable-http":
-        mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)
-    else:
-        mcp.run()
-```

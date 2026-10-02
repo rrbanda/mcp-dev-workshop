@@ -16,17 +16,17 @@ Or manually:
 
 [source,bash,role="execute"]
 ----
-oc delete deployment my-mcp-server --ignore-not-found
-oc delete service my-mcp-server --ignore-not-found
-oc delete bc my-mcp-server --ignore-not-found
-oc delete is my-mcp-server --ignore-not-found
+oc delete deployment stock-market-mcp --ignore-not-found
+oc delete service stock-market-mcp --ignore-not-found
+oc delete bc stock-market-mcp --ignore-not-found
+oc delete is stock-market-mcp --ignore-not-found
 ----
 
 == Verify cleanup
 
 [source,bash,role="execute"]
 ----
-oc get all -l app=my-mcp-server
+oc get all -l app=stock-market-mcp
 ----
 
 Expected result: `No resources found` — everything is deleted.

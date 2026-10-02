@@ -26,7 +26,7 @@ Create the build configuration (first time only):
 
 [source,bash,role="execute"]
 ----
-oc new-build --binary --name=my-mcp-server --strategy=docker 2>/dev/null || \
+oc new-build --binary --name=stock-market-mcp --strategy=docker 2>/dev/null || \
   echo "BuildConfig already exists"
 ----
 
@@ -34,15 +34,15 @@ Start the build — OpenShift reads the `Containerfile` from your directory:
 
 [source,bash,role="execute"]
 ----
-oc start-build my-mcp-server --from-dir=. --follow
+oc start-build stock-market-mcp --from-dir=. --follow
 ----
 
 Expected result: The build runs on the cluster — pulls the UBI9 Python base
-image, installs requirements, copies server.py. The build log ends with
-`Push successful`. The image is now in the internal registry at:
+image, installs requirements (including yfinance), copies server.py. The build
+log ends with `Push successful`. The image is now in the internal registry at:
 
 ----
-image-registry.openshift-image-registry.svc:5000/<your-namespace>/my-mcp-server:latest
+image-registry.openshift-image-registry.svc:5000/<your-namespace>/stock-market-mcp:latest
 ----
 
 [CAUTION]
@@ -70,7 +70,7 @@ grep "image:" scaffold/deployment.yaml
 ----
 
 Expected result: The image line shows your namespace:
-`image-registry.openshift-image-registry.svc:5000/<your-namespace>/my-mcp-server:latest`
+`image-registry.openshift-image-registry.svc:5000/<your-namespace>/stock-market-mcp:latest`
 
 == Exercise 3: Deploy with oc apply
 
@@ -81,18 +81,18 @@ oc apply -f /projects/mcp-dev-workshop/scaffold/deployment.yaml
 
 Expected result:
 ----
-deployment.apps/my-mcp-server created
-service/my-mcp-server created
+deployment.apps/stock-market-mcp created
+service/stock-market-mcp created
 ----
 
 Wait for the pod to be ready:
 
 [source,bash,role="execute"]
 ----
-oc rollout status deployment/my-mcp-server --timeout=120s
+oc rollout status deployment/stock-market-mcp --timeout=120s
 ----
 
-Expected result: `deployment "my-mcp-server" successfully rolled out`
+Expected result: `deployment "stock-market-mcp" successfully rolled out`
 
 == Exercise 4: Verify the deployment
 
@@ -100,7 +100,7 @@ Check the pod is running:
 
 [source,bash,role="execute"]
 ----
-oc get pods -l app=my-mcp-server
+oc get pods -l app=stock-market-mcp
 ----
 
 Expected result: One pod in `Running` state with `1/1` ready.
@@ -109,7 +109,7 @@ Check the service:
 
 [source,bash,role="execute"]
 ----
-oc get svc my-mcp-server
+oc get svc stock-market-mcp
 ----
 
 Expected result: A ClusterIP service on port 8080.
@@ -118,7 +118,7 @@ Check the pod logs for startup:
 
 [source,bash,role="execute"]
 ----
-oc logs deployment/my-mcp-server --tail=10
+oc logs deployment/stock-market-mcp --tail=10
 ----
 
 Expected result: The server started in streamable-http mode on port 8080.
@@ -130,7 +130,7 @@ endpoint (`/mcp` is the default streamable-http path):
 
 [source,bash,role="execute"]
 ----
-oc exec deployment/my-mcp-server -- curl -sf -o /dev/null -w "%{http_code}" \
+oc exec deployment/stock-market-mcp -- curl -sf -o /dev/null -w "%{http_code}" \
   http://localhost:8080/mcp -X POST -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}' \
   2>/dev/null && echo " — MCP endpoint responding" || echo "Server not responding on /mcp"
@@ -140,7 +140,7 @@ You can also verify the port is open with a simple TCP check:
 
 [source,bash,role="execute"]
 ----
-oc exec deployment/my-mcp-server -- curl -sf http://localhost:8080/mcp 2>/dev/null; echo "Port 8080 is open"
+oc exec deployment/stock-market-mcp -- curl -sf http://localhost:8080/mcp 2>/dev/null; echo "Port 8080 is open"
 ----
 
 == Exercise 6: Run the verification

@@ -1,7 +1,7 @@
 .PHONY: help test-local validate build-image deploy verify clean antora
 
 NAMESPACE ?= $(shell oc project -q 2>/dev/null || echo "my-namespace")
-SERVER_NAME ?= my-mcp-server
+SERVER_NAME ?= stock-market-mcp
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'

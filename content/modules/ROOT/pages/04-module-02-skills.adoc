@@ -52,13 +52,14 @@ In the OpenCode chat, ask:
 What skills do you have available?
 ----
 
-Expected result: The agent lists `build-mcp-server` (and any others in the
-project). It shows the skill name and a short description, but does *not*
+Expected result: The agent lists the available skills — `build-mcp-server`,
+`yfinance-api`, and `stock-market-mcp-spec` (and any others in the project).
+It shows each skill name and a short description, but does *not*
 load the full content yet.
 
-== Exercise 2: Read the skill file directly
+== Exercise 2: Read the skill files directly
 
-In the terminal, read the full skill:
+In the terminal, read the MCP framework skill:
 
 [source,bash,role="execute"]
 ----
@@ -69,14 +70,43 @@ Observe the structure:
 
 * *Title and description* — first two lines, what the agent sees in the listing.
 * *When to use* — tells the agent when this skill is relevant.
+* *Related skills* — cross-references to `yfinance-api` and `stock-market-mcp-spec`.
 * *API reference* — MCP Python SDK v2 imports, decorators, patterns.
 * *Best practices* — error handling, timeouts, type hints.
 * *File structure* — what files to generate (server.py, requirements.txt,
   Containerfile, deployment.yaml).
-* *Complete example* — a full working MCP server the agent can reference.
 
-This single file teaches the agent everything it needs to produce a working MCP
-server. The agent does not have this knowledge built in — the skill provides it.
+Now look at the domain-specific skills:
+
+[source,bash,role="execute"]
+----
+head -20 .opencode/skills/yfinance-api/SKILL.md
+----
+
+[source,bash,role="execute"]
+----
+head -20 .opencode/skills/stock-market-mcp-spec/SKILL.md
+----
+
+The three skills work together:
+
+[cols="1,2",options="header"]
+|===
+| Skill | What it teaches
+
+| `build-mcp-server`
+| *How* to build any MCP server — SDK v2 patterns, transports, deployment
+
+| `yfinance-api`
+| *What data is available* — every yfinance Ticker method, return types, gotchas
+
+| `stock-market-mcp-spec`
+| *Exactly what to build* — 9 tools, 3 Enums, 4 helpers, error handling
+|===
+
+This decomposition means the agent gets framework knowledge, domain knowledge,
+AND an exact specification. The result is a server that matches the spec
+precisely — not an approximation.
 
 == Exercise 3: Observe skill loading
 
@@ -86,22 +116,22 @@ In the OpenCode chat, ask:
 I want to build an MCP server. What would the basic structure look like? Don't write any files yet.
 ----
 
-Expected result: The agent loads the `build-mcp-server` skill and describes
-the structure — `MCPServer` class, `@mcp.tool()` decorators, `mcp.run()`,
-requirements.txt, Containerfile. You may see an indicator that the skill was
-loaded.
+Expected result: The agent loads the `build-mcp-server` skill (and possibly
+`stock-market-mcp-spec`) and describes the structure — `MCPServer` class,
+`@server.tool()` decorators, `server.run()`, requirements.txt, Containerfile.
+You may see an indicator that skills were loaded.
 
 .How does the agent decide to load the skill?
 [%collapsible]
 ====
 The agent matches your intent ("build an MCP server") against the skill's
 name and "When to use" section. The match triggers a full load of the
-SKILL.md body into the context window. From that point on, the agent has
-the complete API reference, patterns, and examples available for its
-response.
+SKILL.md body into the context window. For a stock market server, the agent
+may also load `yfinance-api` and `stock-market-mcp-spec` because their
+"When to use" sections match financial data topics.
 
-If you asked something unrelated (e.g., "explain Kubernetes networking"),
-the skill would not be loaded — saving context for what matters.
+Multiple skills can be loaded in a single conversation — the agent combines
+framework knowledge, domain knowledge, and exact specifications.
 ====
 
 == Exercise 4: Cross-harness portability
@@ -110,14 +140,14 @@ The same skill is available in multiple directories for different AI tools:
 
 [source,bash,role="execute"]
 ----
-ls -la .opencode/skills/build-mcp-server/SKILL.md
-ls -la .claude/skills/build-mcp-server/SKILL.md
-ls -la .cursor/skills/build-mcp-server/SKILL.md
+ls -la .opencode/skills/*/SKILL.md
+ls -la .claude/skills/*/SKILL.md
+ls -la .cursor/skills/*/SKILL.md
 ----
 
-Expected result: The same SKILL.md exists in all three paths. This means the
-skill works with OpenCode, Claude Code, and Cursor — any tool that supports
-the Agent Skills convention. Write once, use with any agent.
+Expected result: The same three SKILL.md files exist in all three paths. This
+means the skills work with OpenCode, Claude Code, and Cursor — any tool that
+supports the Agent Skills convention. Write once, use with any agent.
 
 == Key takeaways
 

@@ -11,29 +11,51 @@ Quick reference for the technologies used in this workshop.
 ----
 from mcp.server import MCPServer
 
-mcp = MCPServer("server-name")
+server = MCPServer("server-name", instructions="Server description for agents.")
 ----
 
 === Tool definition
 
 [source,python]
 ----
-@mcp.tool()
-def my_tool(param1: str, param2: int = 10) -> str:
-    """Tool description shown to the agent.
+@server.tool(
+    name="get_data",
+    description="Get data for a given identifier.",
+)
+async def get_data(identifier: str, limit: int = 10) -> str:
+    """Get data for a given identifier.
 
     Args:
-        param1: Description of param1.
-        param2: Description of param2 (default: 10).
+        identifier: Description of identifier.
+        limit: Maximum results (default: 10).
     """
-    return "result"
+    try:
+        return json.dumps(result)
+    except Exception as e:
+        return f"Error: {e}"
+----
+
+=== Using Enums for validated parameters
+
+[source,python]
+----
+from enum import Enum
+
+class DataType(str, Enum):
+    summary = "summary"
+    detailed = "detailed"
+
+@server.tool(name="fetch_report", description="Fetch a report by type.")
+async def fetch_report(name: str, data_type: str) -> str:
+    if data_type == DataType.summary:
+        # ...
 ----
 
 === Resource definition
 
 [source,python]
 ----
-@mcp.resource("config://my-resource")
+@server.resource("config://my-resource")
 def my_resource() -> str:
     """Read-only context for the agent."""
     return "resource content"
@@ -46,15 +68,15 @@ def my_resource() -> str:
 | Transport | Code | Use case
 
 | stdio
-| `mcp.run()`
+| `server.run()`
 | Local development, agent-direct connection
 
 | streamable-http
-| `mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)`
+| `server.run(transport="streamable-http", host="0.0.0.0", port=8080)`
 | Container deployment on OpenShift
 
 | ASGI (uvicorn)
-| `app = mcp.streamable_http_app()`
+| `app = server.streamable_http_app(stateless_http=True, json_response=True)`
 | Production with process manager
 |===
 
@@ -68,8 +90,10 @@ def my_resource() -> str:
 | `int` | `{"type": "integer"}`
 | `float` | `{"type": "number"}`
 | `bool` | `{"type": "boolean"}`
+| `float \| None` | `{"type": "number"}` (nullable)
 | `list[str]` | `{"type": "array", "items": {"type": "string"}}`
-| `Optional[str]` | `{"type": "string"}` (not required)
+| `list[str] \| None` | `{"type": "array"}` (nullable)
+| `str, Enum` subclass | `{"enum": ["val1", "val2", ...]}`
 | default value | sets `"required": false`
 |===
 
@@ -89,7 +113,7 @@ def my_resource() -> str:
 | `oc start-build <name> --from-dir=.` | Build image from local directory
 | `oc apply -f <file>` | Create/update resources from manifest
 | `oc rollout status` | Wait for deployment rollout
-| `oc port-forward` | Forward a local port to a service
+| `oc exec deployment/<name>` | Run command in deployment pod
 |===
 
 == Agent Skills directory structure
@@ -97,10 +121,13 @@ def my_resource() -> str:
 [source]
 ----
 project-root/
-├── .opencode/skills/<name>/SKILL.md    # OpenCode
-├── .claude/skills/<name>/SKILL.md      # Claude Code
-├── .cursor/skills/<name>/SKILL.md      # Cursor
-└── .agents/skills/<name>/SKILL.md      # Generic agents
+├── .opencode/skills/
+│   ├── build-mcp-server/SKILL.md     # MCP SDK v2 framework patterns
+│   ├── yfinance-api/SKILL.md         # yfinance library API reference
+│   └── stock-market-mcp-spec/SKILL.md # Exact server specification
+├── .claude/skills/                    # Claude Code (same files)
+├── .cursor/skills/                    # Cursor (same files)
+└── .agents/skills/                    # Generic agents (same files)
 ----
 
 == Deployment manifest reference
@@ -112,22 +139,22 @@ project-root/
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-mcp-server
+  name: stock-market-mcp
   labels:
-    app: my-mcp-server
+    app: stock-market-mcp
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-mcp-server
+      app: stock-market-mcp
   template:
     metadata:
       labels:
-        app: my-mcp-server
+        app: stock-market-mcp
     spec:
       containers:
         - name: server
-          image: image-registry.openshift-image-registry.svc:5000/<namespace>/my-mcp-server:latest
+          image: image-registry.openshift-image-registry.svc:5000/<namespace>/stock-market-mcp:latest
           ports:
             - containerPort: 8080
           env:
@@ -136,22 +163,23 @@ spec:
           readinessProbe:
             tcpSocket:
               port: 8080
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
           resources:
             requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
               memory: "256Mi"
-              cpu: "500m"
+              cpu: "200m"
+            limits:
+              memory: "512Mi"
+              cpu: "1000m"
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-mcp-server
+  name: stock-market-mcp
 spec:
   selector:
-    app: my-mcp-server
+    app: stock-market-mcp
   ports:
     - port: 8080
       targetPort: 8080
@@ -164,12 +192,12 @@ spec:
 apiVersion: mcp.x-k8s.io/v1alpha1
 kind: MCPServer
 metadata:
-  name: my-mcp-server
+  name: stock-market-mcp
 spec:
   source:
     type: ContainerImage
     containerImage:
-      ref: image-registry.openshift-image-registry.svc:5000/<namespace>/my-mcp-server:latest
+      ref: image-registry.openshift-image-registry.svc:5000/<namespace>/stock-market-mcp:latest
   config:
     port: 8080
 ----

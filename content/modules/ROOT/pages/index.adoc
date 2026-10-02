@@ -11,10 +11,13 @@ do no platform setup. You open a workspace, talk to an AI agent, and the agent
 builds, tests, and helps you deploy an MCP server that extends its own
 capabilities.
 
-The AI agent uses a pre-loaded *Agent Skill* that teaches it MCP Python SDK v2
-patterns. You tell the agent what tools you want; the skill guides the agent
-to produce well-structured, deployable code. The result is a working MCP server
-running on OpenShift that any agent in the cluster can connect to.
+The AI agent uses pre-loaded *Agent Skills* that teach it MCP Python SDK v2
+patterns, the yfinance library API, and the exact specification for a stock
+market data server. You tell the agent what tools you want; the skills guide the
+agent to produce well-structured, deployable code. The result is a working stock
+market MCP server running on OpenShift that any agent in the cluster can connect
+to — providing real-time stock prices, financial statements, options data, and
+analyst recommendations.
 
 == Learning objectives
 
@@ -70,8 +73,8 @@ Dependencies:
 | Inspect SKILL.md files, understand lazy loading, observe skill discovery.
 | 10 min
 
-| 3. Build an MCP Server
-| Tell OpenCode to build an MCP server; the agent loads the skill and generates server.py.
+| 3. Build a Stock Market MCP Server
+| Tell OpenCode to build a stock market MCP server; the agent loads three skills and generates server.py with 9 tools.
 | 20 min
 
 | 4. Test with Your Agent
@@ -116,8 +119,10 @@ with typed arguments.
 In this workshop the stack is:
 
 * *OpenCode* — the AI coding agent running inside DevSpaces.
-* *Agent Skill* — a SKILL.md file that teaches OpenCode MCP SDK patterns.
-* *MCP Server* — the Python server you build, containing tool definitions.
+* *Agent Skills* — SKILL.md files that teach OpenCode MCP SDK patterns,
+  yfinance API, and the exact server specification.
+* *MCP Server* — the stock market Python server you build, containing 9 tool
+  definitions for stock prices, financials, options, and recommendations.
 * *llm-d + vLLM* — the LLM inference backend providing the model.
 * *MaaS (Model as a Service)* — the API gateway with authentication and rate limiting.
 * *OpenShift DevSpaces* — the cloud IDE environment where everything runs.

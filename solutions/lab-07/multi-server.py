@@ -1,7 +1,8 @@
 """Multi-server MCP composition — Lab 7 solution.
 
 Demonstrates connecting to multiple MCP servers from a single agent.
-This server adds project-awareness tools alongside the DevOps tools.
+This server adds project-awareness tools alongside the Stock Market
+server from earlier labs — showing how agents compose multiple servers.
 """
 from mcp.server import MCPServer
 import subprocess

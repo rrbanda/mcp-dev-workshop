@@ -64,9 +64,9 @@ Now configure OpenCode with both MCP servers. In the chat:
 ----
 I have two MCP servers now:
 
-1. openshift-devops (the one we already deployed) at
-   http://my-mcp-server.<namespace>.svc.cluster.local:8080/mcp
-   with tools: list_pods, get_pod_logs, get_route_url, describe_resource
+1. stock-market (the one we already deployed) at
+   http://stock-market-mcp.<namespace>.svc.cluster.local:8080/mcp
+   with tools: get_historical_stock_prices, get_stock_info, get_stock_news, etc.
 
 2. project-helper (local, not yet deployed) at
    scaffold/project-helper.py via stdio
@@ -80,23 +80,22 @@ Configure both.
 Ask the agent questions that require tools from both servers:
 
 ----
-Find all Python files in my project that contain "subprocess" and also show me
-which pods are running in my namespace.
+Find all Python files in my project that import "yfinance" and also get the
+current stock price for AAPL.
 ----
 
 Expected result: The agent calls `search_code` from the project-helper server
-AND `list_pods` from the openshift-devops server, combining results from both
+AND `get_stock_info` from the stock-market server, combining results from both
 into a single response.
 
 Try another:
 
 ----
-Check the git status of my project, then describe the my-mcp-server deployment
-to see if it matches what I have locally.
+Check the git status of my project, then get the latest news for MSFT.
 ----
 
-The agent uses `get_git_status` (project-helper) and `describe_resource`
-(openshift-devops) in sequence.
+The agent uses `get_git_status` (project-helper) and `get_stock_news`
+(stock-market) in sequence.
 
 == Exercise 5: Understand the composition model
 
@@ -105,7 +104,7 @@ The agent uses `get_git_status` (project-helper) and `describe_resource`
 flowchart TD
     Agent["OpenCode Agent"]
     LLM["LLM (reasoning)"]
-    S1["openshift-devops<br/>list_pods, get_logs, describe"]
+    S1["stock-market<br/>prices, news, options, financials"]
     S2["project-helper<br/>search_code, list_files, git_status"]
     S3["future server<br/>database, monitoring, ..."]
 

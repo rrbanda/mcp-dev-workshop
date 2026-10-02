@@ -84,8 +84,10 @@ find /projects/mcp-dev-workshop -maxdepth 3 -type f | head -30
 
 Key directories:
 
-* `.opencode/skills/build-mcp-server/SKILL.md` — the Agent Skill that teaches
-  the agent to build MCP servers.
+* `.opencode/skills/` — Agent Skills that teach the agent what it needs:
+** `build-mcp-server/` — MCP Python SDK v2 patterns (MCPServer, decorators, transports)
+** `yfinance-api/` — Complete yfinance library API reference
+** `stock-market-mcp-spec/` — Exact specification for the stock market MCP server
 * `scaffold/` — reference files: a working server, Containerfile, deployment
   manifest.
 * `solutions/` — checkpoint solutions if you fall behind.
@@ -94,11 +96,11 @@ Key directories:
 
 [source,bash,role="execute"]
 ----
-cat .opencode/skills/build-mcp-server/SKILL.md | head -20
+ls .opencode/skills/*/SKILL.md
 ----
 
-Expected result: You see the beginning of the skill file — it describes itself
-as "Build a production-ready MCP server using the Python SDK v2."
+Expected result: You see three skills — `build-mcp-server`, `yfinance-api`,
+and `stock-market-mcp-spec`.
 
 == Exercise 4: Test the LLM with a coding question
 

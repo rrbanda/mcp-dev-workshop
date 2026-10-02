@@ -3,8 +3,8 @@
 
 The defining moment of this workshop: the AI agent uses the MCP server *it
 helped build*. You wire OpenCode to the deployed remote server, and the agent
-calls tools that are running as a container on OpenShift — not as a local
-process.
+calls stock market tools that are running as a container on OpenShift — not as a
+local process.
 
 == Learning objectives
 
@@ -20,11 +20,11 @@ Your MCP server is running as a ClusterIP Service. From inside the cluster
 [source,bash,role="execute"]
 ----
 NAMESPACE=$(oc project -q)
-echo "http://my-mcp-server.${NAMESPACE}.svc.cluster.local:8080"
+echo "http://stock-market-mcp.${NAMESPACE}.svc.cluster.local:8080"
 ----
 
 Expected result: A URL like
-`http://my-mcp-server.dev-user1-devspaces.svc.cluster.local:8080`
+`http://stock-market-mcp.dev-user1-devspaces.svc.cluster.local:8080`
 
 == Exercise 2: Wire OpenCode to the remote server
 
@@ -32,7 +32,7 @@ In the OpenCode chat, tell the agent about the deployed server:
 
 ----
 I have an MCP server deployed on OpenShift. Connect to it using streamable-http transport at:
-http://my-mcp-server.<your-namespace>.svc.cluster.local:8080/mcp
+http://stock-market-mcp.<your-namespace>.svc.cluster.local:8080/mcp
 
 Replace <your-namespace> with my actual namespace.
 ----
@@ -43,8 +43,8 @@ Or if OpenCode supports MCP configuration directly, the config would look like:
 ----
 {
   "mcpServers": {
-    "openshift-devops-remote": {
-      "url": "http://my-mcp-server.<namespace>.svc.cluster.local:8080/mcp",
+    "stock-market-remote": {
+      "url": "http://stock-market-mcp.<namespace>.svc.cluster.local:8080/mcp",
       "transport": "streamable-http"
     }
   }
@@ -52,42 +52,52 @@ Or if OpenCode supports MCP configuration directly, the config would look like:
 ----
 
 Expected result: OpenCode connects to the remote MCP server and discovers the
-same tools as before — but now they are running in a separate container, not as
-a local process.
+same nine stock market tools as before — but now they are running in a separate
+container, not as a local process.
 
 == Exercise 3: Agent uses what it built
 
 Ask the agent to use the deployed tools:
 
 ----
-Using the remote MCP server, describe the my-mcp-server deployment in my namespace.
+Using the remote stock-market MCP server, get me a comprehensive analysis of
+Apple (AAPL): current price info, latest news, and quarterly income statement.
 ----
 
-Expected result: The agent calls the `describe_resource` tool on the remote
-MCP server, which runs `oc describe deployment my-mcp-server` inside its own
-container and returns the output. The agent is now querying its own deployment.
+Expected result: The agent chains multiple tool calls — `get_stock_info` for
+price data, `get_stock_news` for headlines, and `get_financial_statement` with
+`quarterly_income_stmt` for financials. All running in the deployed container.
 
 Try more:
 
 ----
-List all pods in my namespace and show me the logs from the MCP server pod.
+Compare the P/E ratios of AAPL, MSFT, and GOOGL using the stock info tool.
 ----
 
-The agent chains `list_pods` → identifies the MCP server pod → calls
-`get_pod_logs` on it. The MCP server is reporting its own logs back through
-the agent.
+The agent calls `get_stock_info` three times, extracts the P/E ratios, and
+presents a comparison.
+
+----
+What options are available for TSLA? Show me the calls expiring on the nearest date.
+----
+
+The agent chains `get_option_expiration_dates` → picks the first date →
+`get_option_chain` with `option_type="calls"`.
 
 == Exercise 4: Reflect on the loop
 
 Take a moment to trace what happened:
 
-. *You asked the agent* to build an MCP server.
-. *The agent loaded a skill* that taught it MCP SDK patterns.
-. *The agent generated code* — server.py, Containerfile, deployment.yaml.
-. *You tested locally* — the server worked via stdio.
+. *You asked the agent* to build a stock market MCP server.
+. *The agent loaded skills* that taught it MCP SDK patterns, yfinance API, and
+  the exact server specification.
+. *The agent generated code* — server.py with 9 tools, 3 Enums, 4 helpers,
+  plus Containerfile and deployment.yaml.
+. *You tested locally* — the server worked via stdio, returning real stock data.
 . *You deployed to OpenShift* — the server runs as a container.
 . *You wired the agent to the deployed server* — streamable-http transport.
-. *The agent uses the tools it built* — querying the cluster through its own server.
+. *The agent uses the tools it built* — querying live financial data through its
+  own server.
 
 This is the *agent tool development loop*: the AI helps build tools, the tools
 extend the AI's capabilities, and the extended AI can help build better tools.
@@ -95,7 +105,7 @@ extend the AI's capabilities, and the extended AI can help build better tools.
 [mermaid]
 ....
 flowchart LR
-    A["Developer asks agent"] --> B["Agent loads skill"]
+    A["Developer asks agent"] --> B["Agent loads skills"]
     B --> C["Agent writes MCP server"]
     C --> D["Developer deploys"]
     D --> E["Agent uses deployed tools"]
@@ -105,9 +115,9 @@ flowchart LR
 
 == Core track complete!
 
-Congratulations — you have completed the core track. You built an MCP server
-with an AI agent, tested it locally, deployed it to OpenShift, and closed the
-feedback loop.
+Congratulations — you have completed the core track. You built a stock market
+MCP server with an AI agent, tested it locally with real financial data, deployed
+it to OpenShift, and closed the feedback loop.
 
 **Want to continue?** The extended track adds:
 

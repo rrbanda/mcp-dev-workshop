@@ -5,8 +5,9 @@ For facilitators provisioning workshop environments ahead of class.
 Participants can skip this page.
 
 The facilitator sets up the cluster, deploys the AI serving stack, configures
-DevSpaces with skills and bash enabled, pre-clones the workshop repo, and
-provisions participant credentials. Participants do zero platform work.
+DevSpaces with skills and bash enabled, pre-clones the workshop repo (including
+the three Agent Skills), and provisions participant credentials. Participants do
+zero platform work.
 
 == Cluster requirements
 

@@ -1,20 +1,20 @@
 = Module 4: Test with Your Agent
 :navtitle: Test with Your Agent
 
-Before deploying anywhere, test the MCP server locally. You will run it with
-the MCP Inspector (a developer tool), then wire it directly into OpenCode so
-the agent can call your tools through the stdio transport.
+Before deploying anywhere, test the MCP server locally. You will install
+dependencies, run a quick smoke test, then wire the server into OpenCode so
+the agent can call your stock market tools through the stdio transport.
 
 == Learning objectives
 
 * Install Python dependencies with `pip`.
 * Use the MCP Inspector (`mcp dev`) to interactively test tools.
 * Configure OpenCode to connect to a local MCP server via stdio.
-* Observe the agent discovering and calling tools from your server.
+* Observe the agent discovering and calling stock market tools from your server.
 
 == Exercise 1: Install dependencies
 
-In the terminal, install the MCP SDK and its development tools:
+In the terminal, install the MCP SDK and yfinance:
 
 [source,bash,role="execute"]
 ----
@@ -26,7 +26,7 @@ Verify the installation:
 
 [source,bash,role="execute"]
 ----
-python -c "import mcp; print('MCP SDK installed successfully')"
+python -c "import mcp; import yfinance; print('MCP SDK and yfinance installed successfully')"
 ----
 
 Expected result: The confirmation message prints without errors.
@@ -77,18 +77,20 @@ server starts and inspect its tool registrations:
 ----
 cd /projects/mcp-dev-workshop/scaffold
 python -c "
-from server import mcp
+from server import server
 
 # Inspect registered tools via the internal tool manager
-print('Server name:', mcp.name)
+print('Server name:', server.name)
 print('Registered tools:')
-for name, tool in mcp._tool_manager._tools.items():
+for name, tool in server._tool_manager._tools.items():
     print(f'  {name}: {tool.description[:80]}')
 " 2>/dev/null || echo "Fallback: tools will be discovered when you wire the server to OpenCode"
 ----
 
-Expected result: You see all your tools listed with their names, descriptions,
-and JSON Schema parameters derived from the type hints.
+Expected result: You see all nine stock market tools listed: `get_historical_stock_prices`,
+`get_stock_info`, `get_stock_news`, `get_stock_actions`, `get_financial_statement`,
+`get_holder_info`, `get_option_expiration_dates`, `get_option_chain`,
+`get_recommendations`.
 
 == Exercise 4: Wire OpenCode to the local server
 
@@ -111,7 +113,7 @@ The configuration varies by OpenCode version, but the concept is:
 ----
 {
   "mcpServers": {
-    "openshift-devops": {
+    "stock-market": {
       "command": "python",
       "args": ["/projects/mcp-dev-workshop/scaffold/server.py"],
       "transport": "stdio"
@@ -120,33 +122,50 @@ The configuration varies by OpenCode version, but the concept is:
 }
 ----
 
-Expected result: OpenCode connects to your MCP server and discovers the tools.
+Expected result: OpenCode connects to your MCP server and discovers all nine tools.
 
 == Exercise 5: Call tools through the agent
 
 With the MCP server connected, ask the agent to use your tools:
 
 ----
-Using the openshift-devops MCP server, list all pods in my current namespace.
+Using the stock-market MCP server, get me the current stock info for Apple (AAPL).
 ----
 
-Expected result: The agent calls the `list_pods` tool on your MCP server, which
-runs `oc get pods` and returns the output. The agent formats and presents the
-results.
+Expected result: The agent calls the `get_stock_info` tool on your MCP server, which
+queries Yahoo Finance via yfinance and returns comprehensive stock data including
+current price, market cap, P/E ratio, and company details.
 
 Try more tool calls:
 
 ----
-What routes are available in the {ai_namespace} namespace?
+Show me the last 5 days of historical prices for Microsoft (MSFT).
 ----
 
 ----
-Show me the logs from one of the vLLM pods in {ai_namespace}.
+What are the latest news articles about Tesla (TSLA)?
+----
+
+----
+Get the quarterly income statement for NVIDIA (NVDA).
 ----
 
 Each request should trigger a different tool call. Watch the agent's output —
-you should see it identify which tool to call, pass the right arguments, and
-present the results.
+you should see it identify which tool to call, pass the right arguments
+(including valid Enum values like `quarterly_income_stmt`), and present the
+results.
+
+[TIP]
+====
+Try a class-share ticker to test the normalization:
+
+----
+Get stock info for Berkshire Hathaway class B (BRK.B).
+----
+
+The `normalize_ticker` function should convert `BRK.B` to `BRK-B`
+before querying yfinance.
+====
 
 [TIP]
 ====
@@ -161,9 +180,9 @@ If the agent does not find your MCP server, check:
 
 You should now have:
 
-* [x] MCP SDK installed and server starts without errors
-* [x] Tools listed with correct names, descriptions, and schemas
+* [x] MCP SDK and yfinance installed, server starts without errors
+* [x] Nine tools listed with correct names, descriptions, and schemas
 * [x] OpenCode connected to the local MCP server via stdio
-* [x] Agent successfully calling tools and returning results
+* [x] Agent successfully calling stock market tools and returning real data
 
 Proceed to xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift].

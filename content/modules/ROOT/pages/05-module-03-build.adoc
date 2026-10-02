@@ -1,17 +1,20 @@
-= Module 3: Build an MCP Server
-:navtitle: Build an MCP Server
+= Module 3: Build a Stock Market MCP Server
+:navtitle: Build a Stock Market MCP Server
 
 This is the core module. You tell the AI agent what tools you want, the agent
-loads the `build-mcp-server` skill, and generates a complete MCP server. You
-review the code, understand the patterns, and optionally customize it.
+loads three skills — `build-mcp-server`, `yfinance-api`, and
+`stock-market-mcp-spec` — and generates a complete MCP server that provides
+real-time stock market data. You review the code, understand the patterns,
+and optionally customize it.
 
 == Learning objectives
 
-* Use the agent and its loaded skill to generate an MCP server from a
-  natural-language description.
+* Use the agent and its loaded skills to generate a stock market MCP server
+  from a natural-language description.
 * Identify the MCP Python SDK v2 patterns in the generated code: `MCPServer`,
-  `@mcp.tool()`, type hints, docstrings, `mcp.run()`.
-* Understand how type hints map to JSON Schema for tool parameters.
+  `@server.tool()`, type hints, docstrings, `server.run()`.
+* Understand how type hints and Enum classes map to JSON Schema for tool
+  parameters.
 * Add or modify a tool in the generated server.
 
 == Exercise 1: Ask the agent to build your MCP server
@@ -20,30 +23,38 @@ In the OpenCode chat, give the agent a clear description of what you want.
 Here is a suggested prompt — feel free to customize it:
 
 ----
-Build me an MCP server called "openshift-devops" with these tools:
+Build me a stock market MCP server with these tools:
 
-1. list_pods - Lists pods in a given namespace with optional label filter
-2. get_pod_logs - Gets recent log lines from a specific pod
-3. get_route_url - Gets the public URL for an OpenShift Route
-4. describe_resource - Describes any Kubernetes resource by kind, name, namespace
+1. get_historical_stock_prices - Get historical OHLCV data for a ticker
+2. get_stock_info - Get comprehensive stock information (price, metrics, company details)
+3. get_stock_news - Get latest news articles for a stock
+4. get_stock_actions - Get dividends and stock splits history
+5. get_financial_statement - Get income statement, balance sheet, or cash flow
+6. get_holder_info - Get holder data (institutional, mutual fund, insider)
+7. get_option_expiration_dates - Get available options expiration dates
+8. get_option_chain - Get options chain with strike window and field projection
+9. get_recommendations - Get analyst recommendations or upgrades/downgrades
 
-Put the server in scaffold/server.py. Also create scaffold/requirements.txt,
-scaffold/Containerfile, and scaffold/deployment.yaml.
+Use yfinance for data (no API key needed). Put the server in scaffold/server.py.
+Also create scaffold/requirements.txt, scaffold/Containerfile, and
+scaffold/deployment.yaml.
 
-Use the oc CLI for cluster access (it's already authenticated in my terminal).
-The server should support both stdio (for local dev) and streamable-http
-(for deployment) transports based on an MCP_TRANSPORT environment variable.
+Include proper Enum types for financial_type, holder_type, and
+recommendation_type parameters. Add a normalize_ticker helper for US class
+shares (BRK.B → BRK-B). Support both stdio (local dev) and streamable-http
+(deployment) transports based on an MCP_TRANSPORT environment variable.
 ----
 
-Expected result: The agent loads the `build-mcp-server` skill and generates
-four files:
+Expected result: The agent loads the `build-mcp-server`, `yfinance-api`, and
+`stock-market-mcp-spec` skills and generates four files:
 
-* `scaffold/server.py` — the MCP server with all four tools
-* `scaffold/requirements.txt` — with `mcp>=2.0`
+* `scaffold/server.py` — the MCP server with all nine tools, three Enums,
+  helper functions
+* `scaffold/requirements.txt` — with `mcp[cli]>=2.1.0` and `yfinance>=1.6.0`
 * `scaffold/Containerfile` — UBI9 Python image, pip install, CMD
 * `scaffold/deployment.yaml` — Deployment + Service for OpenShift
 
-Watch the agent's output — you should see it reference the skill and
+Watch the agent's output — you should see it reference the skills and
 produce structured Python code.
 
 [IMPORTANT]
@@ -52,8 +63,8 @@ If the agent produces code that uses `FastMCP` instead of `MCPServer`, ask it
 to update the import. `FastMCP` was the v1 name — it is *removed* in SDK v2
 (`from mcp.server.fastmcp import FastMCP` raises `ModuleNotFoundError`). The
 correct v2 import is `from mcp.server import MCPServer`. What matters is that
-the server defines tools with `@mcp.tool()`, has type hints, and calls
-`mcp.run()`.
+the server defines tools with `@server.tool()`, has type hints, and calls
+`server.run()`.
 ====
 
 == Exercise 2: Review the generated code
@@ -72,47 +83,52 @@ Check for these SDK v2 patterns:
 | Pattern | What to look for
 
 | *Import*
-| `from mcp.server import MCPServer` or similar
+| `from mcp.server import MCPServer` and `import yfinance as yf`
 
 | *Server instance*
-| `mcp = MCPServer("openshift-devops")`
+| `server = MCPServer("stock-market", instructions="...")`
+
+| *Enum types*
+| `FinancialType`, `HolderType`, `RecommendationType` as `str, Enum` subclasses
+
+| *Ticker normalization*
+| `normalize_ticker()` function converting `BRK.B` → `BRK-B`
 
 | *Tool decorator*
-| `@mcp.tool()` above each function
+| `@server.tool(name="...", description="...")` above each function
+
+| *Async tools*
+| `async def get_stock_info(ticker: str) -> str:`
 
 | *Type hints*
-| `def list_pods(namespace: str, label: str = "") -> str:`
-
-| *Docstring*
-| Triple-quoted description with `Args:` section
+| Enum types in parameters, `float | None`, `list[str] | None`
 
 | *Error handling*
-| `try/except` around `subprocess.run()`
-
-| *Timeout*
-| `timeout=30` on subprocess calls
+| `try/except Exception` wrapping all tool bodies
 
 | *Transport switch*
 | `MCP_TRANSPORT` env var → stdio or streamable-http
 
 | *Entry point*
-| `if __name__ == "__main__": mcp.run()`
+| `if __name__ == "__main__": main()`
 |===
 
-.Why do type hints matter?
+.Why do type hints and Enums matter?
 [%collapsible]
 ====
 MCP uses type hints to auto-generate JSON Schema for each tool's parameters.
 When an agent connects to your server, it receives the schema and knows exactly
 what arguments each tool expects — types, defaults, which are required.
-This is how the agent knows to pass `namespace: "ai-serving"` as a string
-and `tail: 50` as an integer.
 
 `str` → `{"type": "string"}` +
 `int` → `{"type": "integer"}` +
-`bool` → `{"type": "boolean"}` +
-`list[str]` → `{"type": "array", "items": {"type": "string"}}` +
+`float | None` → `{"type": "number"}` (nullable) +
+`list[str] | None` → `{"type": "array", "items": {"type": "string"}}` +
+`FinancialType` enum → `{"enum": ["income_stmt", "quarterly_income_stmt", ...]}` +
 Optional with default → `"required": false`
+
+Enums are especially powerful — the agent sees the exact valid values and never
+passes an invalid financial type.
 ====
 
 == Exercise 3: Review the deployment artifacts
@@ -125,8 +141,8 @@ cat scaffold/Containerfile
 ----
 
 Expected: Uses `registry.access.redhat.com/ubi9/python-312` as base, installs
-requirements, copies server.py, sets `MCP_TRANSPORT=streamable-http`, exposes
-port 8080.
+requirements (including yfinance), copies server.py, sets
+`MCP_TRANSPORT=streamable-http`, exposes port 8080.
 
 Check the deployment manifest:
 
@@ -135,30 +151,32 @@ Check the deployment manifest:
 cat scaffold/deployment.yaml
 ----
 
-Expected: A Deployment with a container pointing to the internal registry image,
-port 8080, readiness probe, resource limits. A Service exposing port 8080.
+Expected: A Deployment named `stock-market-mcp` with a container pointing to
+the internal registry image, port 8080, tcpSocket readiness probe, resource
+limits. A Service exposing port 8080.
 
 == Exercise 4: Customize — add a tool
 
-Ask the agent to add a fifth tool to your server:
+Ask the agent to add a tenth tool to your server:
 
 ----
-Add a new tool to scaffold/server.py called "get_events" that lists recent
-events in a namespace using "oc get events -n <namespace> --sort-by=.lastTimestamp"
-and returns the last 20 lines.
+Add a new tool to scaffold/server.py called "compare_stocks" that takes a
+list of ticker symbols and returns a comparison table with each stock's
+current price, market cap, P/E ratio, and 52-week range using yfinance.
 ----
 
 Expected result: The agent edits `scaffold/server.py` and adds the new tool
-with proper decorator, type hints, docstring, error handling, and timeout.
+with proper decorator, type hints, docstring, error handling, and
+normalize_ticker for each symbol.
 
 Verify:
 
 [source,bash,role="execute"]
 ----
-grep -c "@mcp.tool" scaffold/server.py
+grep -c "@server.tool" scaffold/server.py
 ----
 
-Expected result: `5` (four original tools plus the new one).
+Expected result: `10` (nine original tools plus the new one).
 
 == Exercise 5: Validate the artifacts
 
@@ -170,8 +188,8 @@ make validate
 ----
 
 Expected result: All checks pass — server.py exists, has MCPServer import,
-has @mcp.tool decorators, has mcp.run(), requirements.txt has mcp,
-Containerfile and deployment.yaml exist.
+has @server.tool decorators, has run() call, uses yfinance,
+requirements.txt has mcp and yfinance, Containerfile and deployment.yaml exist.
 
 [TIP]
 ====
@@ -189,8 +207,10 @@ This gives you a known-good server to continue with.
 
 You should now have:
 
-* [x] A working `scaffold/server.py` with 4-5 tools
-* [x] `scaffold/requirements.txt` with `mcp>=2.0`
+* [x] A working `scaffold/server.py` with 9-10 stock market tools
+* [x] Three Enum types for parameter validation
+* [x] Ticker normalization for class shares
+* [x] `scaffold/requirements.txt` with `mcp[cli]>=2.1.0` and `yfinance>=1.6.0`
 * [x] `scaffold/Containerfile` for building the container
 * [x] `scaffold/deployment.yaml` for OpenShift deployment
 * [x] `make validate` passes

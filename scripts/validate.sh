@@ -9,19 +9,22 @@ fail() { printf "\033[31mFAIL\033[0m: %s\n" "$1"; exit 1; }
 info() { printf "\033[36mINFO\033[0m: %s\n" "$1"; }
 
 validate_lab3() {
-    info "Validating Lab 3: Build an MCP Server"
+    info "Validating Lab 3: Build Stock Market MCP Server"
     [ -f "$SCAFFOLD_DIR/server.py" ] || fail "server.py not found"
-    grep -q "MCPServer\|FastMCP" "$SCAFFOLD_DIR/server.py" || fail "server.py does not import MCPServer"
-    grep -q "@mcp.tool" "$SCAFFOLD_DIR/server.py" || fail "server.py has no @mcp.tool decorators"
-    grep -q "mcp.run" "$SCAFFOLD_DIR/server.py" || fail "server.py has no mcp.run() call"
+    grep -q "MCPServer" "$SCAFFOLD_DIR/server.py" || fail "server.py does not import MCPServer"
+    grep -q "@server.tool" "$SCAFFOLD_DIR/server.py" || fail "server.py has no @server.tool decorators"
+    grep -q "server.run\|mcp.run" "$SCAFFOLD_DIR/server.py" || fail "server.py has no run() call"
+    grep -q "yfinance\|yf" "$SCAFFOLD_DIR/server.py" || fail "server.py does not use yfinance"
+    grep -q "normalize_ticker" "$SCAFFOLD_DIR/server.py" || fail "server.py missing normalize_ticker"
     [ -f "$SCAFFOLD_DIR/requirements.txt" ] || fail "requirements.txt not found"
     grep -q "mcp" "$SCAFFOLD_DIR/requirements.txt" || fail "requirements.txt missing mcp dependency"
-    pass "Lab 3 — MCP server code is well-formed"
+    grep -q "yfinance" "$SCAFFOLD_DIR/requirements.txt" || fail "requirements.txt missing yfinance dependency"
+    pass "Lab 3 — Stock Market MCP server code is well-formed"
 }
 
 validate_lab4() {
     info "Validating Lab 4: Test with Your Agent"
-    command -v uv >/dev/null 2>&1 || fail "uv not installed"
+    command -v pip >/dev/null 2>&1 || fail "pip not installed"
     pass "Lab 4 — tooling available"
 }
 
@@ -30,10 +33,11 @@ validate_lab5() {
     [ -f "$SCAFFOLD_DIR/Containerfile" ] || fail "Containerfile not found"
     [ -f "$SCAFFOLD_DIR/deployment.yaml" ] || fail "deployment.yaml not found"
     grep -q "containerPort: 8080" "$SCAFFOLD_DIR/deployment.yaml" || fail "deployment.yaml missing port 8080"
+    grep -q "stock-market-mcp" "$SCAFFOLD_DIR/deployment.yaml" || fail "deployment.yaml missing stock-market-mcp name"
     NS=$(oc project -q 2>/dev/null || echo "unknown")
     if [ "$NS" != "unknown" ]; then
-        oc get deployment my-mcp-server -n "$NS" >/dev/null 2>&1 && pass "Deployment exists in $NS" || fail "Deployment not found in $NS"
-        READY=$(oc get deployment my-mcp-server -n "$NS" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+        oc get deployment stock-market-mcp -n "$NS" >/dev/null 2>&1 && pass "Deployment exists in $NS" || fail "Deployment not found in $NS"
+        READY=$(oc get deployment stock-market-mcp -n "$NS" -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
         [ "$READY" = "1" ] && pass "Pod is ready" || fail "Pod not ready (readyReplicas=$READY)"
     else
         info "Not connected to a cluster — skipping live checks"
@@ -45,7 +49,7 @@ validate_lab6() {
     info "Validating Lab 6: Close the Feedback Loop"
     NS=$(oc project -q 2>/dev/null || echo "unknown")
     if [ "$NS" != "unknown" ]; then
-        SVC_IP=$(oc get svc my-mcp-server -n "$NS" -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
+        SVC_IP=$(oc get svc stock-market-mcp -n "$NS" -o jsonpath='{.spec.clusterIP}' 2>/dev/null || echo "")
         [ -n "$SVC_IP" ] && pass "Service reachable at $SVC_IP:8080" || fail "Service not found"
     fi
     pass "Lab 6 — feedback loop ready"
