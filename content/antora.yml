@@ -1,5 +1,5 @@
 name: modules
-title: "Build MCP Servers on Red Hat OpenShift AI"
+title: "Build and Deploy MCP Servers on Red Hat OpenShift AI"
 version: ~
 nav:
   - modules/ROOT/nav.adoc

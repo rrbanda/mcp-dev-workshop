@@ -1,4 +1,4 @@
-# Build MCP Servers on Red Hat OpenShift AI
+# Build and Deploy MCP Servers on Red Hat OpenShift AI
 
 Hands-on workshop: use an AI agent to build, test, and deploy MCP servers on OpenShift.
 

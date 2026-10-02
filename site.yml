@@ -1,5 +1,5 @@
 site:
-  title: "Build MCP Servers on Red Hat OpenShift AI"
+  title: "Build and Deploy MCP Servers on Red Hat OpenShift AI"
   url: https://rrbanda.github.io/mcp-dev-workshop
   start_page: modules::index.adoc
 
