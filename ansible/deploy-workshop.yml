@@ -1,0 +1,379 @@
+---
+# MCP Developer Workshop — Full deployment playbook
+#
+# Idempotent: safe to re-run. Only changes what's missing or different.
+#
+# Usage:
+#   # Full deploy (PCA + workshop overlay) for 20 users:
+#   ansible-playbook ansible/deploy-workshop.yml \
+#     -i ansible/inventory.yml \
+#     -e participant_count=20 \
+#     -e rhoai_api_key="sk-oai-..."
+#
+#   # Workshop overlay only (PCA already deployed):
+#   ansible-playbook ansible/deploy-workshop.yml \
+#     -i ansible/inventory.yml \
+#     -e participant_count=20 \
+#     -e rhoai_api_key="sk-oai-..." \
+#     --tags workshop
+#
+#   # Dry run:
+#   ansible-playbook ansible/deploy-workshop.yml \
+#     -i ansible/inventory.yml \
+#     -e participant_count=20 \
+#     -e rhoai_api_key="sk-oai-..." \
+#     --check
+#
+- name: Deploy MCP Developer Workshop
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    participants: "{{ range(1, participant_count | int + 1) | list }}"
+    repo_root: "{{ playbook_dir }}/.."
+
+  pre_tasks:
+    - name: Validate API key is provided
+      ansible.builtin.assert:
+        that:
+          - rhoai_api_key | length > 10
+        fail_msg: "rhoai_api_key is required. Pass via -e rhoai_api_key=... or set RHOAI_API_KEY env var"
+
+    - name: Validate PCA repo exists
+      ansible.builtin.stat:
+        path: "{{ pca_repo_path }}/charts/pca-devspaces"
+      register: pca_check
+      tags: [pca]
+
+    - name: Fail if PCA repo missing (for PCA tasks)
+      ansible.builtin.fail:
+        msg: "PCA repo not found at {{ pca_repo_path }}. Set pca_repo_path or use --tags workshop to skip PCA."
+      when: not pca_check.stat.exists
+      tags: [pca]
+
+    - name: Verify oc login
+      ansible.builtin.command: oc whoami
+      register: oc_user
+      changed_when: false
+
+    - name: Show deployment plan
+      ansible.builtin.debug:
+        msg:
+          - "Cluster user: {{ oc_user.stdout }}"
+          - "Participants: {{ participant_count }}"
+          - "Namespaces: {{ namespace_prefix }}1-devspaces … {{ namespace_prefix }}{{ participant_count }}-devspaces"
+          - "LLM: {{ llm_provider_display }} at {{ llm_base_url }}"
+          - "Workshop repo: {{ workshop_repo }} ({{ workshop_branch }})"
+
+  tasks:
+    # ═══════════════════════════════════════════════════════
+    # PHASE 1: Deploy DevSpaces via PCA Helm chart
+    # ═══════════════════════════════════════════════════════
+    - name: "Phase 1 — Create DevSpaces via PCA"
+      tags: [pca]
+      block:
+        - name: Check if OpenCode image already built
+          kubernetes.core.k8s_info:
+            api_version: image.openshift.io/v1
+            kind: ImageStream
+            name: devspaces-opencode
+            namespace: opencode-build
+          register: opencode_image
+
+        - name: Deploy DevSpaces with PCA Helm chart
+          kubernetes.core.helm:
+            name: "{{ namespace_prefix }}{{ item }}-devspaces-devspaces"
+            chart_ref: "{{ pca_repo_path }}/charts/pca-devspaces"
+            release_namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+            create_namespace: true
+            values_files:
+              - "{{ pca_repo_path }}/deploy_existing_openshift/values-devspaces.yaml"
+            values:
+              aiServingNamespace: "{{ ai_namespace }}"
+              devspaces:
+                - user: "{{ namespace_prefix }}{{ item }}"
+                  name: "{{ devworkspace_name }}"
+                  type: opencode
+              opencodeBuild:
+                enabled: "{{ (item == 1 and opencode_image.resources | length == 0) | bool }}"
+              devspacesGlobalConfig:
+                enabled: "{{ item == 1 }}"
+            wait: true
+            wait_timeout: 300
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Label namespaces for DevSpaces
+          kubernetes.core.k8s:
+            state: present
+            definition:
+              apiVersion: v1
+              kind: Namespace
+              metadata:
+                name: "{{ namespace_prefix }}{{ item }}-devspaces"
+                labels:
+                  app.kubernetes.io/component: workspaces-namespace
+                  app.kubernetes.io/part-of: che.eclipse.org
+                annotations:
+                  che.eclipse.org/username: "{{ namespace_prefix }}{{ item }}"
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Run HTPasswd IDP setup
+          ansible.builtin.command:
+            cmd: make setup-idp
+            chdir: "{{ pca_repo_path }}"
+          register: idp_result
+          changed_when: "'Adding IDP' in idp_result.stdout or 'Added user' in idp_result.stdout"
+
+    # ═══════════════════════════════════════════════════════
+    # PHASE 2: Wait for DevWorkspaces to be Running
+    # ═══════════════════════════════════════════════════════
+    - name: "Phase 2 — Wait for DevWorkspaces"
+      tags: [pca, workshop]
+      block:
+        - name: Wait for each DevWorkspace to be Running
+          kubernetes.core.k8s_info:
+            api_version: workspace.devfile.io/v1alpha2
+            kind: DevWorkspace
+            name: "{{ devworkspace_name }}"
+            namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+          register: dw_status
+          until: >-
+            dw_status.resources | length > 0 and
+            dw_status.resources[0].status.phase | default('') == 'Running'
+          retries: 60
+          delay: 10
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+    # ═══════════════════════════════════════════════════════
+    # PHASE 3: Workshop overlay (secrets, RBAC, DW patch)
+    # ═══════════════════════════════════════════════════════
+    - name: "Phase 3 — Apply workshop overlay"
+      tags: [workshop]
+      block:
+        - name: Create rhoai-api-key secret (idempotent)
+          kubernetes.core.k8s:
+            state: present
+            definition:
+              apiVersion: v1
+              kind: Secret
+              metadata:
+                name: rhoai-api-key
+                namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+              type: Opaque
+              stringData:
+                api-key: "{{ rhoai_api_key }}"
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+          no_log: true
+
+        - name: Create workshop-edit RoleBinding (idempotent)
+          kubernetes.core.k8s:
+            state: present
+            definition:
+              apiVersion: rbac.authorization.k8s.io/v1
+              kind: RoleBinding
+              metadata:
+                name: workshop-edit
+                namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+              subjects:
+                - kind: Group
+                  name: "system:serviceaccounts:{{ namespace_prefix }}{{ item }}-devspaces"
+                  apiGroup: rbac.authorization.k8s.io
+              roleRef:
+                kind: ClusterRole
+                name: edit
+                apiGroup: rbac.authorization.k8s.io
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Generate DevWorkspace patch
+          ansible.builtin.command:
+            cmd: >-
+              python3 {{ repo_root }}/scripts/generate-dw-patch.py
+              --namespace {{ namespace_prefix }}{{ item }}-devspaces
+              --devworkspace {{ devworkspace_name }}
+              --values {{ repo_root }}/workshop-values.yaml
+          register: dw_patches
+          changed_when: false
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Apply DevWorkspace patch
+          kubernetes.core.k8s:
+            state: present
+            merge_type: merge
+            definition: "{{ item.stdout | from_json }}"
+            api_version: workspace.devfile.io/v1alpha2
+            kind: DevWorkspace
+            name: "{{ devworkspace_name }}"
+            namespace: "{{ namespace_prefix }}{{ idx + 1 }}-devspaces"
+          loop: "{{ dw_patches.results }}"
+          loop_control:
+            index_var: idx
+            label: "{{ namespace_prefix }}{{ idx + 1 }}"
+          when: item.stdout | default('') | length > 0
+
+    # ═══════════════════════════════════════════════════════
+    # PHASE 4: Restart DevWorkspaces (only if changed)
+    # ═══════════════════════════════════════════════════════
+    - name: "Phase 4 — Restart DevWorkspaces"
+      tags: [workshop]
+      when: not ansible_check_mode
+      block:
+        - name: Check if DevWorkspaces were patched (need restart)
+          ansible.builtin.set_fact:
+            needs_restart: "{{ dw_patches.results | selectattr('changed', 'equalto', true) | list | length > 0 }}"
+          when: dw_patches is defined
+
+        - name: Stop DevWorkspaces
+          kubernetes.core.k8s:
+            state: present
+            merge_type: merge
+            api_version: workspace.devfile.io/v1alpha2
+            kind: DevWorkspace
+            name: "{{ devworkspace_name }}"
+            namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+            definition:
+              spec:
+                started: false
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Wait for DevWorkspaces to stop
+          kubernetes.core.k8s_info:
+            api_version: workspace.devfile.io/v1alpha2
+            kind: DevWorkspace
+            name: "{{ devworkspace_name }}"
+            namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+          register: dw_stop
+          until: >-
+            dw_stop.resources | length > 0 and
+            dw_stop.resources[0].status.phase | default('') in ['Stopped', 'Failed']
+          retries: 30
+          delay: 5
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Start DevWorkspaces
+          kubernetes.core.k8s:
+            state: present
+            merge_type: merge
+            api_version: workspace.devfile.io/v1alpha2
+            kind: DevWorkspace
+            name: "{{ devworkspace_name }}"
+            namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+            definition:
+              spec:
+                started: true
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Wait for DevWorkspaces to be Running
+          kubernetes.core.k8s_info:
+            api_version: workspace.devfile.io/v1alpha2
+            kind: DevWorkspace
+            name: "{{ devworkspace_name }}"
+            namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+          register: dw_running
+          until: >-
+            dw_running.resources | length > 0 and
+            dw_running.resources[0].status.phase | default('') == 'Running'
+          retries: 60
+          delay: 10
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+    # ═══════════════════════════════════════════════════════
+    # PHASE 5: Verify
+    # ═══════════════════════════════════════════════════════
+    - name: "Phase 5 — Verify workshops"
+      tags: [workshop, verify]
+      when: not ansible_check_mode
+      block:
+        - name: Pause for postStart commands to complete
+          ansible.builtin.pause:
+            seconds: 20
+            prompt: "Waiting for postStart commands to finish..."
+
+        - name: Get workspace pods
+          kubernetes.core.k8s_info:
+            kind: Pod
+            namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+            label_selectors:
+              - "controller.devfile.io/devworkspace_name={{ devworkspace_name }}"
+            field_selectors:
+              - "status.phase=Running"
+          register: ws_pods
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+
+        - name: Verify skills installed
+          ansible.builtin.command:
+            cmd: >-
+              oc exec -n {{ namespace_prefix }}{{ item }}-devspaces
+              {{ ws_pods.results[idx].resources[0].metadata.name }} -c dev-tools --
+              bash -c 'ls -d ~/.config/opencode/skills/*/ 2>/dev/null | wc -l'
+          register: skill_checks
+          changed_when: false
+          loop: "{{ participants }}"
+          loop_control:
+            index_var: idx
+            label: "{{ namespace_prefix }}{{ item }}"
+          ignore_errors: true
+
+        - name: Verify RBAC
+          ansible.builtin.command:
+            cmd: >-
+              oc exec -n {{ namespace_prefix }}{{ item }}-devspaces
+              {{ ws_pods.results[idx].resources[0].metadata.name }} -c dev-tools --
+              oc auth can-i create builds
+          register: rbac_checks
+          changed_when: false
+          loop: "{{ participants }}"
+          loop_control:
+            index_var: idx
+            label: "{{ namespace_prefix }}{{ item }}"
+          ignore_errors: true
+
+        - name: Report results
+          ansible.builtin.debug:
+            msg: >-
+              {{ namespace_prefix }}{{ item }}:
+              skills={{ skill_checks.results[idx].stdout | default('?') | trim }},
+              builds={{ rbac_checks.results[idx].stdout | default('?') | trim }}
+          loop: "{{ participants }}"
+          loop_control:
+            index_var: idx
+            label: "{{ namespace_prefix }}{{ item }}"
+
+  post_tasks:
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "═══════════════════════════════════════════════════"
+          - "  Workshop deployed for {{ participant_count }} participants"
+          - "═══════════════════════════════════════════════════"
+          - ""
+          - "  Namespaces: {{ namespace_prefix }}1-devspaces … {{ namespace_prefix }}{{ participant_count }}-devspaces"
+          - "  Logins:     {{ namespace_prefix }}1 / Dev1@PCA2026! … {{ namespace_prefix }}{{ participant_count }} / Dev{{ participant_count }}@PCA2026!"
+          - "  LLM:        {{ llm_provider_display }} at {{ llm_base_url }}"
+          - "  API key:    shared (rhoai-api-key secret in each namespace)"
+          - ""
+          - "  Participant access:"
+          - "    1. Log in: oc login -u {{ namespace_prefix }}N -p DevN@PCA2026!"
+          - "    2. Open DevSpaces dashboard"
+          - "    3. Click code-workspace-1 → port 4096 (OpenCode Web)"

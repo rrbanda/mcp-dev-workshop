@@ -1,0 +1,38 @@
+# MCP Developer Workshop — Ansible inventory
+#
+# All configuration for deploying the workshop.
+# Copy and fill in: cp inventory.yml my-cluster-inventory.yml
+# NEVER commit a filled-in copy with real API keys.
+all:
+  vars:
+    # ── Participants ──────────────────────────────────────
+    participant_count: 20
+    namespace_prefix: "dev-user"
+    devworkspace_name: "code-workspace-1"
+
+    # ── PCA (Private Coding Assistant) ────────────────────
+    pca_repo_path: "{{ playbook_dir }}/../../private-coding-assistant"
+    ai_namespace: "private-assistant-ai-serving"
+
+    # ── LLM Provider ─────────────────────────────────────
+    llm_base_url: "https://maas.apps.ocp.cloud.rhai-tmm.dev/v1"
+    llm_model_id: "publishers/prelude-maas/models/qwen38-27b"
+    llm_model_display: "qwen38-27b"
+    llm_context_window: 32768
+    llm_max_output: 8192
+    llm_provider_name: "rhoai"
+    llm_provider_display: "RHOAI MaaS (qwen38-27b)"
+
+    # ── API Key (pass at runtime, NEVER in this file) ────
+    # ansible-playbook ... -e rhoai_api_key="sk-oai-..."
+    # or: export RHOAI_API_KEY=... and use lookup('env', 'RHOAI_API_KEY')
+    rhoai_api_key: "{{ lookup('env', 'RHOAI_API_KEY') }}"
+
+    # ── Workshop Repo ────────────────────────────────────
+    workshop_repo: "https://github.com/rrbanda/mcp-dev-workshop.git"
+    workshop_branch: "main"
+
+  hosts:
+    localhost:
+      ansible_connection: local
+      ansible_python_interpreter: "{{ ansible_playbook_python }}"

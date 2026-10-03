@@ -1,0 +1,74 @@
+---
+# MCP Developer Workshop — Teardown playbook
+#
+# Removes workshop overlay and optionally DevSpaces.
+#
+# Usage:
+#   # Remove workshop overlay only (keep DevSpaces):
+#   ansible-playbook ansible/teardown-workshop.yml -i ansible/inventory.yml
+#
+#   # Remove everything including DevSpaces:
+#   ansible-playbook ansible/teardown-workshop.yml -i ansible/inventory.yml -e delete_devspaces=true
+#
+- name: Teardown MCP Developer Workshop
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    participants: "{{ range(1, participant_count | int + 1) | list }}"
+    delete_devspaces: false
+
+  tasks:
+    - name: Remove workshop-edit RoleBinding
+      kubernetes.core.k8s:
+        state: absent
+        api_version: rbac.authorization.k8s.io/v1
+        kind: RoleBinding
+        name: workshop-edit
+        namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+      loop: "{{ participants }}"
+      loop_control:
+        label: "{{ namespace_prefix }}{{ item }}"
+      ignore_errors: true
+
+    - name: Remove rhoai-api-key secret
+      kubernetes.core.k8s:
+        state: absent
+        api_version: v1
+        kind: Secret
+        name: rhoai-api-key
+        namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+      loop: "{{ participants }}"
+      loop_control:
+        label: "{{ namespace_prefix }}{{ item }}"
+      ignore_errors: true
+
+    - name: Remove DevSpaces (if requested)
+      when: delete_devspaces | bool
+      block:
+        - name: Uninstall Helm releases
+          kubernetes.core.helm:
+            name: "{{ namespace_prefix }}{{ item }}-devspaces-devspaces"
+            release_namespace: "{{ namespace_prefix }}{{ item }}-devspaces"
+            state: absent
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+          ignore_errors: true
+
+        - name: Delete namespaces
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: "{{ namespace_prefix }}{{ item }}-devspaces"
+          loop: "{{ participants }}"
+          loop_control:
+            label: "{{ namespace_prefix }}{{ item }}"
+          ignore_errors: true
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg:
+          - "Workshop teardown complete for {{ participant_count }} participants"
+          - "DevSpaces deleted: {{ delete_devspaces }}"
