@@ -1,0 +1,112 @@
+= Close the Feedback Loop
+:navtitle: Close the Feedback Loop
+
+The defining moment of this workshop: the AI agent uses the MCP server *it
+helped build*. You wire OpenCode to the deployed remote server, and the agent
+calls stock market tools that are running as a container on OpenShift -- not as a
+local process.
+
+== Learning objectives
+
+* Configure OpenCode to connect to a deployed MCP server via streamable-http.
+* Observe the agent calling tools over the network.
+* Reflect on the full agent tool development loop.
+
+== Exercise 1: Get the service URL
+
+Your MCP server is running as a ClusterIP Service. From inside the cluster
+(which is where your DevSpaces workspace runs), you can reach it directly:
+
+[source,bash,role="execute"]
+----
+NAMESPACE=$(oc project -q)
+echo "http://stock-market-mcp.${NAMESPACE}.svc:8080/mcp"
+----
+
+== Exercise 2: Wire OpenCode to the deployed server
+
+In the OpenCode chat, tell the agent to register and use the deployed server:
+
+----
+I have an MCP server deployed on OpenShift. Connect to it using streamable-http transport at:
+http://stock-market-mcp.<your-namespace>.svc:8080/mcp
+
+Then get me Apple's current stock price.
+----
+
+Or use the Makefile:
+
+[source,bash,role="execute"]
+----
+make connect-mcp
+----
+
+Expected result: OpenCode connects to the remote MCP server and discovers the
+nine stock market tools. It calls `get_stock_info` and returns Apple's price.
+
+== Exercise 3: Agent uses what it built
+
+Now try more complex queries:
+
+----
+Compare the P/E ratios of AAPL, MSFT, and GOOGL using the stock info tool.
+----
+
+The agent calls `get_stock_info` three times, extracts the P/E ratios, and
+presents a comparison.
+
+----
+What options are available for TSLA? Show me the calls expiring on the nearest date.
+----
+
+The agent chains `get_option_expiration_dates` then `get_option_chain` with
+the first date.
+
+== Exercise 4: Full verification
+
+Run the complete verification suite:
+
+[source,bash,role="execute"]
+----
+make verify-mcp
+----
+
+Expected result: Deployment check + MCP protocol test -- initialize succeeds,
+all 9 tools are registered, tool calls return data.
+
+== Exercise 5: Reflect on the loop
+
+Trace what happened:
+
+. *You asked the agent* to build a stock market MCP server.
+. *The agent loaded skills* that taught it MCP SDK patterns, yfinance API, and
+  the exact server specification.
+. *The agent generated code* -- server.py with 9 tools, Enums, helpers,
+  plus Containerfile and deployment.yaml.
+. *You tested locally* -- the server worked via stdio, returning real stock data.
+. *You deployed to OpenShift* -- the server runs as a container.
+. *You wired the agent to the deployed server* -- streamable-http transport.
+. *The agent uses the tools it built* -- querying live financial data through its
+  own server.
+
+This is the *agent tool development loop*: the AI helps build tools, the tools
+extend the AI's capabilities, and the extended AI can help build better tools.
+
+[mermaid]
+....
+flowchart LR
+    A["Developer asks agent"] --> B["Agent loads skills"]
+    B --> C["Agent writes MCP server"]
+    C --> D["Developer deploys"]
+    D --> E["Agent uses deployed tools"]
+    E --> F["Agent has new capabilities"]
+    F -.-> A
+....
+
+== Workshop complete!
+
+Congratulations -- you have completed the agentic track. You used an AI agent
+to build a stock market MCP server, tested it locally, deployed it to OpenShift,
+and closed the feedback loop by wiring the agent to its own deployed server.
+
+Proceed to xref:11-cleanup.adoc[Cleanup].

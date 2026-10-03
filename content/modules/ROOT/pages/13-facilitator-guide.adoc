@@ -178,48 +178,41 @@ done
 * Walk through xref:02-prerequisites.adoc[Prerequisites] as a group to verify
   everyone is connected before starting Module 1.
 
-=== Dual-track options
+=== Two separate tracks
 
-The workshop supports two participation modes. Announce the choice at the start:
+The workshop has two separate tracks in the navigation. Announce the choice
+at the start of class:
 
-* *Agent mode (AI-assisted)* -- participants use OpenCode's AI agent to
-  generate code, load skills, and call tools. Best for exploring how AI agents
-  consume MCP.
-* *Manual mode (CLI)* -- participants read the reference code, copy the
-  scaffold, and call tools with `curl` / JSON-RPC. Best for understanding MCP
-  internals without an AI layer.
+* *Agentic track* -- participants use the OpenCode AI chat to generate code,
+  load skills, and call tools. Best for exploring how AI agents consume MCP.
+* *Manual track* -- participants read the reference code, copy the scaffold,
+  and call tools with `curl` / JSON-RPC. Best for understanding MCP internals
+  without an AI layer.
 
-Both tracks produce the same outcome. Each module page has `[tabs]` blocks that
-show instructions for both modes. Participants can switch modes at any time.
+Both tracks produce the same outcome (a deployed MCP server with 9 tools).
+Participants pick one track and follow it from start to finish. Both tracks
+share the same Prerequisites, Architecture, Deploy, and Cleanup pages.
 
 == Timing guide
 
 [cols="1,1,1",options="header"]
 |===
-| Block | Duration | Modules
+| Block | Duration | Content
 
 | Welcome + prerequisites check
 | 15 min
 | Prerequisites verification as a group
 
-| Core track
+| Workshop (either track)
 | 90 min
 | Modules 1-6
-
-| Break
-| 10 min
-|
-
-| Extended track (optional)
-| 60 min
-| Modules 7-8
 
 | Cleanup + Q&A
 | 15 min
 | Cleanup
 |===
 
-*Total: 2 hours (core) or 3 hours (extended), including breaks.*
+*Total: about 2 hours including breaks.*
 
 == Troubleshooting
 

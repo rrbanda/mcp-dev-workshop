@@ -1,25 +1,19 @@
-= Module 3: Build a Stock Market MCP Server
-:navtitle: Build a Stock Market MCP Server
+= Build with the Agent
+:navtitle: Build with the Agent
 
-This is the core module. You produce a complete MCP server that provides
-real-time stock market data using yfinance.
+This is the core module. You tell the AI agent what tools you want, the agent
+loads three skills and generates a complete MCP server that provides real-time
+stock market data. You review the code and optionally customize it.
 
 == Learning objectives
 
-* Produce a working MCP server with 9 stock market tools.
-* Identify the MCP Python SDK v2 patterns in the code: `MCPServer`,
-  `@server.tool()`, type hints, docstrings, `server.run()`.
-* Understand how type hints and Enum classes map to JSON Schema for tool
-  parameters.
-* _(Agent mode)_ Add or modify a tool via natural-language instruction.
+* Use the agent and its loaded skills to generate a stock market MCP server.
+* Identify the MCP Python SDK v2 patterns in the generated code.
+* Understand how type hints and Enum classes map to JSON Schema.
+* Add or modify a tool via natural-language instruction.
 
-== Exercise 1: Build your MCP server
+== Exercise 1: Ask the agent to build your MCP server
 
-[tabs]
-====
-Agent Mode::
-+
---
 In the OpenCode chat, give the agent a clear description of what you want.
 Here is a suggested prompt -- feel free to customize it:
 
@@ -54,49 +48,17 @@ Expected result: The agent loads the `build-mcp-server`, `yfinance-api`, and
 * `scaffold/Containerfile` -- UBI9 Python image, pip install, CMD
 * `scaffold/deployment.yaml` -- Deployment + Service for OpenShift
 
+Watch the agent's output -- you should see it reference the skills and
+produce structured Python code.
+
 [IMPORTANT]
-=====
+====
 If the agent produces code that uses `FastMCP` instead of `MCPServer`, ask it
 to update the import. `FastMCP` was the v1 name -- it is *removed* in SDK v2.
 The correct v2 import is `from mcp.server import MCPServer`.
-=====
---
-
-Manual Mode::
-+
---
-The reference implementation is already in the repo. Copy it to the scaffold:
-
-[source,bash,role="execute"]
-----
-cp solutions/lab-03/server.py scaffold/server.py
-----
-
-Read through the code to understand the patterns:
-
-[source,bash,role="execute"]
-----
-head -80 scaffold/server.py
-----
-
-The reference code contains all 9 tools following the specification from
-`.opencode/skills/stock-market-mcp-spec/SKILL.md`. If you want to understand
-every detail, read that spec file alongside the code.
-
-Verify the other scaffold files exist:
-
-[source,bash,role="execute"]
-----
-cat scaffold/requirements.txt
-cat scaffold/Containerfile
-cat scaffold/deployment.yaml
-----
-
-All four files should be present in the `scaffold/` directory.
---
 ====
 
-== Exercise 2: Review the code
+== Exercise 2: Review the generated code
 
 Open `scaffold/server.py` in the IDE or terminal:
 
@@ -142,23 +104,6 @@ Check for these SDK v2 patterns:
 | `if __name__ == "__main__": main()`
 |===
 
-.Why do type hints and Enums matter?
-[%collapsible]
-=====
-MCP uses type hints to auto-generate JSON Schema for each tool's parameters.
-When an agent connects to your server, it receives the schema and knows exactly
-what arguments each tool expects -- types, defaults, which are required.
-
-`str` maps to `{"type": "string"}` +
-`int` maps to `{"type": "integer"}` +
-`float | None` maps to `{"type": "number"}` (nullable) +
-`FinancialType` enum maps to `{"enum": ["income_stmt", "quarterly_income_stmt", ...]}` +
-Optional with default means `"required": false`
-
-Enums are especially powerful -- the agent sees the exact valid values and never
-passes an invalid financial type.
-=====
-
 == Exercise 3: Review the deployment artifacts
 
 Check the Containerfile:
@@ -185,11 +130,6 @@ limits. A Service exposing port 8080.
 
 == Exercise 4: Customize -- add a tool
 
-[tabs]
-====
-Agent Mode::
-+
---
 Ask the agent to add a tenth tool:
 
 ----
@@ -200,38 +140,6 @@ current price, market cap, P/E ratio, and 52-week range using yfinance.
 
 Expected result: The agent edits `scaffold/server.py` and adds the new tool
 with proper decorator, type hints, docstring, and error handling.
---
-
-Manual Mode::
-+
---
-Open `scaffold/server.py` in the editor and add a tenth tool manually.
-Follow the same pattern as the existing tools:
-
-[source,python]
-----
-@server.tool(name="compare_stocks", description="Compare key metrics for multiple stocks")
-async def compare_stocks(tickers: list[str]) -> str:
-    """Compare current price, market cap, P/E ratio, and 52-week range."""
-    try:
-        results = []
-        for t in tickers:
-            ticker = yf.Ticker(normalize_ticker(t))
-            info = ticker.info
-            results.append({
-                "ticker": t,
-                "price": info.get("regularMarketPrice"),
-                "market_cap": info.get("marketCap"),
-                "pe_ratio": info.get("trailingPE"),
-                "52w_high": info.get("fiftyTwoWeekHigh"),
-                "52w_low": info.get("fiftyTwoWeekLow"),
-            })
-        return json.dumps(results, indent=2)
-    except Exception as e:
-        return json.dumps({"error": str(e)})
-----
---
-====
 
 Verify:
 
@@ -256,7 +164,7 @@ has @server.tool decorators, has run() call, uses yfinance,
 requirements.txt has mcp and yfinance, Containerfile and deployment.yaml exist.
 
 [TIP]
-=====
+====
 *Falling behind?* Copy the reference solution:
 
 [source,bash,role="execute"]
@@ -265,7 +173,7 @@ cp solutions/lab-03/server.py scaffold/server.py
 ----
 
 This gives you a known-good server to continue with.
-=====
+====
 
 == Checkpoint
 
@@ -279,4 +187,4 @@ You should now have:
 * [x] `scaffold/deployment.yaml` for OpenShift deployment
 * [x] `make validate` passes
 
-Proceed to xref:06-module-04-test.adoc[Module 4: Test Your MCP Server].
+Proceed to xref:a04-test.adoc[Module 4: Test with Your Agent].

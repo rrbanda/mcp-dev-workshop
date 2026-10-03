@@ -1,17 +1,16 @@
-= Module 4: Test Your MCP Server
-:navtitle: Test Your MCP Server
+= Test with Your Agent
+:navtitle: Test with Your Agent
 
 Before deploying anywhere, test the MCP server locally. You install
-dependencies, run a smoke test, then verify tools work -- either through the
-agent (agent mode) or directly via Python introspection and curl (manual mode).
+dependencies, run a smoke test, then wire OpenCode to your server so the
+agent can call your stock market tools through the stdio transport.
 
 == Learning objectives
 
 * Install Python dependencies with `pip`.
 * Verify the server starts and registers all tools.
-* _(Agent mode)_ Configure OpenCode to connect to a local MCP server via stdio.
-* _(Manual mode)_ Use Python introspection to inspect registered tools.
-* Call stock market tools and see real data.
+* Configure OpenCode to connect to a local MCP server via stdio.
+* Observe the agent discovering and calling stock market tools.
 
 == Exercise 1: Install dependencies
 
@@ -70,18 +69,10 @@ for name, tool in server._tool_manager._tools.items():
 " 2>/dev/null || echo "Tools will be discovered when you connect a client"
 ----
 
-Expected result: All nine stock market tools listed: `get_historical_stock_prices`,
-`get_stock_info`, `get_stock_news`, `get_stock_actions`, `get_financial_statement`,
-`get_holder_info`, `get_option_expiration_dates`, `get_option_chain`,
-`get_recommendations`.
+Expected result: All nine stock market tools listed.
 
-== Exercise 4: Call tools with a client
+== Exercise 4: Wire OpenCode to your server
 
-[tabs]
-====
-Agent Mode::
-+
---
 Connect OpenCode to your MCP server so the agent can call your tools.
 The connection uses the stdio transport -- OpenCode spawns the server as a
 child process and communicates through stdin/stdout.
@@ -94,14 +85,19 @@ The server runs with: python /projects/mcp-dev-workshop/scaffold/server.py
 Use stdio transport.
 ----
 
-Once connected, ask the agent to use your tools:
+Expected result: OpenCode connects to your MCP server and discovers all nine tools.
+
+== Exercise 5: Call tools through the agent
+
+With the MCP server connected, ask the agent to use your tools:
 
 ----
 Using the stock-market MCP server, get me the current stock info for Apple (AAPL).
 ----
 
-Expected result: The agent calls the `get_stock_info` tool, which queries
-Yahoo Finance via yfinance and returns comprehensive stock data.
+Expected result: The agent calls the `get_stock_info` tool on your MCP server, which
+queries Yahoo Finance via yfinance and returns comprehensive stock data including
+current price, market cap, P/E ratio, and company details.
 
 Try more tool calls:
 
@@ -113,12 +109,13 @@ Show me the last 5 days of historical prices for Microsoft (MSFT).
 Get the quarterly income statement for NVIDIA (NVDA).
 ----
 
-Each request triggers a different tool call. Watch the agent's output -- you
-should see it identify which tool to call and pass the right arguments
-(including valid Enum values like `quarterly_income_stmt`).
+Each request should trigger a different tool call. Watch the agent's output --
+you should see it identify which tool to call, pass the right arguments
+(including valid Enum values like `quarterly_income_stmt`), and present the
+results.
 
 [TIP]
-=====
+====
 Try a class-share ticker to test the normalization:
 
 ----
@@ -127,76 +124,11 @@ Get stock info for Berkshire Hathaway class B (BRK.B).
 
 The `normalize_ticker` function should convert `BRK.B` to `BRK-B`
 before querying yfinance.
-=====
---
-
-Manual Mode::
-+
---
-Use the MCP Inspector if available (`npx` required), or test via Python
-directly.
-
-**Option A: MCP Inspector** (if `npx` is on your PATH)
-
-[source,bash,role="execute"]
-----
-cd /projects/mcp-dev-workshop/scaffold
-mcp dev server.py
-----
-
-This launches an interactive browser UI where you can call each tool and
-see the JSON response. Try `get_stock_info` with `{"ticker": "AAPL"}`.
-
-**Option B: Direct Python test** (no npx needed)
-
-[source,bash,role="execute"]
-----
-cd /projects/mcp-dev-workshop/scaffold
-python -c "
-import asyncio, json
-from server import server
-
-async def test():
-    # Call get_stock_info for Apple
-    result = await server._tool_manager.call_tool('get_stock_info', {'ticker': 'AAPL'})
-    for item in result:
-        if hasattr(item, 'text'):
-            data = json.loads(item.text)
-            print(json.dumps(data, indent=2)[:500])
-
-asyncio.run(test())
-" 2>/dev/null || echo "Direct call not available -- tools will be tested after deploy"
-----
-
-Expected result: Real stock data for Apple -- current price, market cap,
-P/E ratio, 52-week range.
-
-Try another tool:
-
-[source,bash,role="execute"]
-----
-cd /projects/mcp-dev-workshop/scaffold
-python -c "
-import asyncio, json
-from server import server
-
-async def test():
-    result = await server._tool_manager.call_tool('get_stock_news', {'ticker': 'MSFT'})
-    for item in result:
-        if hasattr(item, 'text'):
-            data = json.loads(item.text)
-            for article in data[:3]:
-                print(f\"  {article.get('title', 'N/A')}\")
-
-asyncio.run(test())
-" 2>/dev/null || echo "Direct call not available"
-----
---
 ====
 
 [TIP]
 ====
-If the agent does not find your MCP server (agent mode), check:
+If the agent does not find your MCP server, check:
 
 . Is the server path correct? `ls /projects/mcp-dev-workshop/scaffold/server.py`
 . Does the server start? `python /projects/mcp-dev-workshop/scaffold/server.py`
@@ -209,6 +141,7 @@ You should now have:
 
 * [x] MCP SDK and yfinance installed, server starts without errors
 * [x] Nine tools listed with correct names and descriptions
-* [x] Successfully called at least one tool and received real stock data
+* [x] OpenCode connected to the local MCP server via stdio
+* [x] Agent successfully calling stock market tools and returning real data
 
 Proceed to xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift].

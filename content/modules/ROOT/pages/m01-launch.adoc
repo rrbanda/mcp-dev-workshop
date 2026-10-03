@@ -1,16 +1,16 @@
-= Module 1: Launch Your Workspace
+= Launch Your Workspace
 :navtitle: Launch Your Workspace
 
 Your workspace is running and you have verified the LLM in the Prerequisites
-page. Now get oriented -- learn where things are in the IDE, understand the
-project layout, and confirm you are ready to build.
+page. Now get oriented -- learn where things are in the VS Code editor,
+explore the project layout, and confirm you are ready to build.
 
 == Learning objectives
 
-* Navigate the VS Code editor (file tree, terminal, ports).
+* Navigate the VS Code editor (file tree, terminal).
 * Locate the workshop project files and understand the directory structure.
-* _(Agent mode)_ Send a message in the OpenCode chat and see the agent respond.
-* _(Manual mode)_ Read a skill file and understand what it contains.
+* Read a skill file as SDK reference documentation.
+* Confirm environment variables are set.
 
 == Your IDE at a glance
 
@@ -32,9 +32,6 @@ DevSpaces. Here is what you should see:
 | *Top menu bar*
 | File, Edit, Terminal, Help. Use *Terminal -> New Terminal* if you need
   another terminal tab.
-
-| *Ports / Endpoints tab* _(if visible)_
-| Shows exposed ports. Port 4096 is the OpenCode Web UI (agent mode only).
 |===
 
 == Exercise 1: Explore the project
@@ -61,52 +58,18 @@ Key directories and files:
 | Reference solutions for each module. Use these if you fall behind.
 
 | `.opencode/skills/`
-| Three Agent Skills (SKILL.md files) that teach MCP patterns, yfinance API,
-  and the server specification. Used by the agent in agent mode; useful as
-  reference docs in manual mode.
+| Markdown files containing MCP SDK patterns, yfinance API reference, and
+  the server specification. You will read these as documentation.
 
 | `Makefile`
 | Workshop commands: `make validate`, `make build-image`, `make deploy`,
   `make test-mcp`, `make clean`.
-
-| `content/`
-| The Antora source for this workshop guide. You can ignore this.
 |===
 
 == Exercise 2: Read a skill file
 
-Skills are Markdown files that contain SDK patterns, API references, and
-specifications. Even in manual mode, they are valuable documentation.
-
-[tabs]
-====
-Agent Mode::
-+
---
-In the OpenCode chat, ask the agent to discover skills:
-
-----
-What skills do you have available? List them.
-----
-
-Expected result: The agent lists three skills -- `build-mcp-server`,
-`yfinance-api`, and `stock-market-mcp-spec` -- with one-line descriptions.
-
-Now ask it to load one:
-
-----
-Load the build-mcp-server skill and summarize what it teaches you.
-----
-
-Expected result: The agent reads the full SKILL.md and summarizes the MCP
-Python SDK v2 patterns it learned.
---
-
-Manual Mode::
-+
---
-Open the skill file in the editor (click it in the file tree) or read it in
-the terminal:
+Open the build-mcp-server skill file in the editor (click it in the file tree)
+or read it in the terminal:
 
 [source,bash,role="execute"]
 ----
@@ -120,10 +83,8 @@ Skim the contents. Notice:
 * It covers transport modes (stdio vs streamable-http).
 * It includes error handling and Containerfile patterns.
 
-This is the same content the agent would load in agent mode. In manual mode,
-you read it yourself as a reference guide.
---
-====
+These files are the same ones an AI agent would load in the agentic track.
+In the manual track, you read them yourself as reference documentation.
 
 == Exercise 3: Check the Makefile targets
 
@@ -158,9 +119,6 @@ Key targets you will use:
 
 == Exercise 4: Confirm environment variables
 
-The workshop depends on four environment variables set by the facilitator.
-Verify all four are present:
-
 [source,bash,role="execute"]
 ----
 echo "User:      $(oc whoami)"
@@ -187,7 +145,7 @@ You should now have:
 * [x] VS Code editor open with the workshop project visible
 * [x] Terminal working with `oc`, `python`, `make` available
 * [x] Understood the project directory layout
-* [x] Read at least one skill file (as reference or via the agent)
-* [x] Confirmed your username, namespace, API URL, and model ID
+* [x] Read the build-mcp-server skill file as reference
+* [x] Environment variables confirmed
 
-Proceed to xref:04-module-02-skills.adoc[Module 2: Understand MCP Patterns].
+Proceed to xref:m02-patterns.adoc[Module 2: Understand MCP Patterns].

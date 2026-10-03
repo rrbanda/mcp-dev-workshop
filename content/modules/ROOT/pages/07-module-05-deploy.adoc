@@ -170,4 +170,7 @@ You should now have:
 * [x] Service reachable on port 8080
 * [x] `make verify` passes
 
-Proceed to xref:08-module-06-use.adoc[Module 6: Close the Feedback Loop].
+Proceed to the next module in your track:
+
+* *Agentic track:* xref:a05-use.adoc[Module 6: Close the Feedback Loop]
+* *Manual track:* xref:m05-use.adoc[Module 6: Call Tools with curl]

@@ -1,0 +1,113 @@
+= Understand MCP Patterns
+:navtitle: Understand MCP Patterns
+
+Before building your MCP server, you need to understand the patterns it uses.
+This module walks you through the MCP Python SDK v2 structure by reading the
+skill files and reference code directly.
+
+== Learning objectives
+
+* Identify the MCP Python SDK v2 patterns: `MCPServer`, `@server.tool()`,
+  type hints, docstrings, transport modes.
+* Understand how the three knowledge layers (framework, domain, specification)
+  combine to produce a well-structured server.
+
+== Exercise 1: Read the MCP framework patterns
+
+[source,bash,role="execute"]
+----
+cat .opencode/skills/build-mcp-server/SKILL.md
+----
+
+Focus on these sections:
+
+* *Server creation* -- `MCPServer("name", instructions="...")`
+* *Tool decorator* -- `@server.tool(name="...", description="...")`
+* *Type hints* -- how they map to JSON Schema for tool parameters
+* *Transport modes* -- stdio (local dev) vs streamable-http (deployed)
+* *Entry point* -- `server.run()` with transport selection
+
+== Exercise 2: Read the domain reference
+
+[source,bash,role="execute"]
+----
+head -60 .opencode/skills/yfinance-api/SKILL.md
+----
+
+This shows the yfinance `Ticker` API -- what methods exist, what they return,
+and common gotchas (ticker normalization, date formats, etc.).
+
+== Exercise 3: Review the three knowledge layers
+
+The three skill files work together. List them:
+
+[source,bash,role="execute"]
+----
+ls .opencode/skills/*/SKILL.md
+----
+
+[source,bash,role="execute"]
+----
+head -20 .opencode/skills/stock-market-mcp-spec/SKILL.md
+----
+
+[cols="1,2",options="header"]
+|===
+| Skill / Reference | What it teaches
+
+| `build-mcp-server`
+| *How* to build any MCP server -- SDK v2 patterns, transports, deployment
+
+| `yfinance-api`
+| *What data is available* -- every yfinance Ticker method, return types, gotchas
+
+| `stock-market-mcp-spec`
+| *Exactly what to build* -- 9 tools, 3 Enums, 4 helpers, error handling
+|===
+
+This decomposition means the problem is split into framework knowledge, domain knowledge,
+and an exact specification. Whether an agent reads these or you do, the result is the same:
+a server that matches the spec precisely.
+
+== Exercise 4: Cross-harness portability
+
+The same files are available in multiple directories for different AI tools:
+
+[source,bash,role="execute"]
+----
+ls -la .opencode/skills/*/SKILL.md
+ls -la .claude/skills/*/SKILL.md
+ls -la .cursor/skills/*/SKILL.md
+----
+
+This means the skills work with OpenCode, Claude Code, and Cursor -- any tool that
+supports the Agent Skills convention. Write once, use with any agent.
+
+== Key takeaways
+
+[cols="1,2",options="header"]
+|===
+| Concept | Detail
+
+| *Composable knowledge*
+| Framework + domain + specification combine for precise output.
+
+| *Portable*
+| Same files work across OpenCode, Claude Code, Cursor, Agents.
+
+| *Versioned*
+| Skills live in your repo -- PR reviews, git history, branch-per-experiment.
+
+| *Zero platform change*
+| Adding a skill is adding a file. No operator, no CRD, no restart.
+|===
+
+== Checkpoint
+
+You should now understand:
+
+* [x] The MCP Python SDK v2 patterns (MCPServer, @server.tool, type hints, transports)
+* [x] How framework, domain, and spec knowledge combine
+* [x] That the skill files are portable across AI coding tools
+
+Proceed to xref:m03-build.adoc[Module 3: Build from Reference].

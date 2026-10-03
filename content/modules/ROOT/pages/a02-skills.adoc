@@ -1,0 +1,146 @@
+= Agent Skills
+:navtitle: Agent Skills
+
+Before building your MCP server, understand how Agent Skills teach the AI
+agent the patterns it needs. Skills are the mechanism that turns a general-purpose
+LLM into an expert MCP server builder.
+
+== Learning objectives
+
+* Explain what Agent Skills are and how they differ from a system prompt.
+* Observe the agent discovering and loading skills on demand.
+* Understand how the three knowledge layers (framework, domain, specification)
+  combine to produce a well-structured server.
+
+== What is an Agent Skill?
+
+A skill is a Markdown file (`SKILL.md`) placed in a known directory. It contains
+instructions, API references, code patterns, and examples that the agent can
+load when it needs them.
+
+Skills differ from system prompts:
+
+[cols="1,1",options="header"]
+|===
+| System Prompt | Agent Skill
+
+| Always loaded into context
+| Loaded on demand (lazy)
+
+| Uses context window constantly
+| Zero cost until needed
+
+| Same for every task
+| Task-specific knowledge
+
+| Hard to version or share
+| A file in your repo -- versioned, shareable, portable
+|===
+
+The agent sees a *directory listing* of skill names and their first-line
+descriptions. When a task matches, the agent loads the full skill body into
+its context. This is lazy loading -- the skill only consumes context when it
+is relevant.
+
+== Exercise 1: List available skills
+
+In the OpenCode chat, ask:
+
+----
+What skills do you have available?
+----
+
+Expected result: The agent lists the available skills -- `build-mcp-server`,
+`yfinance-api`, and `stock-market-mcp-spec` (and others).
+It shows each skill name and a short description, but does *not*
+load the full content yet.
+
+== Exercise 2: Observe skill loading
+
+In the OpenCode chat, ask:
+
+----
+I want to build an MCP server. What would the basic structure look like? Don't write any files yet.
+----
+
+Expected result: The agent loads the `build-mcp-server` skill and describes
+the structure -- `MCPServer` class, `@server.tool()` decorators, `server.run()`.
+
+== Exercise 3: Review the three knowledge layers
+
+The three skills work together:
+
+[source,bash,role="execute"]
+----
+ls .opencode/skills/*/SKILL.md
+----
+
+[source,bash,role="execute"]
+----
+head -20 .opencode/skills/stock-market-mcp-spec/SKILL.md
+----
+
+[cols="1,2",options="header"]
+|===
+| Skill | What it teaches
+
+| `build-mcp-server`
+| *How* to build any MCP server -- SDK v2 patterns, transports, deployment
+
+| `yfinance-api`
+| *What data is available* -- every yfinance Ticker method, return types, gotchas
+
+| `stock-market-mcp-spec`
+| *Exactly what to build* -- 9 tools, 3 Enums, 4 helpers, error handling
+|===
+
+This decomposition means the problem is split into framework knowledge, domain knowledge,
+and an exact specification. The agent reads all three and produces a server that
+matches the spec precisely.
+
+== Exercise 4: Cross-harness portability
+
+The same files are available in multiple directories for different AI tools:
+
+[source,bash,role="execute"]
+----
+ls -la .opencode/skills/*/SKILL.md
+ls -la .claude/skills/*/SKILL.md
+ls -la .cursor/skills/*/SKILL.md
+----
+
+This means the skills work with OpenCode, Claude Code, and Cursor -- any tool that
+supports the Agent Skills convention. Write once, use with any agent.
+
+== Key takeaways
+
+[cols="1,2",options="header"]
+|===
+| Concept | Detail
+
+| *Lazy loading*
+| Skills are listed by name; full body loaded only when relevant.
+
+| *Composable knowledge*
+| Framework + domain + specification combine for precise output.
+
+| *Portable*
+| Same files work across OpenCode, Claude Code, Cursor, Agents.
+
+| *Versioned*
+| Skills live in your repo -- PR reviews, git history, branch-per-experiment.
+
+| *Zero platform change*
+| Adding a skill is adding a file. No operator, no CRD, no restart.
+|===
+
+== Checkpoint
+
+You should now understand:
+
+* [x] What Agent Skills are and how they differ from a system prompt
+* [x] How the agent discovers and lazy-loads skills on demand
+* [x] How framework, domain, and spec knowledge combine
+* [x] That the skill files are portable across AI coding tools
+
+Proceed to xref:a03-build.adoc[Module 3: Build with the Agent].

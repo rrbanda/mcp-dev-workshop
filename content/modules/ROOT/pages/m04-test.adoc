@@ -1,0 +1,145 @@
+= Test Your Server
+:navtitle: Test Your Server
+
+Before deploying anywhere, test the MCP server locally. You install
+dependencies, run a smoke test, then verify tools work via Python
+introspection and the MCP Inspector.
+
+== Learning objectives
+
+* Install Python dependencies with `pip`.
+* Verify the server starts and registers all tools.
+* Use Python introspection to inspect registered tools.
+* Call stock market tools and see real data.
+
+== Exercise 1: Install dependencies
+
+In the terminal, install the MCP SDK and yfinance:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+pip install -r requirements.txt
+----
+
+Verify the installation:
+
+[source,bash,role="execute"]
+----
+python -c "import mcp; import yfinance; print('MCP SDK and yfinance installed successfully')"
+----
+
+Expected result: The confirmation message prints without errors.
+
+== Exercise 2: Quick smoke test
+
+Run the server directly to check it starts without errors:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+timeout 5 python server.py 2>&1 || true
+----
+
+Expected result: The server starts and waits for stdio input. It may print a
+startup message or simply hang waiting -- both are correct for stdio mode.
+The `timeout 5` ensures it exits after 5 seconds.
+
+[CAUTION]
+====
+If you see an `ImportError` or `ModuleNotFoundError`, the dependency was not
+installed correctly. Re-run `pip install -r requirements.txt` and check for
+errors in the output.
+====
+
+== Exercise 3: Inspect registered tools
+
+Verify all 9 tools are registered:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+python -c "
+from server import server
+
+print('Server name:', server.name)
+print('Registered tools:')
+for name, tool in server._tool_manager._tools.items():
+    print(f'  {name}: {tool.description[:80]}')
+" 2>/dev/null || echo "Tools will be discovered when you connect a client"
+----
+
+Expected result: All nine stock market tools listed: `get_historical_stock_prices`,
+`get_stock_info`, `get_stock_news`, `get_stock_actions`, `get_financial_statement`,
+`get_holder_info`, `get_option_expiration_dates`, `get_option_chain`,
+`get_recommendations`.
+
+== Exercise 4: Call tools directly
+
+Use the MCP Inspector if available (`npx` required), or test via Python
+directly.
+
+**Option A: MCP Inspector** (if `npx` is on your PATH)
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+mcp dev server.py
+----
+
+This launches an interactive browser UI where you can call each tool and
+see the JSON response. Try `get_stock_info` with `{"ticker": "AAPL"}`.
+
+**Option B: Direct Python test** (no npx needed)
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+python -c "
+import asyncio, json
+from server import server
+
+async def test():
+    result = await server._tool_manager.call_tool('get_stock_info', {'ticker': 'AAPL'})
+    for item in result:
+        if hasattr(item, 'text'):
+            data = json.loads(item.text)
+            print(json.dumps(data, indent=2)[:500])
+
+asyncio.run(test())
+" 2>/dev/null || echo "Direct call not available -- tools will be tested after deploy"
+----
+
+Expected result: Real stock data for Apple -- current price, market cap,
+P/E ratio, 52-week range.
+
+Try another tool:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop/scaffold
+python -c "
+import asyncio, json
+from server import server
+
+async def test():
+    result = await server._tool_manager.call_tool('get_stock_news', {'ticker': 'MSFT'})
+    for item in result:
+        if hasattr(item, 'text'):
+            data = json.loads(item.text)
+            for article in data[:3]:
+                print(f\"  {article.get('title', 'N/A')}\")
+
+asyncio.run(test())
+" 2>/dev/null || echo "Direct call not available"
+----
+
+== Checkpoint
+
+You should now have:
+
+* [x] MCP SDK and yfinance installed, server starts without errors
+* [x] Nine tools listed with correct names and descriptions
+* [x] Successfully called at least one tool and received real stock data
+
+Proceed to xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift].

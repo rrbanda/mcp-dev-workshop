@@ -166,32 +166,13 @@ Expected result: You see `build-mcp-server/`, `yfinance-api/`, and
 
 === Step 6: Verify the LLM connection
 
-[tabs]
-====
-Agent Mode::
-+
---
-Open the OpenCode Web UI:
+*Agentic track:* Open the OpenCode Web UI. In the VS Code editor, look at the
+*Ports* tab, find the endpoint labeled *opencode-web* on port *4096*, and click
+the link to open it in a new browser tab. Enter the *OpenCode Web Password* from
+your credentials card. In the OpenCode chat, type "Hello, what model are you?"
+and verify the model responds.
 
-. In the VS Code editor, look at the bottom panel or the *Ports* tab.
-. Find the endpoint labeled *opencode-web* on port *4096*.
-. Click the link (or the globe icon) to open it in a new browser tab.
-. Enter the *OpenCode Web Password* from your credentials card.
-
-In the OpenCode chat, type:
-
-----
-Hello, what model are you?
-----
-
-Expected result: The model responds with its name. This confirms the full
-path: OpenCode -> MaaS gateway (API key) -> LLM -> response.
---
-
-Manual Mode::
-+
---
-In the VS Code terminal, test the model endpoint with `curl`:
+*Manual track:* In the VS Code terminal, test the model endpoint with `curl`:
 
 [source,bash,role="execute"]
 ----
@@ -201,10 +182,7 @@ curl -s "$OPENAI_BASE_URL/chat/completions" \
   -d '{"model":"'"$VLLM_MODEL_ID"'","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":50}' | python3 -m json.tool | grep -A2 '"content"'
 ----
 
-Expected result: A JSON response with the model's reply. This confirms the
-full path: terminal -> MaaS gateway (API key) -> LLM -> response.
---
-====
+Expected result: A JSON response with the model's reply.
 
 [IMPORTANT]
 ====
@@ -216,10 +194,12 @@ broken workspace or model connection. Every module depends on these working.
 
 You have a working workspace with:
 
-* [x] VS Code editor in the browser (both tracks)
-* [x] Terminal with `oc` authenticated (both tracks)
-* [x] Workshop files at `/projects/mcp-dev-workshop` (both tracks)
-* [x] LLM responding to prompts (both tracks)
-* [x] _(Agent mode)_ OpenCode Web UI open and connected
+* [x] VS Code editor in the browser
+* [x] Terminal with `oc` authenticated
+* [x] Workshop files at `/projects/mcp-dev-workshop`
+* [x] LLM responding to prompts
 
-Proceed to xref:03-module-01-launch.adoc[Module 1: Launch Your Workspace].
+Pick your track from the left navigation:
+
+* *Agentic Track* -- start with xref:a01-launch.adoc[Module 1: Launch Your Workspace]
+* *Manual Track* -- start with xref:m01-launch.adoc[Module 1: Launch Your Workspace]
