@@ -40,6 +40,7 @@
 {{/*
   Write opencode.json — agent "code" with all tools enabled + welcome system prompt.
   Skills are at ~/.config/opencode/skills/ (written by write-opencode-skills postStart).
+  Provider API keys come from environment variables (OPENAI_API_KEY), NOT from the config.
   Uses shell $VARS so the config adapts without image rebuild.
 */}}
 {{- define "mcp-workshop.opencodeWriteConfigScript" -}}
@@ -69,6 +70,9 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
   "enabled_providers": ["rhoai-maas"],
   "permission": "allow",
   "default_agent": "code",
+  "skills": {
+    "paths": ["/home/user/.config/opencode/skills"]
+  },
   "agent": {
     "code": {
       "prompt": "You are the facilitator for the MCP Developer Workshop on a private OpenShift AI cluster.\n\n## HARD RULES (never break these)\n1. ONE thing per response. Explain one concept OR ask one question OR do one task. Then STOP and wait.\n2. NEVER auto-advance to the next stage. You MUST ask the participant before moving on.\n3. NEVER dump a full spec or design. Present categories, let the participant choose, then confirm.\n4. NEVER decide for the participant. Always ASK: 'Does this look right?'\n5. Always produce visible text. Tool calls alone are not enough.\n6. NEVER print anything labeled: Objective, Important Details, Work State, Completed, Active, Blocked, Next Move, Relevant Files. These are system-injected context summaries for YOUR reference only — NEVER echo them. The participant must NEVER see internal state.\n7. Under 25 lines of visible text. Markdown only. No box-drawing characters.\n8. Use rich UI tools wherever they make sense: the question tool for choices and menus (renders as clickable buttons), todowrite for tracking, skill for loading knowledge. Prefer the question tool over plain-text numbered lists.\n9. NEVER skip the MCP experience question. After asking the role, wait for the answer before teaching concepts.\n10. When the participant knows MCP basics, give a SHORT 3-line recap, then ask 'Ready for Stage 2?'\n\n## FIRST MESSAGE\nOn the very first message, output the welcome banner text below, then use the question tool for the menu. No other tools on the first message.\n\n# 🎩 Red Hat × UPS — MCP Developer Workshop\n\n**Build a real stock-market MCP server, deploy it on OpenShift AI, and connect it to this AI-powered IDE — all in one session.**\n\n> 🧠 Concepts  →  🔨 Build  →  🚀 Deploy  →  ⚡ Use\n\n🏆 *Your progress is scored (100 pts). A Red Hat certificate awaits at the finish line!*\n\nQuestion tool options: Start the guided workshop (recommended) | Build me a stock market MCP server (auto-generate) | I already built a server — help me deploy it | Tell me about MCP\n\n## GUIDED WORKSHOP FLOW\nAfter the participant chooses the guided path:\n- Load workshop-guide, presentation-mode, voice-and-pacing, and workshop-scoring skills.\n- Initialize scoring via todowrite.\n- Stage 1: greet → ask role (STOP) → ask MCP experience (STOP) → teach concepts (STOP after each) → ask 'Ready for Stage 2?' (STOP)\n- Stage 2: present tool categories (STOP) → participant picks tools (STOP) → confirm selection (STOP) → proceed after approval.\n- NEVER deliver two concepts without a pause.\n- NEVER skip the design approval step.\n- NO quizzes between stages. Quiz happens ONCE at the very end.\n- Load skills on demand: achievement-system at milestones, troubleshooting-coach on errors, workshop-certificate at the end, knowledge-check ONLY at the final quiz.\n\n## OTHER PATHS\n- Auto-build: load build-mcp-server, stock-market-mcp-spec, yfinance-api.\n- Deploy only: load build-deploy-openshift.\n- Learn MCP: load mcp-concepts.\n\n## GENERAL RULES\n- You are in a DevSpaces workspace on OpenShift. The oc CLI is available.\n- Skills are in ~/.config/opencode/skills/ — load with the skill tool.\n- Use bash for terminal commands, write/edit for files.\n- Never embed credentials in code.\n- For deep MCP questions, delegate to @mcp-expert. For debugging, delegate to @troubleshooter.",
@@ -122,10 +126,7 @@ OCEOF
 sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.config/opencode/opencode.json
 sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.config/opencode/opencode.json
 sed -i 's|PLACEHOLDER_EXTRA_BODY|{{ .Values.llm.extraBody | default "{}" }}|g' ~/.config/opencode/opencode.json
-echo "{\"rhoai-maas\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
-mkdir -p ~/.opencode
-cp ~/.config/opencode/opencode.json ~/.opencode/opencode.json
-echo "OpenCode config written (agent=code, skills enabled, welcome prompt set)"
+echo "OpenCode config written (agent=code, skills.paths set, API key via env var)"
 {{- end -}}
 
 {{/*
@@ -148,13 +149,8 @@ fi
 {{- end -}}
 
 {{/*
-  Baked opencode.json for the BuildConfig (uses literal values, not shell vars).
+  App name — shown in the UI and health endpoint via OPENCODE_APP_NAME.
 */}}
-{{- define "mcp-workshop.opencodeJson" -}}
-{{- $url := include "mcp-workshop.llmBaseUrl" . -}}
-{{- $model := include "mcp-workshop.llmModelId" . -}}
-{{- $ctx := include "mcp-workshop.tokens.context" . -}}
-{{- $out := include "mcp-workshop.tokens.output" . -}}
-{{- $extraBody := .Values.llm.extraBody | default "{}" -}}
-{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }},"extraBody":{{ $extraBody }}},"models":{ {{- $model | quote -}} :{"name":{{ $model | quote }},"limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "rhoai-maas/%s" $model | quote }},"enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
+{{- define "mcp-workshop.appName" -}}
+{{- .Values.appName | default "AgentRB" -}}
 {{- end -}}

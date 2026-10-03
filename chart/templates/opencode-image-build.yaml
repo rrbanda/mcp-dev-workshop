@@ -1,8 +1,8 @@
 {{- if .Values.opencodeBuild.enabled }}
-# OpenCode custom DevSpaces image — build infrastructure.
-# Creates a namespace, ImageStream, and BuildConfig that produces an image
-# with OpenCode CLI + xdg-open stub + pip tooling pre-installed.
-# The ConfigChange trigger starts a build automatically on first create.
+# OpenCode (AgentRB) DevSpaces image.
+# Two modes based on whether opencodeBuild.binaryUrl is set:
+#   - URL set:   Dockerfile source + ConfigChange trigger (fully automatic)
+#   - URL empty: Binary source (one-time: oc start-build --from-dir=<dir>)
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -31,33 +31,42 @@ spec:
       kind: ImageStreamTag
       name: devspaces-opencode:latest
   source:
+{{- if .Values.opencodeBuild.binaryUrl }}
     type: Dockerfile
     dockerfile: |
-      FROM registry.redhat.io/devspaces/udi-rhel8:latest
+      FROM {{ .Values.opencodeBuild.baseImage }}
       USER root
-      RUN curl -fsSL https://opencode.ai/install | OPENCODE_VERSION={{ .Values.opencodeBuild.opencodeVersion }} bash && \
-          cp /home/user/.opencode/bin/opencode /usr/local/bin/opencode && \
+      RUN curl -fsSL {{ .Values.opencodeBuild.binaryUrl | quote }} -o /usr/local/bin/opencode && \
           chmod 755 /usr/local/bin/opencode && \
-          rm -rf /home/user/.opencode && \
-          printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open && \
-          chmod 755 /usr/local/bin/xdg-open
-      RUN pip install --no-cache-dir uv "mcp[cli]>=2.0" && \
-          mkdir -p /home/user/.config/opencode /home/user/.local/share/opencode && \
-          echo '{{ include "mcp-workshop.opencodeJson" . }}' \
-            > /home/user/.config/opencode/opencode.json && \
-          echo '{"vllm":{"type":"api","key":"EMPTY"}}' > /home/user/.local/share/opencode/auth.json && \
-          chown -R 1001:0 /home/user/.config/opencode /home/user/.local/share/opencode && \
-          chmod -R g=u /home/user/.config/opencode /home/user/.local/share/opencode
-      ENV NODE_TLS_REJECT_UNAUTHORIZED=0
+          (command -v rg >/dev/null 2>&1 || \
+           curl -fsSL https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz \
+           | tar xzf - --strip-components=1 -C /usr/local/bin ripgrep-14.1.1-x86_64-unknown-linux-musl/rg) && \
+          pip install --no-cache-dir uv "mcp[cli]>=2.0"
       USER 1001
+{{- else }}
+    type: Binary
+    binary: {}
+    dockerfile: |
+      FROM {{ .Values.opencodeBuild.baseImage }}
+      USER root
+      COPY opencode /usr/local/bin/opencode
+      RUN chmod 755 /usr/local/bin/opencode && \
+          (command -v rg >/dev/null 2>&1 || \
+           curl -fsSL https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-x86_64-unknown-linux-musl.tar.gz \
+           | tar xzf - --strip-components=1 -C /usr/local/bin ripgrep-14.1.1-x86_64-unknown-linux-musl/rg) && \
+          pip install --no-cache-dir uv "mcp[cli]>=2.0"
+      USER 1001
+{{- end }}
   strategy:
     type: Docker
     dockerStrategy:
       from:
         kind: DockerImage
-        name: registry.redhat.io/devspaces/udi-rhel8:latest
+        name: {{ .Values.opencodeBuild.baseImage }}
+{{- if .Values.opencodeBuild.binaryUrl }}
   triggers:
     - type: ConfigChange
+{{- end }}
 ---
 # Grant image-puller so all DevSpaces workspaces can pull the custom image.
 apiVersion: rbac.authorization.k8s.io/v1

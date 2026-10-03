@@ -30,10 +30,20 @@ cheCluster:
   # Set false if CheCluster already exists (e.g., PCA cluster, RHPDS lab).
   create: false
 
+# ---- Application name (shown in UI via OPENCODE_APP_NAME) ----
+appName: "AgentRB"
+
 # ---- OpenCode image build ----
+# Auto-builds via ConfigChange trigger — same pattern as before.
+# Set binaryUrl to wherever the AgentRB binary is hosted.
 opencodeBuild:
   enabled: true
-  opencodeVersion: "1.15.13"
+  # Base image must have glibc >= 2.30 (RHEL 9 / UBI 9).
+  # udi-rhel8 is glibc 2.28 and will fail at startup.
+  baseImage: "registry.redhat.io/devspaces/udi-rhel9:latest"
+  # URL to the pre-built OpenCode binary (linux x86-64, glibc 2.30+).
+  # The Dockerfile curls this at build time, same as the old opencode.ai/install.
+  binaryUrl: "https://github.com/rrbanda/mcp-dev-workshop/releases/download/agentrb-v1/opencode"
 
 # ---- DevSpaces global config (VS Code extension recommendations) ----
 globalConfig:

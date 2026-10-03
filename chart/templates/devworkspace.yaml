@@ -58,8 +58,6 @@ spec:
               value: {{ include "mcp-workshop.llmBaseUrl" . | quote }}
             - name: NODE_TLS_REJECT_UNAUTHORIZED
               value: "0"
-            - name: DEFAULT_EXTENSIONS
-              value: "/tmp/opencode-ext/sst-dev.opencode.vsix"
           endpoints:
             - name: opencode-web
               targetPort: 4096
@@ -84,18 +82,9 @@ spec:
           component: dev-tools
           commandLine: |
 {{ include "mcp-workshop.opencodeWriteSkillsScript" . | indent 12 }}
-      - id: download-opencode-extension
-        exec:
-          label: "Download OpenCode Extension"
-          component: dev-tools
-          commandLine: |
-            mkdir -p /tmp/opencode-ext
-            curl -fsSL "https://open-vsx.org/api/sst-dev/opencode/latest/file/sst-dev.opencode-0.0.13.vsix" \
-              --location -o /tmp/opencode-ext/sst-dev.opencode.vsix
-            echo "OpenCode extension downloaded"
       - id: start-opencode-web
         exec:
-          label: "Start OpenCode Web UI"
+          label: "Start AgentRB Web UI"
           component: dev-tools
           commandLine: |
             NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
@@ -105,12 +94,12 @@ spec:
             printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
             export PATH="/tmp:$PATH"
             cd /projects/mcp-dev-workshop
-            nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
-            echo "OpenCode Web UI started on port 4096 (password-protected)"
+            OPENCODE_APP_NAME={{ include "mcp-workshop.appName" . }} \
+              nohup opencode web --hostname 0.0.0.0 --port 4096 > /tmp/opencode-web.log 2>&1 &
+            echo "{{ include "mcp-workshop.appName" . }} Web UI started on port 4096 (password-protected)"
     events:
       postStart:
         - update-workshop-repo
         - write-opencode-config
         - write-opencode-skills
-        - download-opencode-extension
         - start-opencode-web
