@@ -1,6 +1,11 @@
 # DevWorkspace — one per participant.
 # Creates a cloud IDE (VS Code in browser) with OpenCode Web UI (port 4096),
-# the workshop repo cloned via postStart, and the LLM endpoint pre-configured.
+# the workshop repo pre-cloned, and the LLM endpoint pre-configured.
+#
+# The `projects:` section tells the DevWorkspace controller to:
+#   1. Clone the repo via init container (BEFORE VS Code starts)
+#   2. Generate .code-workspace with the project as the root folder
+# This ensures VS Code opens directly into mcp-dev-workshop.
 #
 # NOTE: DevWorkspaces are created with started: false. Users start their workspace
 # from the DevSpaces dashboard so the controller stamps the correct creator identity
@@ -25,6 +30,13 @@ spec:
     - name: editor
       uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
   template:
+    projects:
+      - name: mcp-dev-workshop
+        git:
+          remotes:
+            origin: {{ .Values.workshop.repo | quote }}
+          checkoutFrom:
+            revision: {{ .Values.workshop.branch | quote }}
     components:
       - name: dev-tools
         container:
@@ -51,20 +63,12 @@ spec:
               exposure: public
               protocol: https
     commands:
-      - id: open-projects-folder
+      - id: update-workshop-repo
         exec:
-          label: "Open /projects as workspace folder"
+          label: "Pull latest workshop content"
           component: dev-tools
           commandLine: |
-            echo '{"folders":[{"path":"/projects/mcp-dev-workshop"}]}' > /projects/.code-workspace
-      - id: clone-workshop-repo
-        exec:
-          label: "Clone workshop repo"
-          component: dev-tools
-          commandLine: |
-            if [ ! -d /projects/mcp-dev-workshop ]; then
-              git clone --branch {{ .Values.workshop.branch | quote }} {{ .Values.workshop.repo | quote }} /projects/mcp-dev-workshop
-            fi
+            cd /projects/mcp-dev-workshop && git pull origin {{ .Values.workshop.branch | quote }} || true
       - id: write-opencode-config
         exec:
           label: "Write OpenCode Config"
@@ -96,8 +100,7 @@ spec:
             echo "OpenCode Web UI started on port 4096 (password-protected)"
     events:
       postStart:
-        - open-projects-folder
-        - clone-workshop-repo
+        - update-workshop-repo
         - write-opencode-config
         - download-opencode-extension
         - start-opencode-web
