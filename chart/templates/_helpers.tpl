@@ -127,6 +127,7 @@ OCEOF
 sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.config/opencode/opencode.json
 sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.config/opencode/opencode.json
 sed -i 's|PLACEHOLDER_EXTRA_BODY|{{ .Values.llm.extraBody | default "{}" }}|g' ~/.config/opencode/opencode.json
+mkdir -p ~/.opencode
 echo "OpenCode config written (agent=code, skills.paths set, API key via env var)"
 {{- end -}}
 
