@@ -54,7 +54,8 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
       "npm": "@ai-sdk/openai-compatible",
       "name": "RHOAI MaaS",
       "options": {
-        "baseURL": "PLACEHOLDER_BASE_URL"
+        "baseURL": "PLACEHOLDER_BASE_URL",
+        "extraBody": {"reasoning_effort": "PLACEHOLDER_REASONING"}
       },
       "models": {
         "PLACEHOLDER_MODEL": {
@@ -120,6 +121,7 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
 OCEOF
 sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.config/opencode/opencode.json
 sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.config/opencode/opencode.json
+sed -i "s|PLACEHOLDER_REASONING|{{ .Values.llm.reasoningEffort | default "none" }}|g" ~/.config/opencode/opencode.json
 echo "{\"rhoai-maas\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
 mkdir -p ~/.opencode
 cp ~/.config/opencode/opencode.json ~/.opencode/opencode.json
@@ -153,5 +155,6 @@ fi
 {{- $model := include "mcp-workshop.llmModelId" . -}}
 {{- $ctx := include "mcp-workshop.tokens.context" . -}}
 {{- $out := include "mcp-workshop.tokens.output" . -}}
-{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }}},"models":{ {{- $model | quote -}} :{"name":{{ $model | quote }},"limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "rhoai-maas/%s" $model | quote }},"enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
+{{- $reasoning := .Values.llm.reasoningEffort | default "none" -}}
+{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }},"extraBody":{"reasoning_effort":{{ $reasoning | quote }}}},"models":{ {{- $model | quote -}} :{"name":{{ $model | quote }},"limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "rhoai-maas/%s" $model | quote }},"enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
 {{- end -}}

@@ -14,6 +14,9 @@ llm:
   tokens:
     context: 100000
     output: 8192
+  # Gemini reasoning_effort: "none" disables thinking (clean OpenAI responses).
+  # Only works with Gemini 2.5 models. Set "low" for 3.x models.
+  reasoningEffort: "none"
 
 # ---- Workshop repo (pre-cloned into every workspace) ----
 workshop:
