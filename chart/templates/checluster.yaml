@@ -25,5 +25,6 @@ spec:
     defaultNamespace:
       template: "<username>-devspaces"
     secondsOfInactivityBeforeIdling: -1
+    secondsOfRunBeforeIdling: -1
   networking: {}
 {{- end }}

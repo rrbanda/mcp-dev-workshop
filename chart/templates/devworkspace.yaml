@@ -2,8 +2,8 @@
 # Creates a cloud IDE (VS Code in browser) with OpenCode Web UI (port 4096),
 # the workshop repo pre-cloned, and the LLM endpoint pre-configured.
 #
-# The workspace is created with started: false. Participants start it from the
-# DevSpaces dashboard so the controller stamps the correct creator identity.
+# The workspace is created with started: true so it launches automatically.
+# CheCluster disables idle/run timeouts so it stays up permanently.
 {{- $ns := include "mcp-workshop.namespace" . }}
 ---
 apiVersion: workspace.devfile.io/v1alpha2
@@ -18,7 +18,7 @@ metadata:
       custom:
         type: inline
 spec:
-  started: false
+  started: true
   routingClass: che
   contributions:
     - name: editor
@@ -89,8 +89,13 @@ spec:
             export OPENCODE_SERVER_PASSWORD
             printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
             export PATH="/tmp:$PATH"
-            nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
-            echo "OpenCode Web UI started on port 4096 (password-protected)"
+            # Supervisor loop — restarts OpenCode if it ever exits
+            nohup sh -c 'while true; do
+              opencode web --port 4096 --hostname 0.0.0.0 >> /tmp/opencode-web.log 2>&1
+              echo "[$(date)] OpenCode exited, restarting in 2s..." >> /tmp/opencode-web.log
+              sleep 2
+            done' > /dev/null 2>&1 &
+            echo "OpenCode Web UI started on port 4096 with auto-restart (password-protected)"
     events:
       postStart:
         - open-projects-folder
