@@ -1,0 +1,163 @@
+---
+description: Working state, deploy workflow, and hard-won lessons for the MCP Developer Workshop
+alwaysApply: true
+---
+
+# MCP Developer Workshop — Working State & Deploy Rules
+
+## Cluster & Infrastructure (DO NOT CHANGE)
+
+- **Cluster**: `api.ocp.p6xcq.sandbox3976.opentlc.com:6443`
+- **MaaS endpoint**: `https://maas.apps.ocp.cloud.rhai-tmm.dev/v1`
+- **Model (full path)**: `publishers/prelude-maas/models/qwen38-27b`
+- **API key**: Stored in Helm values, never hardcode elsewhere
+- **DevSpaces URL**: `https://devspaces.apps.ocp.p6xcq.sandbox3976.opentlc.com`
+- **Users**: 30 pre-provisioned (`user1`–`user30`), password `Dev1@PCA2026!`
+- **Namespace pattern**: `<user>-devspaces` (e.g. `user1-devspaces`)
+- **OpenCode Web route**: `https://<user>-code-workspace-1-opencode-web.apps.ocp.p6xcq.sandbox3976.opentlc.com`
+
+## Helm Release (WORKING — rev 26)
+
+```
+Release: user1-devspaces-workshop
+Namespace: user1-devspaces
+Chart: mcp-workshop-0.1.0
+Revision: 26
+Values:
+  llm.baseUrl: https://maas.apps.ocp.cloud.rhai-tmm.dev/v1
+  llm.modelId: publishers/prelude-maas/models/qwen38-27b
+  llm.apiKey: <from sealed secret>
+  user.name: user1
+  cheCluster.create: false
+  globalConfig.enabled: false
+  opencodeBuild.enabled: false
+```
+
+## Chart Templates
+
+```
+chart/templates/
+  _helpers.tpl              ← OpenCode config, postStart scripts, system prompt
+  devworkspace.yaml         ← DevWorkspace CR, postStart lifecycle hooks
+  checluster.yaml           ← CheCluster (only first user)
+  global-config.yaml        ← Global ConfigMaps (only first user)
+  opencode-image-build.yaml ← OpenCode image build (disabled)
+  opencode-web-password.yaml← Random password for OpenCode web auth
+  rbac.yaml                 ← RBAC for user namespace
+```
+
+## Deploy Workflow (EXACT STEPS — do not deviate)
+
+```bash
+# 1. Commit and push
+cd /Users/raghurambanda/workspace/mcp-dev-workshop
+git add <changed-files>
+git commit -m "<message>"
+git push origin main
+
+# 2. Stop workspace
+oc patch devworkspace code-workspace-1 -n user1-devspaces \
+  --type=merge -p '{"spec":{"started":false}}'
+# Wait for Stopped phase
+
+# 3. Helm upgrade (ALWAYS --reuse-values)
+helm upgrade user1-devspaces-workshop \
+  /Users/raghurambanda/workspace/mcp-dev-workshop/chart \
+  --namespace user1-devspaces --reuse-values
+
+# 4. Start workspace
+oc patch devworkspace code-workspace-1 -n user1-devspaces \
+  --type=merge -p '{"spec":{"started":true}}'
+# Wait for Running phase (~60s)
+```
+
+**NEVER** use `make deploy` — that target is for MCP server scaffold (oc new-build), not Helm.
+
+## Critical Lessons (bugs that were fixed — do NOT reintroduce)
+
+### 1. Model key must be the FULL path (commit d0c3ba3)
+
+`@ai-sdk/openai-compatible` sends the config **key** as the `model` field in API requests, NOT the `modelID` field. The MaaS gateway requires the full model path.
+
+```json
+// ❌ WRONG — sends model: "qwen38-27b" → HTTP 404
+"models": { "qwen38-27b": { "modelID": "publishers/prelude-maas/models/qwen38-27b" } }
+
+// ✅ CORRECT — sends model: "publishers/prelude-maas/models/qwen38-27b" → HTTP 200
+"models": { "publishers/prelude-maas/models/qwen38-27b": { "name": "qwen38-27b" } }
+```
+
+The `PLACEHOLDER_MODEL` in the template gets sed-replaced with `$VLLM_MODEL_ID` (the full path).
+
+### 2. ~/.opencode directory MUST exist (commit db27008)
+
+OpenCode crashes with `ENOENT: /home/user/.opencode` if the directory is missing.
+
+```bash
+# ✅ Always: mkdir -p ~/.opencode
+```
+
+### 3. Config must be at BOTH locations (commit 0afaddb)
+
+OpenCode loads config from multiple paths. After writing `~/.config/opencode/opencode.json`, copy it:
+
+```bash
+# ✅ Always: cp ~/.config/opencode/opencode.json ~/.opencode/opencode.json
+```
+
+### 4. Helm template — no triple braces (commit f1e299d)
+
+Helm interprets `{{` as template start. `{{{` is invalid syntax.
+
+```
+# ❌ WRONG
+"models":{{{ $model | quote }}:...
+
+# ✅ CORRECT — space separates the JSON brace from Helm delimiters
+"models":{ {{- $model | quote -}} :...
+```
+
+### 5. Box-drawing characters don't render in OpenCode web UI (commit 8a82a10)
+
+OpenCode renders **markdown**, not monospace terminal. Use markdown-native formatting:
+
+```
+# ❌ WRONG — garbled in web UI
+╔══════════╗
+║  Title   ║
+╚══════════╝
+
+# ✅ CORRECT — renders beautifully
+---
+# 🎩 Title
+**Description text**
+> Blockquote for emphasis
+---
+```
+
+### 6. Never kill OpenCode process manually
+
+`pkill -f "opencode web"` terminates the `oc exec` session (exit 137). Always stop/start the DevWorkspace instead.
+
+### 7. DevWorkspace postStart sequence (DO NOT REORDER)
+
+```
+update-workshop-repo → write-opencode-config → write-opencode-skills
+  → download-opencode-extension → start-opencode-web
+```
+
+`start-opencode-web` does `cd /projects/mcp-dev-workshop` before launching OpenCode.
+
+## What NOT to touch
+
+- Provider config (`rhoai-maas`, type `openai-compatible`, baseUrl, apiKey)
+- Model config key (must be full path from `$VLLM_MODEL_ID`)
+- Auth.json location (`~/.local/share/opencode/auth.json`)
+- postStart hook order in `devworkspace.yaml`
+- Helm values structure (llm.baseUrl, llm.modelId, llm.apiKey, user.name)
+
+## Security Rules
+
+- Never leak secrets, tokens, credentials, or customer names to git
+- If secrets are needed, use Helm values or sealed secrets
+- Do not commit .md docs, customer names, or non-relevant files to workshop repo
