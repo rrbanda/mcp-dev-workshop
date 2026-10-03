@@ -136,7 +136,7 @@ Always end with a summary of what was accomplished, regardless of cleanup choice
   What you built today:
   ✅ A stock market MCP server with N tools
   ✅ Containerized with UBI9 Python 3.12
-  ✅ Deployed on OpenShift (pod + service + route)
+  ✅ Deployed on OpenShift AI (pod + service + route)
   ✅ Connected to your AI IDE via MCP protocol
   ✅ Used real stock data from the AI chat
 

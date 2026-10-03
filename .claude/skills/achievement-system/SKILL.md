@@ -15,7 +15,7 @@ card and may contribute to the Exploration Bonus in the scoring system.
 | 🔧 | First Tool | First `@server.tool` added to server.py | 0 (part of Build score) |
 | 🧪 | Data Scientist | First tool tested with real stock data | 0 |
 | 🏆 | Full Suite | 4+ tools built and working | 0 |
-| 🚀 | Deployed! | Pod running on OpenShift | 0 |
+| 🚀 | Deployed! | Pod running on OpenShift AI | 0 |
 | 🔗 | Connected | MCP server registered in OpenCode | 0 |
 | ⚡ | AI-Powered | Successfully used MCP tools from AI chat | 0 |
 | 🧠 | Quiz Master | All quiz questions correct on first try | +2 Exploration |
@@ -91,7 +91,7 @@ At workshop completion, show all achievements in a summary:
   🔧 First Tool        — Built your first MCP tool
   🧪 Data Scientist    — Tested with real market data
   🏆 Full Suite        — 4+ tools in your server
-  🚀 Deployed!         — Running on OpenShift
+  🚀 Deployed!         — Running on OpenShift AI
   🔗 Connected         — Registered in OpenCode
   ⚡ AI-Powered        — Used tools from AI chat
   🎨 Customizer        — Made it your own

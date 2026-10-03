@@ -128,7 +128,7 @@ The participant types anything to continue.
 
 ---
 
-## 🚀 Stage 5: Deploy to OpenShift
+## 🚀 Stage 5: Deploy to OpenShift AI
 
 Your server has 4 tools, all tested. Now let's package and deploy it.
 

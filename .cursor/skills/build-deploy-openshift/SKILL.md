@@ -1,9 +1,9 @@
 ---
 name: build-deploy-openshift
-description: Build a container image, deploy it on OpenShift, create a route, register it as an MCP server in OpenCode, and verify end-to-end. Use when asked to deploy, ship, build and deploy, containerize, or put an MCP server (or any Python app) on the cluster.
+description: Build a container image, deploy it on OpenShift AI, create a route, register it as an MCP server in OpenCode, and verify end-to-end. Use when asked to deploy, ship, build and deploy, containerize, or put an MCP server (or any Python app) on the cluster.
 ---
 
-# Build, Deploy & Connect on OpenShift
+# Build, Deploy & Connect on OpenShift AI
 
 Build a container image using OpenShift binary builds, deploy it with a public
 route, register it as an MCP server in OpenCode, and verify the full chain —
