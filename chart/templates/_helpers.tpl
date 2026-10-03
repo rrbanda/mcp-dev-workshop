@@ -54,6 +54,7 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
     "rhoai-maas": {
       "npm": "@ai-sdk/openai-compatible",
       "name": "RHOAI MaaS",
+      "env": ["OPENAI_API_KEY"],
       "options": {
         "baseURL": "PLACEHOLDER_BASE_URL",
         "extraBody": PLACEHOLDER_EXTRA_BODY
