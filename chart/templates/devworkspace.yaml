@@ -1,9 +1,10 @@
 # DevWorkspace — one per participant.
 # Creates a cloud IDE (VS Code in browser) with OpenCode Web UI (port 4096),
-# the workshop repo pre-cloned, and the LLM endpoint pre-configured.
+# the workshop repo cloned via postStart, and the LLM endpoint pre-configured.
 #
-# The workspace is created with started: true so it launches automatically.
-# CheCluster disables idle/run timeouts so it stays up permanently.
+# NOTE: DevWorkspaces are created with started: false. Users start their workspace
+# from the DevSpaces dashboard so the controller stamps the correct creator identity
+# (required for terminal exec to work).
 {{- $ns := include "mcp-workshop.namespace" . }}
 ---
 apiVersion: workspace.devfile.io/v1alpha2
@@ -18,19 +19,12 @@ metadata:
       custom:
         type: inline
 spec:
-  started: true
+  started: false
   routingClass: che
   contributions:
     - name: editor
       uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
   template:
-    projects:
-      - name: mcp-dev-workshop
-        git:
-          remotes:
-            origin: {{ .Values.workshop.repo | quote }}
-          checkoutFrom:
-            revision: {{ .Values.workshop.branch | quote }}
     components:
       - name: dev-tools
         container:
@@ -62,7 +56,15 @@ spec:
           label: "Open /projects as workspace folder"
           component: dev-tools
           commandLine: |
-            echo '{"folders":[{"path":"/projects/mcp-dev-workshop"}]}' > /projects/.code-workspace
+            echo '{"folders":[{"path":"/projects"}]}' > /projects/.code-workspace
+      - id: clone-workshop-repo
+        exec:
+          label: "Clone workshop repo"
+          component: dev-tools
+          commandLine: |
+            if [ ! -d /projects/mcp-dev-workshop ]; then
+              git clone --branch {{ .Values.workshop.branch | quote }} {{ .Values.workshop.repo | quote }} /projects/mcp-dev-workshop
+            fi
       - id: write-opencode-config
         exec:
           label: "Write OpenCode Config"
@@ -89,16 +91,12 @@ spec:
             export OPENCODE_SERVER_PASSWORD
             printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
             export PATH="/tmp:$PATH"
-            # Supervisor loop — restarts OpenCode if it ever exits
-            nohup sh -c 'while true; do
-              opencode web --port 4096 --hostname 0.0.0.0 >> /tmp/opencode-web.log 2>&1
-              echo "[$(date)] OpenCode exited, restarting in 2s..." >> /tmp/opencode-web.log
-              sleep 2
-            done' > /dev/null 2>&1 &
-            echo "OpenCode Web UI started on port 4096 with auto-restart (password-protected)"
+            nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
+            echo "OpenCode Web UI started on port 4096 (password-protected)"
     events:
       postStart:
         - open-projects-folder
+        - clone-workshop-repo
         - write-opencode-config
         - download-opencode-extension
         - start-opencode-web
