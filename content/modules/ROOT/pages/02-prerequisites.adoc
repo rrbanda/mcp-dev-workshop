@@ -2,7 +2,7 @@
 :navtitle: Prerequisites and Environment
 
 Everything is pre-configured. This page tells you what you need and how to
-verify it works.
+get into your workspace — step by step, with no hunting.
 
 == What you need
 
@@ -13,90 +13,172 @@ verify it works.
 | *Web browser*
 | Chrome, Firefox, or Edge. Safari works but may have minor layout differences.
 
-| *Workshop credentials card*
-| Provided by the facilitator at the start of class. Contains: username,
-  password, DevSpaces URL, and OpenCode Web password.
+| *Credentials card*
+| Provided by the facilitator at the start of class. It contains everything
+  you need -- no memorizing URLs.
 
 | *No local tooling*
 | You do not need `oc`, Python, Docker, or any CLI on your laptop. Everything
-  runs inside the DevSpaces workspace.
+  runs inside the cloud workspace.
 |===
 
-== What the facilitator has set up
+== What is on your credentials card
+
+Your facilitator will hand you a card (or shared doc) with these fields:
 
 [cols="1,2",options="header"]
 |===
-| Component | Status
+| Field | What it is
 
-| OpenShift cluster with GPUs
-| Running — you do not touch it.
+| *OpenShift Console URL*
+| The cluster web console -- you log in here first.
 
-| Red Hat OpenShift AI (RHOAI)
-| Installed — provides the inference stack.
+| *Username*
+| Your personal login (e.g. `dev-user1`).
 
-| llm-d + vLLM
-| Deployed in `{ai_namespace}` — serves `{model_id}`.
+| *Password*
+| Your login password.
 
-| MaaS gateway
-| Configured — authenticates your API key.
-
-| DevSpaces operator
-| Installed — provides your cloud workspace.
-
-| Your namespace
-| Created — `<username>-devspaces` with `edit` role.
-
-| Workshop repo
-| Pre-cloned in your workspace at `/projects/mcp-dev-workshop`.
-
-| Agent Skills
-| Pre-loaded — `build-mcp-server` skill is in the project.
-
-| OpenCode
-| Configured with skills and bash tools enabled.
+| *OpenCode Web Password*
+| A separate password for the OpenCode AI chat UI (agent mode only).
 |===
 
-== Verify your environment
+NOTE: The facilitator may include additional fields depending on the cluster.
+If anything is missing, ask before proceeding.
 
-=== Step 1: Log in to the OpenShift console
+== What you get inside your workspace
 
-Open the console URL from your credentials card and log in with your username
-and password.
+When you start your workspace, you get a *full VS Code editor in the browser*
+powered by Red Hat OpenShift DevSpaces. This is your IDE for the entire
+workshop. Here is what runs inside it:
 
-Expected result: You see the OpenShift web console with your namespace listed.
+image::workspace-anatomy.png[Workspace anatomy,align="center",opts="inline",fallback="(diagram described below)"]
 
-=== Step 2: Open DevSpaces
+[cols="1,2",options="header"]
+|===
+| Component | What it does
 
-Navigate to the DevSpaces dashboard:
+| *VS Code (che-code)*
+| A browser-based VS Code editor with file tree, syntax highlighting, and
+  integrated terminal. This is what DevSpaces provides. Both tracks use this.
 
-----
-{devspaces_url}
-----
+| *Terminal*
+| Inside VS Code, you open terminals that have `oc`, `python`, `pip`, `curl`,
+  and `make` pre-installed. You are already logged in as your user.
 
-Or use the application launcher (grid icon, top-right) → *Red Hat OpenShift Dev Spaces*.
+| *OpenCode Web UI* _(agent mode only)_
+| An AI chat interface on port 4096 that runs alongside VS Code in the same
+  workspace. It talks to the LLM through the MaaS gateway. Manual mode
+  participants can ignore this.
 
-Expected result: The DevSpaces dashboard loads and shows your workspace.
+| */projects/mcp-dev-workshop*
+| The workshop repository, pre-cloned with skills, scaffold files, Makefile,
+  and reference solutions.
+|===
+
+[IMPORTANT]
+====
+*DevSpaces is not OpenCode.* DevSpaces provides the cloud IDE (VS Code in the
+browser + terminal + container). OpenCode is a separate AI coding agent that
+runs as an additional process inside the same workspace. Both tracks use the
+DevSpaces VS Code editor and terminal. Only agent mode also uses the OpenCode
+chat UI.
+====
+
+== Step-by-step: get into your workspace
+
+Follow these steps exactly. Do not skip ahead.
+
+=== Step 1: Log in to OpenShift
+
+Open the *OpenShift Console URL* from your credentials card in your browser.
+
+. Click *Log in* (or the identity provider your facilitator specified).
+. Enter your *Username* and *Password* from the credentials card.
+. You should see the OpenShift web console. You do not need to do anything
+  here -- this login also authenticates you for DevSpaces.
+
+=== Step 2: Open the DevSpaces dashboard
+
+From the OpenShift web console:
+
+. Click the *application launcher* icon (grid icon, top-right corner).
+. Select *Red Hat OpenShift Dev Spaces*.
+. The DevSpaces dashboard opens in a new tab.
+
+Expected result: You see the DevSpaces dashboard with your workspace listed.
+
+[TIP]
+====
+If the application launcher does not show DevSpaces, ask your facilitator for
+the direct DevSpaces URL.
+====
 
 === Step 3: Start your workspace
 
-If your workspace is stopped, click *Start*. Wait for it to reach the *Running*
-state — this may take 1-2 minutes on first launch.
+. In the DevSpaces dashboard, find your workspace (named after your user).
+. If it shows *Stopped*, click the *Start* button (play icon).
+. Wait for the status to change to *Running* -- this takes 1-2 minutes on
+  first launch.
+. Once running, click the workspace name to open it.
 
-Expected result: The workspace opens with an IDE in your browser.
+Expected result: *A VS Code editor opens in your browser.* This is your IDE.
+You should see a file tree on the left with `/projects/mcp-dev-workshop`.
 
-=== Step 4: Open OpenCode Web UI
+=== Step 4: Open a terminal
 
-Your workspace has an OpenCode Web UI endpoint. Find it in:
+Inside the VS Code editor:
 
-* The DevSpaces dashboard → your workspace → *Endpoints* tab → `opencode-web`
-* Or the IDE's port forwarding panel → port 4096
+. Go to *Terminal* menu -> *New Terminal* (or press `Ctrl+{backtick}`).
+. A terminal panel appears at the bottom of the editor.
 
-Open it in a new tab and enter the password from your credentials card.
+Verify you are logged in:
 
-Expected result: OpenCode chat interface loads. You see a prompt input at the
-bottom.
+[source,bash,role="execute"]
+----
+oc whoami
+----
 
-=== Step 5: Verify model connectivity
+Expected result: Your username (e.g. `dev-user1`).
+
+[source,bash,role="execute"]
+----
+oc project
+----
+
+Expected result: Your namespace (e.g. `dev-user1-devspaces`).
+
+=== Step 5: Verify the workshop files
+
+[source,bash,role="execute"]
+----
+ls /projects/mcp-dev-workshop/
+----
+
+Expected result: You see directories like `scaffold/`, `solutions/`, `content/`,
+`Makefile`, and `.opencode/`.
+
+[source,bash,role="execute"]
+----
+ls /projects/mcp-dev-workshop/.opencode/skills/
+----
+
+Expected result: You see `build-mcp-server/`, `yfinance-api/`, and
+`stock-market-mcp-spec/` -- the three skills used in the workshop.
+
+=== Step 6: Verify the LLM connection
+
+[tabs]
+====
+Agent Mode::
++
+--
+Open the OpenCode Web UI:
+
+. In the VS Code editor, look at the bottom panel or the *Ports* tab.
+. Find the endpoint labeled *opencode-web* on port *4096*.
+. Click the link (or the globe icon) to open it in a new browser tab.
+. Enter the *OpenCode Web Password* from your credentials card.
 
 In the OpenCode chat, type:
 
@@ -104,33 +186,42 @@ In the OpenCode chat, type:
 Hello, what model are you?
 ----
 
-Expected result: The model responds with its name (a variant of
-`{model_id}`). If you get a connection error, check with the facilitator.
+Expected result: The model responds with its name. This confirms the full
+path: OpenCode -> MaaS gateway (API key) -> LLM -> response.
+--
 
-=== Step 6: Verify the terminal
-
-In the IDE, open a terminal (*Terminal* → *New Terminal* or `Ctrl+``).
-
-[source,bash,role="execute"]
-----
-oc whoami
-----
-
-Expected result: Your username is printed. This confirms `oc` is authenticated.
+Manual Mode::
++
+--
+In the VS Code terminal, test the model endpoint with `curl`:
 
 [source,bash,role="execute"]
 ----
-ls /projects/mcp-dev-workshop/.opencode/skills/
+curl -s "$OPENAI_BASE_URL/chat/completions" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"'"$VLLM_MODEL_ID"'","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":50}' | python3 -m json.tool | grep -A2 '"content"'
 ----
 
-Expected result: You see `build-mcp-server` listed. The skill is ready.
+Expected result: A JSON response with the model's reply. This confirms the
+full path: terminal -> MaaS gateway (API key) -> LLM -> response.
+--
+====
 
 [IMPORTANT]
 ====
-If any step fails, do not proceed. Raise your hand or message the facilitator.
-The workshop depends on a working workspace with model connectivity.
+If any step fails, *stop and ask the facilitator*. Do not proceed with a
+broken workspace or model connection. Every module depends on these working.
 ====
 
 == Ready?
+
+You have a working workspace with:
+
+* [x] VS Code editor in the browser (both tracks)
+* [x] Terminal with `oc` authenticated (both tracks)
+* [x] Workshop files at `/projects/mcp-dev-workshop` (both tracks)
+* [x] LLM responding to prompts (both tracks)
+* [x] _(Agent mode)_ OpenCode Web UI open and connected
 
 Proceed to xref:03-module-01-launch.adoc[Module 1: Launch Your Workspace].

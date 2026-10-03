@@ -1,184 +1,188 @@
 = Module 1: Launch Your Workspace
 :navtitle: Launch Your Workspace
 
-Get oriented in your cloud development environment before you start building.
-This module ensures you can navigate the IDE, use the terminal, and confirm
-the AI model responds -- the foundations you need for the rest of the workshop.
+Your workspace is running and you have verified the LLM in the Prerequisites
+page. Now get oriented -- learn where things are in the IDE, understand the
+project layout, and confirm you are ready to build.
 
 == Learning objectives
 
-* Open a terminal in DevSpaces and run basic `oc` commands.
-* Confirm the AI model responds to prompts.
-* Locate the workshop files and skills in the project tree.
-* _(Agent mode)_ Navigate the OpenCode Web UI and send a chat message.
+* Navigate the VS Code editor (file tree, terminal, ports).
+* Locate the workshop project files and understand the directory structure.
+* _(Agent mode)_ Send a message in the OpenCode chat and see the agent respond.
+* _(Manual mode)_ Read a skill file and understand what it contains.
 
-== Exercise 1: Explore your workspace
+== Your IDE at a glance
+
+You are working in *VS Code in the browser*, provided by Red Hat OpenShift
+DevSpaces. Here is what you should see:
+
+[cols="1,3",options="header"]
+|===
+| Area | What is there
+
+| *Left sidebar -- file tree*
+| The `/projects/mcp-dev-workshop` directory. Click any file to open it in
+  the editor. You will spend most of your time in the `scaffold/` directory.
+
+| *Bottom panel -- terminal*
+| One or more terminal tabs. `oc`, `python`, `pip`, `curl`, `make` are all
+  available. You are already logged in.
+
+| *Top menu bar*
+| File, Edit, Terminal, Help. Use *Terminal -> New Terminal* if you need
+  another terminal tab.
+
+| *Ports / Endpoints tab* _(if visible)_
+| Shows exposed ports. Port 4096 is the OpenCode Web UI (agent mode only).
+|===
+
+== Exercise 1: Explore the project
+
+In the file tree (left sidebar), expand `mcp-dev-workshop`. Or use the terminal:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop && find . -maxdepth 2 -type f | grep -v '.git/' | sort | head -25
+----
+
+Key directories and files:
+
+[cols="1,3",options="header"]
+|===
+| Path | Purpose
+
+| `scaffold/`
+| Where you build your MCP server. Contains `server.py`, `requirements.txt`,
+  `Containerfile`, `deployment.yaml`.
+
+| `solutions/`
+| Reference solutions for each module. Use these if you fall behind.
+
+| `.opencode/skills/`
+| Three Agent Skills (SKILL.md files) that teach MCP patterns, yfinance API,
+  and the server specification. Used by the agent in agent mode; useful as
+  reference docs in manual mode.
+
+| `Makefile`
+| Workshop commands: `make validate`, `make build-image`, `make deploy`,
+  `make test-mcp`, `make clean`.
+
+| `content/`
+| The Antora source for this workshop guide. You can ignore this.
+|===
+
+== Exercise 2: Read a skill file
+
+Skills are Markdown files that contain SDK patterns, API references, and
+specifications. Even in manual mode, they are valuable documentation.
 
 [tabs]
 ====
 Agent Mode::
 +
 --
-Open the OpenCode Web UI from your workspace endpoints (port 4096). Enter the
-password from your credentials card.
-
-Take a moment to identify:
-
-* *Chat panel* -- where you type prompts and see the agent's responses.
-* *File context* -- the agent can read and write files in your project.
-* *Tool indicators* -- when the agent uses a tool (write, edit, bash), you see
-  the tool name in the response.
-
-Type a simple message to verify the connection:
+In the OpenCode chat, ask the agent to discover skills:
 
 ----
-What directory am I in, and what files do you see?
+What skills do you have available? List them.
 ----
 
-Expected result: The agent responds describing the `/projects/mcp-dev-workshop`
-directory and lists files like `scaffold/`, `Makefile`, `.opencode/skills/`, etc.
+Expected result: The agent lists three skills -- `build-mcp-server`,
+`yfinance-api`, and `stock-market-mcp-spec` -- with one-line descriptions.
+
+Now ask it to load one:
+
+----
+Load the build-mcp-server skill and summarize what it teaches you.
+----
+
+Expected result: The agent reads the full SKILL.md and summarizes the MCP
+Python SDK v2 patterns it learned.
+--
+
+Manual Mode::
++
+--
+Open the skill file in the editor (click it in the file tree) or read it in
+the terminal:
+
+[source,bash,role="execute"]
+----
+head -50 /projects/mcp-dev-workshop/.opencode/skills/build-mcp-server/SKILL.md
+----
+
+Skim the contents. Notice:
+
+* It describes the `MCPServer` class, `@server.tool()` decorator pattern.
+* It shows type hint to JSON Schema mapping.
+* It covers transport modes (stdio vs streamable-http).
+* It includes error handling and Containerfile patterns.
+
+This is the same content the agent would load in agent mode. In manual mode,
+you read it yourself as a reference guide.
+--
+====
+
+== Exercise 3: Check the Makefile targets
+
+The Makefile provides shortcuts you will use throughout the workshop:
+
+[source,bash,role="execute"]
+----
+cd /projects/mcp-dev-workshop && make help 2>/dev/null || grep '^[a-z].*:' Makefile | head -15
+----
+
+Key targets you will use:
+
+[cols="1,3",options="header"]
+|===
+| Target | What it does
+
+| `make validate`
+| Checks that `scaffold/server.py` exists, has the right imports and tools.
+
+| `make build-image`
+| Builds the container image on OpenShift via `oc new-build` + `oc start-build`.
+
+| `make deploy`
+| Applies `scaffold/deployment.yaml` to your namespace.
+
+| `make test-mcp`
+| Calls the deployed MCP server with a test request.
+
+| `make clean`
+| Deletes the deployment, service, build config, and image stream.
+|===
+
+== Exercise 4: Confirm your identity and namespace
+
+[source,bash,role="execute"]
+----
+echo "User:      $(oc whoami)"
+echo "Namespace: $(oc project -q)"
+echo "API URL:   $OPENAI_BASE_URL"
+echo "Model:     $VLLM_MODEL_ID"
+----
+
+Expected result: Four lines showing your username, namespace
+(`<username>-devspaces`), the MaaS gateway URL, and the model ID.
+All four must be non-empty.
 
 [IMPORTANT]
-=====
-If the agent returns a connection error or timeout, verify the model endpoint:
-
-[source,bash,role="execute"]
-----
-echo $OPENAI_BASE_URL
-----
-
-This should print the MaaS gateway URL. If empty, contact the facilitator.
-=====
---
-
-Manual Mode::
-+
---
-Open a terminal in your DevSpaces workspace. You will use the terminal and
-command-line tools for all exercises.
-
-Verify the model endpoint is configured:
-
-[source,bash,role="execute"]
-----
-echo $OPENAI_BASE_URL
-----
-
-Expected result: The MaaS gateway URL. If empty, contact the facilitator.
-
-Quick test -- send a chat completion request:
-
-[source,bash,role="execute"]
-----
-curl -s "$OPENAI_BASE_URL/chat/completions" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"'"$OPENAI_MODEL"'","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":50}' | python3 -m json.tool | grep -A2 '"content"'
-----
-
-Expected result: A JSON response with the model's reply.
---
 ====
-
-== Exercise 2: Explore the terminal
-
-Open a terminal in the IDE. Verify your identity and namespace:
-
-[source,bash,role="execute"]
-----
-oc whoami
-----
-
-[source,bash,role="execute"]
-----
-oc project
-----
-
-Expected result: Your username and your DevSpaces namespace
-(`<username>-devspaces`).
-
-Check the AI serving namespace to see what is running:
-
-[source,bash,role="execute",subs="attributes+"]
-----
-oc get pods -n {ai_namespace} | head -20
-----
-
-Expected result: You see vLLM pods, EPP pods, and other AI serving components
-running. You have read access to the AI namespace but cannot modify it.
-
-== Exercise 3: Browse the project structure
-
-In the terminal, examine the workshop repo:
-
-[source,bash,role="execute"]
-----
-find /projects/mcp-dev-workshop -maxdepth 3 -type f | head -30
-----
-
-Key directories:
-
-* `.opencode/skills/` -- Skills that teach patterns and specifications:
-** `build-mcp-server/` -- MCP Python SDK v2 patterns (MCPServer, decorators, transports)
-** `yfinance-api/` -- Complete yfinance library API reference
-** `stock-market-mcp-spec/` -- Exact specification for the stock market MCP server
-* `scaffold/` -- reference files: a working server, Containerfile, deployment manifest.
-* `solutions/` -- checkpoint solutions if you fall behind.
-* `Makefile` -- workshop commands (`make validate`, `make deploy`, etc.).
-* `content/` -- the Antora source for this workshop guide (you can ignore this).
-
-[source,bash,role="execute"]
-----
-ls .opencode/skills/*/SKILL.md
-----
-
-Expected result: You see three skills -- `build-mcp-server`, `yfinance-api`,
-and `stock-market-mcp-spec`.
-
-== Exercise 4: Test the LLM connection
-
-[tabs]
-====
-Agent Mode::
-+
---
-In the OpenCode chat, ask a coding question to make sure the model handles
-code well:
-
-----
-Write a Python function that takes a list of pod names and returns the longest one. Just the function, nothing else.
-----
-
-Expected result: The agent writes a short Python function. This confirms the
-full path works: OpenCode -> MaaS (API key auth) -> LLM -> response.
---
-
-Manual Mode::
-+
---
-Use `curl` to test with a coding question:
-
-[source,bash,role="execute"]
-----
-curl -s "$OPENAI_BASE_URL/chat/completions" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"'"$OPENAI_MODEL"'","messages":[{"role":"user","content":"Write a Python function that takes a list of pod names and returns the longest one. Just the function."}],"max_tokens":200}' | python3 -m json.tool
-----
-
-Expected result: A JSON response containing a Python function. This confirms:
-terminal -> MaaS (API key auth) -> LLM -> response.
---
+If any value is empty or shows an error, *stop and ask the facilitator*.
+The remaining modules depend on all four being set.
 ====
 
 == Checkpoint
 
 You should now have:
 
-* [x] Terminal with `oc` authenticated to your namespace
-* [x] Project files visible in the workspace
-* [x] Model responding to prompts
-* [x] _(Agent mode)_ OpenCode Web UI open and responsive
+* [x] VS Code editor open with the workshop project visible
+* [x] Terminal working with `oc`, `python`, `make` available
+* [x] Understood the project directory layout
+* [x] Read at least one skill file (as reference or via the agent)
+* [x] Confirmed your username, namespace, API URL, and model ID
 
-If all checks pass, proceed to xref:04-module-02-skills.adoc[Module 2:
-Understand MCP Patterns].
+Proceed to xref:04-module-02-skills.adoc[Module 2: Understand MCP Patterns].

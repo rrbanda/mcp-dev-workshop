@@ -143,12 +143,15 @@ For each participant, prepare a credentials card with:
 |===
 | Field | Value
 
+| OpenShift Console URL | The cluster console URL (e.g. `https://console-openshift-console.apps.<cluster>`)
 | Username | `dev-user1` through `dev-userN`
 | Password | HTPasswd password
-| DevSpaces URL | `https://devspaces.<cluster-domain>`
 | OpenCode Web password | From `opencode-web-password` Secret in their namespace
-| API key (if MaaS) | Their per-namespace MaaS API key
 |===
+
+NOTE: Do *not* include the DevSpaces URL on the card. Participants reach
+DevSpaces through the OpenShift console application launcher (grid icon).
+This avoids hardcoding a URL that changes per cluster.
 
 Generate credentials cards:
 
