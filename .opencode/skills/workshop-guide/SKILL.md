@@ -18,6 +18,7 @@ a stock market MCP server — **interactively, one step at a time**.
 5. **Adapt to the participant's persona.** A developer wants code. An architect wants design. A beginner wants analogies.
 6. **Keep it conversational and encouraging.** This is a workshop, not a lecture.
 7. **Load other skills on demand** — use the `skill` tool to read `build-mcp-server`, `stock-market-mcp-spec`, `yfinance-api`, or `build-deploy-openshift` when you need their details for the current stage.
+8. **Surface Red Hat resources contextually** — load the `redhat-mcp-resources` skill and show 1-2 relevant links at the right moment (see resource map in that skill). Never dump all links at once.
 
 ## STAGE 1: Welcome & Persona Discovery
 
@@ -94,6 +95,10 @@ a JSON-RPC 2.0 protocol for tool discovery (`tools/list`), invocation (`tools/ca
 resource access, and prompt templates. The key architectural property: **servers are
 stateless capability endpoints** that multiple clients can connect to simultaneously."
 
+After explaining, surface this Red Hat resource (load `redhat-mcp-resources` skill for the link):
+> 📘 **Red Hat perspective**: [Model Context Protocol: The Missing Link in AI Integration](https://www.redhat.com/en/blog/model-context-protocol-discover-missing-link-ai-integration)
+> explains why MCP is becoming a platform primitive — like HTTP was for the web.
+
 ---
 
 #### CONCEPT 2: The Architecture — Host, Client, Server
@@ -141,6 +146,10 @@ Explain the three layers:
 For architects, add: "The host can connect to MULTIPLE MCP servers simultaneously.
 Each server is an independent capability domain. This is how you compose a rich
 AI agent from modular services."
+
+After explaining the architecture, surface:
+> 📘 **From Red Hat Developer**: [Building Effective AI Agents with MCP](https://developers.redhat.com/articles/building-effective-ai-agents-mcp)
+> covers how OpenShift AI manages MCP Gateways with rate limiting, RBAC, and observability.
 
 ---
 
@@ -213,6 +222,11 @@ AI Model reads the result and responds:
 "Notice: the AI decides WHICH tool to call and WHAT arguments to pass.
 Your server just needs to handle the request and return data.
 That's the beauty of MCP — the AI does the thinking, your server does the doing."
+
+For developers/architects, add a callout about tool design:
+> 📘 **Designing tools for real APIs?** Red Hat's guide
+> [MCP Server Development: API's Customer Zero](https://developers.redhat.com/articles/mcp-server-development-agentic-ai-api-customer-zero)
+> shows architecture decisions for wrapping enterprise REST APIs as MCP tools.
 
 ---
 
@@ -315,6 +329,11 @@ async def get_stock_info(ticker: str) -> str:
         return f"Error getting stock info for {ticker}: {e}"
 ```
 
+After the error handling concept, surface the security resource:
+> 🔒 **Security in production**: Red Hat's [MCP Security: Understanding Risks](https://www.redhat.com/en/blog/mcp-security-current-situation-understanding-risks)
+> covers real attack vectors — prompt injection, file traversal — and enterprise guardrails
+> you should know about before deploying MCP servers.
+
 ---
 
 #### CONCEPT RECAP (show after all concepts)
@@ -367,6 +386,12 @@ Use the **question** tool:
 ```
 
 ### 2b. Ask the Participant
+
+Before presenting choices, mention the enterprise reference:
+> 🛠️ **Enterprise reference**: Red Hat's
+> [MCP Server Starter Template](https://github.com/redhat-data-and-ai/template-mcp-server)
+> shows production patterns — OAuth2 + Keycloak SSO, UBI base images, `make deploy openshift`.
+> Today we'll build something similar, step by step.
 
 Use the **question** tool:
 
@@ -628,6 +653,24 @@ Or ask anything about stocks — I'll use your tools to get real data."
 After a few queries, suggest:
 "Want to add more tools to your server? Start a new session and say
 'add more tools' — I'll pick up where we left off."
+
+After the participant is done exploring, present the Red Hat resources as a "Continue Learning" section.
+Load the `redhat-mcp-resources` skill and show the END-OF-WORKSHOP RESOURCE SUMMARY:
+
+"Great work completing the workshop! Here are Red Hat resources to continue your MCP journey:
+
+📘 **Read**
+- [Model Context Protocol: The Missing Link](https://www.redhat.com/en/blog/model-context-protocol-discover-missing-link-ai-integration) — Why MCP matters
+- [Building Effective AI Agents with MCP](https://developers.redhat.com/articles/building-effective-ai-agents-mcp) — Enterprise patterns
+- [MCP Server Development: API's Customer Zero](https://developers.redhat.com/articles/mcp-server-development-agentic-ai-api-customer-zero) — Tool design guide
+- [MCP Security: Understanding Risks](https://www.redhat.com/en/blog/mcp-security-current-situation-understanding-risks) — Security best practices
+
+🛠️ **Build**
+- [Red Hat MCP Server Starter Template](https://github.com/redhat-data-and-ai/template-mcp-server) — Enterprise template with OAuth2 + UBI
+
+🎥 **Watch**
+- MCP & Llama on OpenShift AI — Live demo (Red Hat YouTube)
+- [Multi-Server MCP: OpenShift & Slack](https://developers.redhat.com/articles/multi-server-mcp-openshift-slack) — AI agent using multiple MCP servers for log anomaly detection"
 
 ---
 
