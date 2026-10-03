@@ -4,10 +4,28 @@
 #
 # NEVER commit vars.yml — it is in .gitignore.
 ---
-# LLM endpoint (any OpenAI-compatible URL)
-llm_url: ""                    # REQUIRED — e.g. https://llama32-fp8-ai501.apps.cluster.example.com/v1
-llm_api_key: "EMPTY"           # set a real key if the endpoint requires auth
-model_id: ""                   # REQUIRED — e.g. llama32-fp8
+# LLM endpoint — can be on a different cluster or external API.
+# The workshop cluster only runs DevSpaces; the LLM runs elsewhere.
+#
+# Examples:
+#   Same cluster (KServe route):
+#     llm_url: "https://llama32-fp8-ai501.apps.workshop-cluster.example.com/v1"
+#     llm_api_key: "EMPTY"
+#     model_id: "llama32-fp8"
+#
+#   MaaS on another cluster (PCA):
+#     llm_url: "https://maas.apps.pca-cluster.example.com/ai-serving/qwen25-coder-7b/v1"
+#     llm_api_key: "sk-xxxxxxxxxxxxxxxxxxxxxxxx"
+#     model_id: "qwen25-coder-7b"
+#
+#   External API:
+#     llm_url: "https://api.openai.com/v1"
+#     llm_api_key: "sk-proj-xxxxxxxx"
+#     model_id: "gpt-4o"
+#
+llm_url: ""                    # REQUIRED
+llm_api_key: "EMPTY"           # REQUIRED if endpoint needs auth (MaaS, external)
+model_id: ""                   # REQUIRED — model name as the endpoint expects it
 context_tokens: 20000
 output_tokens: 4096
 

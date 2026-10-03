@@ -1,12 +1,15 @@
 # ---- LLM endpoint (any OpenAI-compatible URL) ----
+# The LLM can be on this cluster, another cluster, or an external API.
+# For MaaS on another cluster: use the MaaS gateway URL + API key.
 llm:
   # REQUIRED — full base URL including /v1, e.g.:
-  #   https://llama32-fp8-ai501.apps.cluster.example.com/v1
-  #   https://maas-default-gateway.apps.cluster.example.com/ns/model/v1
+  #   Same cluster:    https://llama32-fp8-ai501.apps.this-cluster.example.com/v1
+  #   MaaS (other):    https://maas.apps.other-cluster.example.com/ai-serving/model-name/v1
+  #   External API:    https://api.openai.com/v1
   baseUrl: ""
-  # API key — set a real key if the endpoint requires auth, otherwise "EMPTY"
+  # API key — "EMPTY" for unauthenticated endpoints, real key for MaaS or external APIs
   apiKey: "EMPTY"
-  # Model ID as the endpoint expects it (used in chat/completions requests)
+  # Model ID as the endpoint expects it in chat/completions requests
   modelId: ""
   tokens:
     context: 20000

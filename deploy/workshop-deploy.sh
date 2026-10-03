@@ -3,8 +3,9 @@
 #
 # Usage:
 #   ./deploy/workshop-deploy.sh \
-#     --llm-url https://llama32-fp8-ai501.apps.cluster.example.com/v1 \
-#     --model-id llama32-fp8 \
+#     --llm-url https://maas.apps.other-cluster.example.com/ai-serving/model/v1 \
+#     --llm-api-key sk-xxxxxxxx \
+#     --model-id qwen25-coder-7b \
 #     --user-prefix user \
 #     --user-count 30
 #
@@ -39,7 +40,7 @@ done
 
 # ---- Validate ----
 if [ -z "$LLM_URL" ]; then
-  echo "ERROR: --llm-url is required (e.g. https://llama32-fp8-ai501.apps.cluster.example.com/v1)" >&2
+  echo "ERROR: --llm-url is required (e.g. https://maas.apps.cluster.example.com/ns/model/v1)" >&2
   exit 1
 fi
 if [ -z "$MODEL_ID" ]; then
