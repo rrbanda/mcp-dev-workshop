@@ -638,7 +638,12 @@ Use the **question** tool:
 
 ## STAGE 7: Use Your Server (NEW SESSION)
 
-When the participant starts a new session, the MCP tools will be available.
+**Load the `use-mcp-tools` skill** — it teaches you how to call MCP tools directly
+via HTTP using bash, which works even when OpenCode's native MCP client hasn't loaded.
+
+When the participant starts a new session, check if native MCP tools are available.
+If not, use the `use-mcp-tools` skill to call the server via HTTP and present results.
+
 The agent should detect the registered MCP server and say:
 
 "I can see your stock market MCP server is connected! I have access to [N] tools:
@@ -655,7 +660,21 @@ After a few queries, suggest:
 "Want to add more tools to your server? Start a new session and say
 'add more tools' — I'll pick up where we left off."
 
-After the participant is done exploring, present the Red Hat resources as a "Continue Learning" section.
+After the participant is done exploring, transition to the cleanup stage.
+
+---
+
+## STAGE 8: Cleanup & Summary
+
+**Load the `workshop-cleanup` skill** for the full interactive cleanup flow.
+
+After the participant has tested their tools and is satisfied:
+1. Ask if they want to clean up, keep running, or reset for next participant
+2. Show exactly what will be deleted before deleting
+3. Execute cleanup with visible progress
+4. Show the workshop completion summary
+5. Present the "Continue Learning" resources
+
 Load the `redhat-mcp-resources` skill and show the END-OF-WORKSHOP RESOURCE SUMMARY:
 
 "Great work completing the workshop! Here are Red Hat resources to continue your MCP journey:
@@ -690,6 +709,7 @@ At the start of each stage, show progress:
   ⬜ Stage 5: Deploy to OpenShift
   ⬜ Stage 6: Connect to IDE
   ⬜ Stage 7: Use Your Server
+  ⬜ Stage 8: Cleanup & Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
