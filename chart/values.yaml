@@ -12,8 +12,8 @@ llm:
   # Model ID as the endpoint expects it in chat/completions requests
   modelId: ""
   tokens:
-    context: 20000
-    output: 4096
+    context: 100000
+    output: 8192
 
 # ---- Workshop repo (pre-cloned into every workspace) ----
 workshop:

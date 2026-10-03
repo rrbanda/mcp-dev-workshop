@@ -54,12 +54,11 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
       "npm": "@ai-sdk/openai-compatible",
       "name": "RHOAI MaaS",
       "options": {
-        "baseURL": "PLACEHOLDER_BASE_URL",
-        "extraBody": {"chat_template_kwargs": {"enable_thinking": false}}
+        "baseURL": "PLACEHOLDER_BASE_URL"
       },
       "models": {
         "PLACEHOLDER_MODEL": {
-          "name": "qwen38-27b",
+          "name": "PLACEHOLDER_MODEL",
           "limit": {"context": {{ include "mcp-workshop.tokens.context" . }}, "output": {{ include "mcp-workshop.tokens.output" . }}}
         }
       }
@@ -154,5 +153,5 @@ fi
 {{- $model := include "mcp-workshop.llmModelId" . -}}
 {{- $ctx := include "mcp-workshop.tokens.context" . -}}
 {{- $out := include "mcp-workshop.tokens.output" . -}}
-{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }},"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{ {{- $model | quote -}} :{"name":"qwen38-27b","limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "rhoai-maas/%s" $model | quote }},"enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
+{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }}},"models":{ {{- $model | quote -}} :{"name":{{ $model | quote }},"limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "rhoai-maas/%s" $model | quote }},"enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
 {{- end -}}
