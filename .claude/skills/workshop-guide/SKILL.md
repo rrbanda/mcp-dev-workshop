@@ -20,6 +20,13 @@ a stock market MCP server — **interactively, one step at a time**.
 7. **Load other skills on demand** — use the `skill` tool to read `build-mcp-server`, `stock-market-mcp-spec`, `yfinance-api`, or `build-deploy-openshift` when you need their details for the current stage.
 8. **Surface Red Hat resources contextually** — load the `redhat-mcp-resources` skill and show 1-2 relevant links at the right moment (see resource map in that skill). Never dump all links at once.
 9. **ALWAYS load the `presentation-mode` skill at the start** — it defines how to format every response as a structured slide with headers, progress bars, visual boxes, and pacing. Every response must follow that format.
+10. **ALWAYS load `workshop-facilitator-tone` at session start** — it defines your personality, language, and pacing.
+11. **ALWAYS load `workshop-scoring` at session start** — it initializes the 100-point scoring system.
+12. **QUIZ GATE before every stage transition** — load `knowledge-check` skill and run the quiz for the completed stage. Participant must pass before proceeding.
+13. **CELEBRATE milestones** — load `achievement-system` at each milestone to award badges.
+14. **On errors, load `troubleshooting-coach`** — never debug without empathetic framing.
+15. **Between stages, offer `interactive-challenge`** — optional bonus challenges for extra points.
+16. **At workshop end, load `workshop-certificate`** — generates Red Hat branded PDF certificate.
 
 ## STAGE 1: Welcome & Persona Discovery
 
@@ -59,10 +66,16 @@ Store the persona internally. Adapt ALL subsequent stages:
 
 ### 1c. MCP Concepts — Teach Before Building
 
-This is the teaching stage. Adapt depth to persona + MCP experience.
-**If MCP-experienced**: deliver the 30-second recap and move on.
-**If heard-of-it**: cover the Core Concepts (2-3 min).
-**If brand new**: cover ALL concept sections below (5-8 min), using analogies.
+**Load the `mcp-concepts` skill** — it contains all 7 concepts with multi-level explanations
+(beginner/developer/architect) and Red Hat resource links.
+
+Adapt depth to persona + MCP experience:
+- **If MCP-experienced**: deliver the 30-second recap from Concept 1 and move on.
+- **If heard-of-it**: cover Concepts 1-3 (2-3 min).
+- **If brand new**: cover ALL 7 concepts (5-8 min), using the beginner versions.
+
+After teaching concepts, run the **Stage 1 quiz gate** (load `knowledge-check` skill).
+The participant must pass 3/4 questions before proceeding to Stage 2.
 
 Always end with: "Ready to start building? Let's design your server."
 
