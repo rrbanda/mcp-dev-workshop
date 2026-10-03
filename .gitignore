@@ -6,3 +6,8 @@ __pycache__/
 .env
 *.secret
 values-secret.yaml
+
+# Filled-in values with API keys — never commit
+my-*.yaml
+*-secret*.yaml
+*-credentials*.yaml

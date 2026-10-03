@@ -1,0 +1,54 @@
+# MCP Developer Workshop — cluster-specific configuration
+#
+# Copy this file and fill in your values before running setup:
+#   cp workshop-values.yaml my-cluster-values.yaml
+#   # Edit my-cluster-values.yaml with your values
+#   ./scripts/setup-workshop-devworkspace.sh --values my-cluster-values.yaml
+#
+# NEVER commit a filled-in copy with real API keys.
+
+# ── LLM Provider ───────────────────────────────────────────────
+# OpenAI-compatible endpoint serving the model.
+# Can be on the same cluster (MaaS, llm-d) or a separate RHOAI cluster.
+llm:
+  # Full base URL including /v1
+  baseURL: "https://maas.apps.ocp.cloud.rhai-tmm.dev/v1"
+
+  # Model identifier as the provider exposes it
+  modelId: "publishers/prelude-maas/models/qwen38-27b"
+
+  # Human-readable display name (shown in OpenCode UI)
+  modelDisplayName: "qwen38-27b"
+
+  # Token limits
+  contextWindow: 32768
+  maxOutputTokens: 8192
+
+  # Provider name in opencode.json (also used as the auth key name)
+  providerName: "rhoai"
+
+  # Display label for the provider
+  providerDisplayName: "RHOAI MaaS (qwen38-27b)"
+
+# ── Secrets ────────────────────────────────────────────────────
+# These are NOT stored in this file. Pass them at runtime:
+#   --api-key <key>   or   RHOAI_API_KEY env var
+#
+# The script creates a K8s secret 'rhoai-api-key' in each namespace.
+
+# ── Workshop GitHub Repo ───────────────────────────────────────
+workshop:
+  repo: "https://github.com/rrbanda/mcp-dev-workshop.git"
+  branch: "main"
+
+# ── Participant Namespaces ─────────────────────────────────────
+# Override with --participants N and --namespace-prefix PREFIX
+participants:
+  count: 1
+  namespacePrefix: "dev-user"
+  # Each participant gets namespace: <prefix><N>-devspaces
+
+# ── DevWorkspace ───────────────────────────────────────────────
+devworkspace:
+  # Name of the DevWorkspace object to patch
+  name: "code-workspace-1"
