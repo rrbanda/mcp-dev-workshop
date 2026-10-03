@@ -126,11 +126,13 @@ Or modify the dashboard sample to point to the workshop repo.
 
 === Step 5: Provision participant namespaces
 
-Use the setup script:
+Use the setup script with the username prefix that matches your provisioner
+(e.g. `user` for RHPDS/demo.redhat.com, `dev-user` for PCA defaults):
 
 [source,bash]
 ----
-./scripts/setup-workshop.sh --participants 10 --namespace-prefix dev-user
+# Adjust --namespace-prefix to match your actual usernames
+./scripts/setup-workshop.sh --participants 30 --namespace-prefix user
 ----
 
 This creates namespaces, grants RBAC, and sets up image puller permissions.
@@ -144,28 +146,36 @@ For each participant, prepare a credentials card with:
 | Field | Value
 
 | OpenShift Console URL | The cluster console URL (e.g. `https://console-openshift-console.apps.<cluster>`)
-| Username | `dev-user1` through `dev-userN`
-| Password | HTPasswd password
-| OpenCode Web password | From `opencode-web-password` Secret in their namespace
+| Username | `user1` through `userN` (or whichever prefix your provisioner uses)
+| Password | Shared password from the provisioner (all users may share the same one)
+| OpenCode Web password | From the `opencode-web-password` Secret in each user's namespace (available only *after* DevSpaces is deployed -- see Step 6 below)
 |===
 
 NOTE: Do *not* include the DevSpaces URL on the card. Participants reach
 DevSpaces through the OpenShift console application launcher (grid icon).
 This avoids hardcoding a URL that changes per cluster.
 
-Generate credentials cards:
+Generate credentials cards (run *after* DevSpaces workspaces are created, since the
+OpenCode Web Password comes from a Secret in each user's namespace):
 
 [source,bash]
 ----
-for i in $(seq 1 10); do
-  NS="dev-user${i}-devspaces"
-  OC_PASS=$(oc get secret opencode-web-password -n "$NS" -o jsonpath='{.data.password}' | base64 -d 2>/dev/null || echo "TBD")
-  echo "=== dev-user${i} ==="
+PREFIX="${1:-user}"       # match your provisioner: "user" for RHPDS, "dev-user" for PCA
+COUNT="${2:-30}"
+
+for i in $(seq 1 "$COUNT"); do
+  NS="${PREFIX}${i}-devspaces"
+  OC_PASS=$(oc get secret opencode-web-password -n "$NS" -o jsonpath='{.data.password}' | base64 -d 2>/dev/null || echo "N/A — workspace not yet started")
+  echo "=== ${PREFIX}${i} ==="
   echo "  Namespace: ${NS}"
   echo "  OpenCode password: ${OC_PASS}"
   echo ""
 done
 ----
+
+TIP: If all participants share the same cluster password (common with RHPDS),
+the credentials card only needs: *Console URL*, *username* (e.g. `user5`),
+*shared password*, and *OpenCode Web password*.
 
 == Day of class
 
@@ -247,8 +257,11 @@ share the same Prerequisites, Architecture, Deploy, and Cleanup pages.
 
 [source,bash]
 ----
-for i in $(seq 1 10); do
-  NS="dev-user${i}-devspaces"
+PREFIX="${1:-user}"
+COUNT="${2:-30}"
+
+for i in $(seq 1 "$COUNT"); do
+  NS="${PREFIX}${i}-devspaces"
   echo "Cleaning $NS..."
   oc delete namespace "$NS" --ignore-not-found
 done

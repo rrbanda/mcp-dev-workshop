@@ -34,7 +34,7 @@ Your facilitator will hand you a card (or shared doc) with these fields:
 | The cluster web console -- you log in here first.
 
 | *Username*
-| Your personal login (e.g. `dev-user1`).
+| Your personal login (e.g. `user1`).
 
 | *Password*
 | Your login password.
@@ -137,14 +137,14 @@ Verify you are logged in:
 oc whoami
 ----
 
-Expected result: Your username (e.g. `dev-user1`).
+Expected result: Your username (e.g. `user1`).
 
 [source,bash,role="execute"]
 ----
 oc project
 ----
 
-Expected result: Your namespace (e.g. `dev-user1-devspaces`).
+Expected result: Your namespace (e.g. `user1-devspaces`).
 
 === Step 5: Verify the workshop files
 
