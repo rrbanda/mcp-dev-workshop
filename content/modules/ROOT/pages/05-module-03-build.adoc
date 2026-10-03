@@ -279,4 +279,4 @@ You should now have:
 * [x] `scaffold/deployment.yaml` for OpenShift deployment
 * [x] `make validate` passes
 
-Proceed to xref:06-module-04-test.adoc[Module 4: Test with Your Agent].
+Proceed to xref:06-module-04-test.adoc[Module 4: Test Your MCP Server].

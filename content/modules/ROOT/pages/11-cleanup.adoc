@@ -47,11 +47,15 @@ namespace is removed.
 
 Thank you for attending the workshop. Key takeaways:
 
-* Agent Skills teach AI agents new capabilities without retraining.
-* MCP provides a standard protocol for agent-tool communication.
-* The developer loop — ask → build → test → deploy → use — can be completed
-  in under 90 minutes.
-* OpenShift DevSpaces + OpenCode provide the cloud IDE environment.
+* MCP provides a standard protocol for tool communication -- any client can
+  call any server using the same JSON-RPC interface.
+* The MCP Python SDK v2 makes it straightforward to define typed tools with
+  decorators, Enums, and transport selection.
+* The developer loop -- build, test, deploy, use -- can be completed in under
+  90 minutes on OpenShift.
+* _(Agent mode)_ Agent Skills teach AI agents new capabilities without
+  retraining -- just add a Markdown file to your repo.
+* OpenShift DevSpaces provides a zero-install cloud IDE for the entire workflow.
 * Enterprise governance (RBAC, audit, PII redaction) is essential for
   production MCP deployments.
 

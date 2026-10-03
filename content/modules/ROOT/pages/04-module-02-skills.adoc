@@ -188,4 +188,4 @@ You should now understand:
 * [x] _(Agent mode)_ How Agent Skills work (lazy loading, discovery)
 * [x] That the skill files are portable across AI coding tools
 
-Proceed to xref:05-module-03-build.adoc[Module 3: Build an MCP Server].
+Proceed to xref:05-module-03-build.adoc[Module 3: Build a Stock Market MCP Server].

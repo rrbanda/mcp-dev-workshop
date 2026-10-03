@@ -52,8 +52,6 @@ When you start your workspace, you get a *full VS Code editor in the browser*
 powered by Red Hat OpenShift DevSpaces. This is your IDE for the entire
 workshop. Here is what runs inside it:
 
-image::workspace-anatomy.png[Workspace anatomy,align="center",opts="inline",fallback="(diagram described below)"]
-
 [cols="1,2",options="header"]
 |===
 | Component | What it does

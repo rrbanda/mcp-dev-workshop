@@ -53,8 +53,9 @@ Key directories and files:
 | Path | Purpose
 
 | `scaffold/`
-| Where you build your MCP server. Contains `server.py`, `requirements.txt`,
-  `Containerfile`, `deployment.yaml`.
+| Where you build your MCP server. Contains starter files (`requirements.txt`,
+  `Containerfile`, `deployment.yaml`). You will create `server.py` here in
+  Module 3.
 
 | `solutions/`
 | Reference solutions for each module. Use these if you fall behind.
@@ -155,7 +156,10 @@ Key targets you will use:
 | Deletes the deployment, service, build config, and image stream.
 |===
 
-== Exercise 4: Confirm your identity and namespace
+== Exercise 4: Confirm environment variables
+
+The workshop depends on four environment variables set by the facilitator.
+Verify all four are present:
 
 [source,bash,role="execute"]
 ----
@@ -163,11 +167,12 @@ echo "User:      $(oc whoami)"
 echo "Namespace: $(oc project -q)"
 echo "API URL:   $OPENAI_BASE_URL"
 echo "Model:     $VLLM_MODEL_ID"
+echo "API Key:   ${OPENAI_API_KEY:+set (hidden)}"
 ----
 
-Expected result: Four lines showing your username, namespace
-(`<username>-devspaces`), the MaaS gateway URL, and the model ID.
-All four must be non-empty.
+Expected result: Five lines. Username, namespace (`<username>-devspaces`),
+the MaaS gateway URL, the model ID, and `set (hidden)` for the API key.
+All five must be non-empty.
 
 [IMPORTANT]
 ====

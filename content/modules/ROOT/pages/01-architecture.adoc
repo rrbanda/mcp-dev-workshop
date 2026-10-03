@@ -1,13 +1,13 @@
 = Architecture and Inference Flow
 :navtitle: Architecture and Inference Flow
 
-Understanding the platform you are building on — from keystroke to model
+Understanding the platform you are building on -- from request to model
 response and back.
 
 == The inference traffic path
 
-When you type a message in OpenCode inside DevSpaces, here is the path your
-request takes:
+When a request goes to the LLM (whether from the OpenCode agent or a `curl`
+command in the terminal), here is the path it takes:
 
 [mermaid]
 ....
@@ -27,7 +27,7 @@ flowchart TD
 ....
 
 *MaaS (Model as a Service)* authenticates every request with an API key.
-Each participant has a unique key provisioned by the facilitator. Without a
+Your API key is pre-configured in your workspace environment. Without a
 valid key, the gateway returns `403 Forbidden`.
 
 *llm-d* is the inference gateway that manages the vLLM backend pods.
@@ -90,7 +90,7 @@ server does not care who is calling -- it speaks the same protocol either way.
 | How agent and server communicate: *stdio* (local), *streamable-http* (remote/deployed).
 
 | *Client*
-| The agent (OpenCode) that connects to one or more MCP servers.
+| Any program that connects to an MCP server -- the OpenCode agent (agent mode) or `curl` / Python (manual mode).
 |===
 
 == Agent Skills architecture
@@ -119,14 +119,15 @@ In this workshop, the `build-mcp-server` skill teaches the agent:
 
 == DevSpaces environment
 
-Your workspace runs inside OpenShift DevSpaces — a Kubernetes-native cloud IDE.
+Your workspace runs inside OpenShift DevSpaces -- a Kubernetes-native cloud IDE.
 Each participant gets their own namespace (`<username>-devspaces`) with:
 
-* An OpenCode Web UI on port 4096 (password-protected)
+* A VS Code editor in the browser (che-code) -- your primary IDE
 * Terminal access with `oc` CLI pre-authenticated
 * The workshop repository pre-cloned at `/projects/mcp-dev-workshop`
 * Agent Skills pre-loaded in the project structure
-* Python and `uv` available for running MCP servers locally
+* Python and `pip` available for running MCP servers locally
+* _(Agent mode)_ An OpenCode Web UI on port 4096 (password-protected)
 
 You do no platform configuration. The facilitator has set up the AI serving
 stack, MaaS gateway, API keys, and DevSpaces operator before the workshop.
