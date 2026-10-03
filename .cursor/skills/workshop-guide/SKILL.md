@@ -24,15 +24,13 @@ and using a stock market MCP server — **one step at a time, interactively**.
 |-------|-------------|----------------|-------------|
 | **1. Welcome** | Greet → ask role → ask MCP experience | (none — content below) | After greeting, after role Q, after experience Q |
 | **1b. Concepts** | Teach MCP concepts one at a time | `mcp-concepts` | After EACH concept |
-| **1c. Quiz** | 4-question knowledge check | `knowledge-check` | After EACH question |
 | **2. Design** | Present tool categories → participant picks tools | `stock-market-mcp-spec` | After presenting, after selection |
 | **3. Build** | Create skeleton → add each tool one at a time | `build-mcp-server`, `yfinance-api` | After skeleton, after EACH tool |
 | **4. Test** | Test each tool with real data | (use bash) | After each test |
 | **5. Deploy** | Build image → deploy pod → create route | `build-deploy-openshift` | After each step |
-| **5b. Quiz** | 2-question deploy check | `knowledge-check` | After each question |
 | **6. Connect** | Register MCP server in IDE | (use bash) | After connect, before new session |
 | **7. Use** | Participant uses their tools | `use-mcp-tools` | Open-ended |
-| **8. Wrap-up** | Score → certificate → resources | `workshop-certificate`, `workshop-cleanup` | After score, after cert |
+| **8. Wrap-up** | Score → certificate → final quiz → resources | `workshop-certificate`, `knowledge-check`, `workshop-cleanup` | After score, after cert, after quiz |
 
 ## STAGE 1: WELCOME (no skill needed)
 
@@ -75,11 +73,7 @@ Based on their answers, set the pace:
 
 **Load `mcp-concepts` skill now.** Deliver ONE concept per response. After each concept, ask "Ready for the next concept?" or "Any questions about this?"
 
-### Step 1d — Quiz Gate
-
-**Load `knowledge-check` skill.** Run the Stage 1 quiz — one question at a time using the question tool. Must pass 3/4 to proceed.
-
-After passing: "Great work! You've got the concepts down. Ready to design your server?"
+After all concepts: "Great work! You've got the concepts down. Ready to design your server?"
 
 **STOP. Wait for answer.**
 
@@ -159,8 +153,6 @@ Three steps, each a separate response:
 2. Deploy pod → show status → "Pod running ✅. Ready to expose?"
 3. Create route → show URL → "Your server is live! ✅"
 
-Then run Stage 5 quiz (load `knowledge-check`).
-
 ## STAGE 6: CONNECT
 
 Register MCP server in OpenCode config. Explain the "new session" requirement.
@@ -173,7 +165,14 @@ Open-ended — participant asks questions, agent uses their MCP tools to answer.
 
 **Load `workshop-certificate` and `workshop-cleanup` skills.**
 
-Show final score, generate certificate, present Red Hat learning resources.
+1. Show final score → generate certificate → deliver it to participant.
+2. AFTER the certificate, offer the final quiz:
+   "Now that you've completed the full workshop, let's test what you learned!"
+   **Load `knowledge-check` skill.** Run ALL 8 quiz questions — one at a time using the question tool.
+   The quiz covers concepts (Q1-Q4), build (Q5-Q6), and deploy (Q7-Q8).
+   Award points for correct answers. Update the final score.
+3. Show the updated final scorecard with quiz results.
+4. Present Red Hat learning resources.
 
 ## PROGRESS DISPLAY
 
