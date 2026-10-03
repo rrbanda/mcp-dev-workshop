@@ -58,15 +58,14 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
         "extraBody": {"chat_template_kwargs": {"enable_thinking": false}}
       },
       "models": {
-        "qwen38-27b": {
-          "modelID": "PLACEHOLDER_MODEL",
+        "PLACEHOLDER_MODEL": {
           "name": "qwen38-27b",
           "limit": {"context": {{ include "mcp-workshop.tokens.context" . }}, "output": {{ include "mcp-workshop.tokens.output" . }}}
         }
       }
     }
   },
-  "model": "rhoai-maas/qwen38-27b",
+  "model": "rhoai-maas/PLACEHOLDER_MODEL",
   "enabled_providers": ["rhoai-maas"],
   "permission": "allow",
   "default_agent": "code",
@@ -155,5 +154,5 @@ fi
 {{- $model := include "mcp-workshop.llmModelId" . -}}
 {{- $ctx := include "mcp-workshop.tokens.context" . -}}
 {{- $out := include "mcp-workshop.tokens.output" . -}}
-{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }},"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{"qwen38-27b":{"modelID":{{ $model | quote }},"name":"qwen38-27b","limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":"rhoai-maas/qwen38-27b","enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
+{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }},"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{{{ $model | quote }}:{"name":"qwen38-27b","limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "rhoai-maas/%s" $model | quote }},"enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
 {{- end -}}
