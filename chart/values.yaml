@@ -13,7 +13,7 @@ llm:
   modelId: ""
   tokens:
     context: 20000
-    output: 4096
+    output: 8192
   # JSON string merged into every API request body.
   # qwen/vLLM: '{"chat_template_kwargs":{"enable_thinking":false}}'
   # Gemini 2.5: '{"reasoning_effort":"none"}'
