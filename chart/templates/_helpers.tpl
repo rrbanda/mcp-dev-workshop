@@ -124,6 +124,7 @@ sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.config/opencode/opencode.j
 sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.config/opencode/opencode.json
 echo "{\"rhoai-maas\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
 mkdir -p ~/.opencode
+cp ~/.config/opencode/opencode.json ~/.opencode/opencode.json
 echo "OpenCode config written (agent=code, skills enabled, welcome prompt set)"
 {{- end -}}
 
