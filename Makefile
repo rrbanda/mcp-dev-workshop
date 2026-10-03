@@ -1,8 +1,15 @@
-.PHONY: help test-local validate build-image deploy expose connect-mcp test-mcp verify verify-mcp clean antora
+.PHONY: help test-local validate build-image deploy expose connect-mcp test-mcp verify verify-mcp clean antora operator workshop-deploy workshop-undeploy credentials
 
 NAMESPACE ?= $(shell oc project -q 2>/dev/null || echo "my-namespace")
 SERVER_NAME ?= stock-market-mcp
 MCP_SVC_URL = http://$(SERVER_NAME).$(NAMESPACE).svc:8080/mcp
+
+# ---- Workshop deploy variables ----
+LLM_URL       ?=
+LLM_API_KEY   ?= EMPTY
+MODEL_ID      ?=
+USER_PREFIX   ?= user
+USER_COUNT    ?= 30
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -102,3 +109,37 @@ clean: ## Delete ALL MCP server resources (deployment, build, route, MCP registr
 antora: ## Build the workshop site locally
 	npx antora site.yml
 	@echo "Site built in ./www — open www/modules/index.html"
+
+# ==== Facilitator: Workshop Infrastructure ====
+
+operator: ## Install DevSpaces operator (cluster-admin required)
+	oc apply -f deploy/operator.yaml
+	@echo "Waiting for DevSpaces operator CSV..."
+	@oc wait csv -n openshift-operators \
+		-l operators.coreos.com/devspaces.openshift-operators \
+		--for=jsonpath='{.status.phase}'=Succeeded --timeout=300s 2>/dev/null || \
+		echo "⚠ Operator not ready yet — check: oc get csv -n openshift-operators | grep devspaces"
+
+workshop-deploy: ## Deploy workshop DevSpaces for N participants (LLM_URL=, MODEL_ID= required)
+	@if [ -z "$(LLM_URL)" ]; then echo "ERROR: LLM_URL is required"; exit 1; fi
+	@if [ -z "$(MODEL_ID)" ]; then echo "ERROR: MODEL_ID is required"; exit 1; fi
+	LLM_URL="$(LLM_URL)" LLM_API_KEY="$(LLM_API_KEY)" MODEL_ID="$(MODEL_ID)" \
+		USER_PREFIX="$(USER_PREFIX)" USER_COUNT="$(USER_COUNT)" \
+		CHART_DIR=chart \
+		deploy/workshop-deploy.sh
+
+workshop-deploy-checluster: ## Deploy with CheCluster creation (first time on bare cluster)
+	@if [ -z "$(LLM_URL)" ]; then echo "ERROR: LLM_URL is required"; exit 1; fi
+	@if [ -z "$(MODEL_ID)" ]; then echo "ERROR: MODEL_ID is required"; exit 1; fi
+	LLM_URL="$(LLM_URL)" LLM_API_KEY="$(LLM_API_KEY)" MODEL_ID="$(MODEL_ID)" \
+		USER_PREFIX="$(USER_PREFIX)" USER_COUNT="$(USER_COUNT)" \
+		CREATE_CHECLUSTER=true CHART_DIR=chart \
+		deploy/workshop-deploy.sh
+
+credentials: ## Generate credentials cards for all participants
+	USER_PREFIX="$(USER_PREFIX)" USER_COUNT="$(USER_COUNT)" \
+		deploy/credentials.sh
+
+workshop-undeploy: ## Remove all workshop DevSpaces and namespaces
+	USER_PREFIX="$(USER_PREFIX)" USER_COUNT="$(USER_COUNT)" \
+		deploy/workshop-undeploy.sh

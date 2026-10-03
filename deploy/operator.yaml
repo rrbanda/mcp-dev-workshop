@@ -1,0 +1,14 @@
+# DevSpaces operator Subscription.
+# Apply with: oc apply -f deploy/operator.yaml
+# Then wait: oc wait csv -n openshift-operators -l operators.coreos.com/devspaces.openshift-operators --for=jsonpath='{.status.phase}'=Succeeded --timeout=300s
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: devspaces
+  namespace: openshift-operators
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: devspaces
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

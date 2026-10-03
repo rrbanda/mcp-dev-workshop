@@ -1,0 +1,5 @@
+apiVersion: v2
+name: mcp-workshop
+description: Deploy MCP Dev Workshop on OpenShift DevSpaces with OpenCode
+version: 0.1.0
+type: application

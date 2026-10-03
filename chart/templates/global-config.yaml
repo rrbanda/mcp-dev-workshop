@@ -1,0 +1,21 @@
+{{- if .Values.globalConfig.enabled }}
+# VS Code extension recommendations — installed in all DevSpaces workspaces.
+# Only the first Helm release should own this ConfigMap (set globalConfig.enabled=false
+# for subsequent releases to avoid Helm ownership conflicts).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vscode-extensions-config
+  namespace: openshift-devspaces
+  labels:
+    app.kubernetes.io/component: workspaces-config
+    app.kubernetes.io/part-of: che.eclipse.org
+    controller.devfile.io/watch-configmap: "true"
+data:
+  .vscode-extensions.json: |
+    {
+      "recommendations": [
+        "sst-dev.opencode"
+      ]
+    }
+{{- end }}

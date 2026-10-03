@@ -1,0 +1,42 @@
+# ---- LLM endpoint (any OpenAI-compatible URL) ----
+llm:
+  # REQUIRED — full base URL including /v1, e.g.:
+  #   https://llama32-fp8-ai501.apps.cluster.example.com/v1
+  #   https://maas-default-gateway.apps.cluster.example.com/ns/model/v1
+  baseUrl: ""
+  # API key — set a real key if the endpoint requires auth, otherwise "EMPTY"
+  apiKey: "EMPTY"
+  # Model ID as the endpoint expects it (used in chat/completions requests)
+  modelId: ""
+  tokens:
+    context: 20000
+    output: 4096
+
+# ---- Workshop repo (pre-cloned into every workspace) ----
+workshop:
+  repo: "https://github.com/rrbanda/mcp-dev-workshop.git"
+  branch: "main"
+
+# ---- DevSpaces CheCluster ----
+cheCluster:
+  # Set true if DevSpaces operator is installed but no CheCluster exists yet.
+  # Set false if CheCluster already exists (e.g., PCA cluster, RHPDS lab).
+  create: false
+
+# ---- OpenCode image build ----
+opencodeBuild:
+  enabled: true
+  opencodeVersion: "1.15.13"
+
+# ---- DevSpaces global config (VS Code extension recommendations) ----
+globalConfig:
+  # true for the first Helm release only; false for subsequent releases
+  # to avoid Helm ownership conflict on the shared ConfigMap.
+  enabled: true
+
+# ---- Participant ----
+# Each Helm release deploys one user's workspace.
+# The deploy script loops over users and calls helm install per user.
+user:
+  name: ""              # e.g. user1 — set by deploy script
+  workspaceName: "code-workspace-1"

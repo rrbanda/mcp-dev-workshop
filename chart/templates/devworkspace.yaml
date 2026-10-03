@@ -1,0 +1,99 @@
+# DevWorkspace — one per participant.
+# Creates a cloud IDE (VS Code in browser) with OpenCode Web UI (port 4096),
+# the workshop repo pre-cloned, and the LLM endpoint pre-configured.
+#
+# The workspace is created with started: false. Participants start it from the
+# DevSpaces dashboard so the controller stamps the correct creator identity.
+{{- $ns := include "mcp-workshop.namespace" . }}
+---
+apiVersion: workspace.devfile.io/v1alpha2
+kind: DevWorkspace
+metadata:
+  name: {{ .Values.user.workspaceName }}
+  namespace: {{ $ns }}
+  labels:
+    che.eclipse.org/devworkspace: "true"
+  annotations:
+    che.eclipse.org/devfile-source: |
+      custom:
+        type: inline
+spec:
+  started: false
+  routingClass: che
+  contributions:
+    - name: editor
+      uri: "https://eclipse-che.github.io/che-plugin-registry/main/v3/plugins/che-incubator/che-code/latest/devfile.yaml"
+  template:
+    projects:
+      - name: mcp-dev-workshop
+        git:
+          remotes:
+            origin: {{ .Values.workshop.repo | quote }}
+          checkoutFrom:
+            revision: {{ .Values.workshop.branch | quote }}
+    components:
+      - name: dev-tools
+        container:
+          image: image-registry.openshift-image-registry.svc:5000/opencode-build/devspaces-opencode:latest
+          memoryLimit: 8Gi
+          memoryRequest: 1Gi
+          cpuLimit: "4000m"
+          cpuRequest: 500m
+          mountSources: true
+          env:
+            - name: VLLM_MODEL_ID
+              value: {{ include "mcp-workshop.llmModelId" . | quote }}
+            - name: OPENAI_API_KEY
+              value: {{ include "mcp-workshop.llmApiKey" . | quote }}
+            - name: OPENAI_BASE_URL
+              value: {{ include "mcp-workshop.llmBaseUrl" . | quote }}
+            - name: NODE_TLS_REJECT_UNAUTHORIZED
+              value: "0"
+            - name: DEFAULT_EXTENSIONS
+              value: "/tmp/opencode-ext/sst-dev.opencode.vsix"
+          endpoints:
+            - name: opencode-web
+              targetPort: 4096
+              exposure: public
+              protocol: https
+    commands:
+      - id: open-projects-folder
+        exec:
+          label: "Open /projects as workspace folder"
+          component: dev-tools
+          commandLine: |
+            echo '{"folders":[{"path":"/projects/mcp-dev-workshop"}]}' > /projects/.code-workspace
+      - id: write-opencode-config
+        exec:
+          label: "Write OpenCode Config"
+          component: dev-tools
+          commandLine: |
+{{ include "mcp-workshop.opencodeWriteConfigScript" . | indent 12 }}
+      - id: download-opencode-extension
+        exec:
+          label: "Download OpenCode Extension"
+          component: dev-tools
+          commandLine: |
+            mkdir -p /tmp/opencode-ext
+            curl -fsSL "https://open-vsx.org/api/sst-dev/opencode/latest/file/sst-dev.opencode-0.0.13.vsix" \
+              --location -o /tmp/opencode-ext/sst-dev.opencode.vsix
+            echo "OpenCode extension downloaded"
+      - id: start-opencode-web
+        exec:
+          label: "Start OpenCode Web UI"
+          component: dev-tools
+          commandLine: |
+            NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+            OPENCODE_SERVER_PASSWORD=$(oc get secret opencode-web-password -n "$NS" \
+              -o jsonpath='{.data.password}' | base64 -d)
+            export OPENCODE_SERVER_PASSWORD
+            printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
+            export PATH="/tmp:$PATH"
+            nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
+            echo "OpenCode Web UI started on port 4096 (password-protected)"
+    events:
+      postStart:
+        - open-projects-folder
+        - write-opencode-config
+        - download-opencode-extension
+        - start-opencode-web
