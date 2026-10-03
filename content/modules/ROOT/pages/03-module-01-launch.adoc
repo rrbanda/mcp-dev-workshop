@@ -2,26 +2,31 @@
 :navtitle: Launch Your Workspace
 
 Get oriented in your cloud development environment before you start building.
-This module ensures you can navigate the IDE, talk to the AI agent, and use the
-terminal — the three interfaces you will use for the rest of the workshop.
+This module ensures you can navigate the IDE, use the terminal, and confirm
+the AI model responds -- the foundations you need for the rest of the workshop.
 
 == Learning objectives
 
-* Navigate the OpenCode Web UI and send a chat message.
 * Open a terminal in DevSpaces and run basic `oc` commands.
-* Confirm the AI model responds to prompts through the MaaS gateway.
-* Locate the workshop files and Agent Skills in the project tree.
+* Confirm the AI model responds to prompts.
+* Locate the workshop files and skills in the project tree.
+* _(Agent mode)_ Navigate the OpenCode Web UI and send a chat message.
 
-== Exercise 1: Explore the OpenCode Web UI
+== Exercise 1: Explore your workspace
 
+[tabs]
+====
+Agent Mode::
++
+--
 Open the OpenCode Web UI from your workspace endpoints (port 4096). Enter the
 password from your credentials card.
 
 Take a moment to identify:
 
-* *Chat panel* — where you type prompts and see the agent's responses.
-* *File context* — the agent can read and write files in your project.
-* *Tool indicators* — when the agent uses a tool (write, edit, bash), you see
+* *Chat panel* -- where you type prompts and see the agent's responses.
+* *File context* -- the agent can read and write files in your project.
+* *Tool indicators* -- when the agent uses a tool (write, edit, bash), you see
   the tool name in the response.
 
 Type a simple message to verify the connection:
@@ -34,9 +39,8 @@ Expected result: The agent responds describing the `/projects/mcp-dev-workshop`
 directory and lists files like `scaffold/`, `Makefile`, `.opencode/skills/`, etc.
 
 [IMPORTANT]
-====
-If the agent returns a connection error or timeout, the model endpoint may not
-be reachable. Verify `OPENAI_BASE_URL` is set in the terminal:
+=====
+If the agent returns a connection error or timeout, verify the model endpoint:
 
 [source,bash,role="execute"]
 ----
@@ -44,6 +48,36 @@ echo $OPENAI_BASE_URL
 ----
 
 This should print the MaaS gateway URL. If empty, contact the facilitator.
+=====
+--
+
+Manual Mode::
++
+--
+Open a terminal in your DevSpaces workspace. You will use the terminal and
+command-line tools for all exercises.
+
+Verify the model endpoint is configured:
+
+[source,bash,role="execute"]
+----
+echo $OPENAI_BASE_URL
+----
+
+Expected result: The MaaS gateway URL. If empty, contact the facilitator.
+
+Quick test -- send a chat completion request:
+
+[source,bash,role="execute"]
+----
+curl -s "$OPENAI_BASE_URL/chat/completions" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"'"$OPENAI_MODEL"'","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":50}' | python3 -m json.tool | grep -A2 '"content"'
+----
+
+Expected result: A JSON response with the model's reply.
+--
 ====
 
 == Exercise 2: Explore the terminal
@@ -84,44 +118,67 @@ find /projects/mcp-dev-workshop -maxdepth 3 -type f | head -30
 
 Key directories:
 
-* `.opencode/skills/` — Agent Skills that teach the agent what it needs:
-** `build-mcp-server/` — MCP Python SDK v2 patterns (MCPServer, decorators, transports)
-** `yfinance-api/` — Complete yfinance library API reference
-** `stock-market-mcp-spec/` — Exact specification for the stock market MCP server
-* `scaffold/` — reference files: a working server, Containerfile, deployment
-  manifest.
-* `solutions/` — checkpoint solutions if you fall behind.
-* `Makefile` — workshop commands (`make validate`, `make deploy`, etc.).
-* `content/` — the Antora source for this workshop guide (you can ignore this).
+* `.opencode/skills/` -- Skills that teach patterns and specifications:
+** `build-mcp-server/` -- MCP Python SDK v2 patterns (MCPServer, decorators, transports)
+** `yfinance-api/` -- Complete yfinance library API reference
+** `stock-market-mcp-spec/` -- Exact specification for the stock market MCP server
+* `scaffold/` -- reference files: a working server, Containerfile, deployment manifest.
+* `solutions/` -- checkpoint solutions if you fall behind.
+* `Makefile` -- workshop commands (`make validate`, `make deploy`, etc.).
+* `content/` -- the Antora source for this workshop guide (you can ignore this).
 
 [source,bash,role="execute"]
 ----
 ls .opencode/skills/*/SKILL.md
 ----
 
-Expected result: You see three skills — `build-mcp-server`, `yfinance-api`,
+Expected result: You see three skills -- `build-mcp-server`, `yfinance-api`,
 and `stock-market-mcp-spec`.
 
-== Exercise 4: Test the LLM with a coding question
+== Exercise 4: Test the LLM connection
 
-Back in the OpenCode chat, ask the agent a coding question to make sure the
-model handles code well:
+[tabs]
+====
+Agent Mode::
++
+--
+In the OpenCode chat, ask a coding question to make sure the model handles
+code well:
 
 ----
 Write a Python function that takes a list of pod names and returns the longest one. Just the function, nothing else.
 ----
 
 Expected result: The agent writes a short Python function. This confirms the
-full path works: OpenCode → MaaS (API key auth) → llm-d → vLLM → response.
+full path works: OpenCode -> MaaS (API key auth) -> LLM -> response.
+--
+
+Manual Mode::
++
+--
+Use `curl` to test with a coding question:
+
+[source,bash,role="execute"]
+----
+curl -s "$OPENAI_BASE_URL/chat/completions" \
+  -H "Authorization: Bearer $OPENAI_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"'"$OPENAI_MODEL"'","messages":[{"role":"user","content":"Write a Python function that takes a list of pod names and returns the longest one. Just the function."}],"max_tokens":200}' | python3 -m json.tool
+----
+
+Expected result: A JSON response containing a Python function. This confirms:
+terminal -> MaaS (API key auth) -> LLM -> response.
+--
+====
 
 == Checkpoint
 
 You should now have:
 
-* [x] OpenCode Web UI open and responsive
 * [x] Terminal with `oc` authenticated to your namespace
 * [x] Project files visible in the workspace
 * [x] Model responding to prompts
+* [x] _(Agent mode)_ OpenCode Web UI open and responsive
 
-If all four checks pass, proceed to xref:04-module-02-skills.adoc[Module 2:
-Understand Agent Skills].
+If all checks pass, proceed to xref:04-module-02-skills.adoc[Module 2:
+Understand MCP Patterns].

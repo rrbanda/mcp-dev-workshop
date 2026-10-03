@@ -22,6 +22,7 @@ antora:
         start_on_load: true
         flowchart:
           use_max_width: false
+    - require: '@andrew-jones/antora-tabs-extension'
 
 output:
   dir: ./www

@@ -1,11 +1,14 @@
 = Module 8: Enterprise Governance
 :navtitle: Enterprise Governance
 
-MCP servers give agents powerful capabilities. In an enterprise, those
+MCP servers give clients powerful capabilities. In an enterprise, those
 capabilities need governance: who can use which tools, what gets logged, how
 sensitive data is handled, and when a human must approve an action. This module
-is a guided discussion with hands-on inspection — you do not deploy new
+is a guided discussion with hands-on inspection -- you do not deploy new
 resources, but you examine the patterns that production deployments require.
+
+NOTE: This module is the same for both tracks. Governance applies regardless of
+whether an agent or a human is calling the tools.
 
 == Learning objectives
 
@@ -34,7 +37,7 @@ Look at the service account your MCP server runs under:
 
 [source,bash,role="execute"]
 ----
-oc get deployment my-mcp-server -o jsonpath='{.spec.template.spec.serviceAccountName}' ; echo
+oc get deployment stock-market-mcp -o jsonpath='{.spec.template.spec.serviceAccountName}' ; echo
 ----
 
 Expected result: `default` — the namespace's default service account. This
@@ -58,14 +61,14 @@ Check the Kubernetes audit evidence for your MCP server's actions:
 
 [source,bash,role="execute"]
 ----
-oc get events --field-selector involvedObject.name=my-mcp-server --sort-by=.lastTimestamp
+oc get events --field-selector involvedObject.name=stock-market-mcp --sort-by=.lastTimestamp
 ----
 
 For the pod-level activity:
 
 [source,bash,role="execute"]
 ----
-oc logs deployment/my-mcp-server --tail=20
+oc logs deployment/stock-market-mcp --tail=20
 ----
 
 In a production MCP server, you would add structured logging:

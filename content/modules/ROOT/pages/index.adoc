@@ -1,34 +1,55 @@
 = Build and Deploy MCP Servers on Red Hat OpenShift AI
 :navtitle: Introduction
 
-From idea to deployed MCP server — using an AI agent to build its own tools.
+From idea to deployed MCP server — on Red Hat OpenShift AI.
 
 This hands-on workshop teaches developers to create, test, and deploy
-https://modelcontextprotocol.io/[Model Context Protocol (MCP)] servers using
-OpenCode with Agent Skills inside Red Hat OpenShift DevSpaces. Everything runs
-on a pre-configured OpenShift cluster with Red Hat OpenShift AI — participants
-do no platform setup. You open a workspace, talk to an AI agent, and the agent
-builds, tests, and helps you deploy an MCP server that extends its own
-capabilities.
+https://modelcontextprotocol.io/[Model Context Protocol (MCP)] servers
+inside Red Hat OpenShift DevSpaces. Everything runs on a pre-configured
+OpenShift cluster with Red Hat OpenShift AI — participants do no platform
+setup. You open a workspace and start building.
 
-The AI agent uses pre-loaded *Agent Skills* that teach it MCP Python SDK v2
-patterns, the yfinance library API, and the exact specification for a stock
-market data server. You tell the agent what tools you want; the skills guide the
-agent to produce well-structured, deployable code. The result is a working stock
-market MCP server running on OpenShift that any agent in the cluster can connect
-to — providing real-time stock prices, financial statements, options data, and
-analyst recommendations.
+The workshop offers *two modes* — choose the one that fits your style:
+
+[tabs]
+====
+AI-Assisted (Agent Mode)::
++
+OpenCode — an AI coding agent running in your workspace — has pre-loaded
+*Agent Skills* that teach it MCP Python SDK v2 patterns, the yfinance library
+API, and the exact specification for a stock market data server. You describe
+what tools you want; the agent generates well-structured, deployable code.
+You review, customize, and deploy.
++
+_Best for: developers who want to experience AI-assisted development and
+learn how Agent Skills work._
+
+Manual (CLI Mode)::
++
+You read the reference MCP server code, understand the SDK v2 patterns
+yourself, edit the scaffold files, and run `oc` commands to build and deploy.
+The same Makefile, the same Containerfile, the same deployment.yaml — no AI
+agent involved. OpenCode is available in your workspace but you drive
+everything from the terminal.
++
+_Best for: developers who prefer to understand every line before running it,
+or environments where the LLM is not available._
+====
+
+Both modes produce the same outcome: a working stock market MCP server
+deployed on OpenShift with 9 tools, reachable over streamable-http.
 
 == Learning objectives
 
 By the end of the workshop you will be able to:
 
-* Explain how Agent Skills extend an AI coding agent's knowledge.
-* Use OpenCode and a pre-loaded skill to generate an MCP server with proper
-  tool definitions, type hints, and transport configuration.
+* Explain how MCP separates tool definitions from agent reasoning.
+* Build an MCP server using the Python SDK v2 with proper tool definitions,
+  type hints, and transport configuration.
+* _(Agent mode)_ Explain how Agent Skills extend an AI coding agent's knowledge.
 * Test an MCP server locally using stdio transport and the MCP Inspector.
 * Build a container image and deploy the server to OpenShift with `oc apply`.
-* Wire an AI agent to a deployed remote MCP server and call tools through it.
+* Wire a client (AI agent or `curl`) to a deployed remote MCP server and call tools.
 * Describe how MCP fits into the Red Hat OpenShift AI inference stack
   (MaaS, llm-d, EPP, DevSpaces).
 

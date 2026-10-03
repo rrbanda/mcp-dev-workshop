@@ -1,19 +1,24 @@
 = Module 7: Multi-Server Composition
 :navtitle: Multi-Server Composition
 
-Real-world agents connect to *multiple* MCP servers — each providing tools for
-a different domain. In this module you build a second MCP server and wire both
-into OpenCode, then observe the agent orchestrating cross-server tool calls.
+Real-world agents connect to *multiple* MCP servers -- each providing tools for
+a different domain. In this module you create a second MCP server and wire both
+into a client, then observe cross-server tool calls.
 
 == Learning objectives
 
-* Build a second MCP server with a different tool set.
-* Configure the agent to connect to multiple MCP servers simultaneously.
-* Observe the agent routing tool calls to the correct server.
-* Understand the composition model: one agent, many tool providers.
+* Create a second MCP server with a different tool set.
+* Configure a client to connect to multiple MCP servers simultaneously.
+* Observe tool routing to the correct server.
+* Understand the composition model: one client, many tool providers.
 
 == Exercise 1: Build a project-helper server
 
+[tabs]
+====
+Agent Mode::
++
+--
 Ask the agent to build a second server:
 
 ----
@@ -25,11 +30,32 @@ scaffold/project-helper.py with these tools:
 3. read_yaml - Read and parse a YAML file
 4. get_git_status - Get the current git status
 
-Use the same patterns as the first server.
+Use the same MCP SDK v2 patterns as the first server.
 ----
 
 Expected result: The agent generates `scaffold/project-helper.py` with four
-tools, using the same MCP SDK v2 patterns.
+tools, using the same patterns.
+--
+
+Manual Mode::
++
+--
+Copy the reference implementation:
+
+[source,bash,role="execute"]
+----
+cp solutions/lab-07/multi-server.py scaffold/project-helper.py
+----
+
+Read through it to understand the pattern -- it follows the same SDK v2
+structure as the stock market server but with file system and git tools:
+
+[source,bash,role="execute"]
+----
+head -40 scaffold/project-helper.py
+----
+--
+====
 
 == Exercise 2: Test the second server locally
 
@@ -54,64 +80,132 @@ print('Server name:', mod.mcp.name)
 print('Registered tools:')
 for name, tool in mod.mcp._tool_manager._tools.items():
     print(f'  {name}: {tool.description[:60]}')
-" 2>/dev/null || echo "Tools will be discovered when you wire the server to OpenCode"
+" 2>/dev/null || echo "Tools will be discovered when you wire the server"
 ----
 
-== Exercise 3: Connect both servers to OpenCode
+== Exercise 3: Connect both servers
 
-Now configure OpenCode with both MCP servers. In the chat:
+[tabs]
+====
+Agent Mode::
++
+--
+Configure OpenCode with both MCP servers:
 
 ----
 I have two MCP servers now:
 
-1. stock-market (the one we already deployed) at
-   http://stock-market-mcp.<namespace>.svc.cluster.local:8080/mcp
-   with tools: get_historical_stock_prices, get_stock_info, get_stock_news, etc.
+1. stock-market (deployed) at
+   http://stock-market-mcp.<namespace>.svc:8080/mcp
+   via streamable-http
 
-2. project-helper (local, not yet deployed) at
+2. project-helper (local) at
    scaffold/project-helper.py via stdio
-   with tools: search_code, list_files, read_yaml, get_git_status
 
 Configure both.
 ----
 
-== Exercise 4: Cross-server queries
-
-Ask the agent questions that require tools from both servers:
+Ask a cross-server question:
 
 ----
 Find all Python files in my project that import "yfinance" and also get the
 current stock price for AAPL.
 ----
 
-Expected result: The agent calls `search_code` from the project-helper server
-AND `get_stock_info` from the stock-market server, combining results from both
-into a single response.
+Expected result: The agent calls `search_code` from project-helper AND
+`get_stock_info` from stock-market, combining results.
+--
 
-Try another:
+Manual Mode::
++
+--
+Run both servers and call tools via `curl`. The deployed stock-market server
+is already running. Start the project-helper locally:
 
+[source,bash,role="execute"]
 ----
-Check the git status of my project, then get the latest news for MSFT.
+cd /projects/mcp-dev-workshop/scaffold
+MCP_TRANSPORT=streamable-http python project-helper.py &
+PH_PID=$!
+sleep 2
 ----
 
-The agent uses `get_git_status` (project-helper) and `get_stock_news`
-(stock-market) in sequence.
+Call a tool on each server:
 
-== Exercise 5: Understand the composition model
+[source,bash,role="execute"]
+----
+NAMESPACE=$(oc project -q)
+
+# Initialize stock-market (deployed)
+SM_URL="http://stock-market-mcp.${NAMESPACE}.svc:8080/mcp"
+SM_RESP=$(curl -sD /tmp/sm-headers -X POST "$SM_URL" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+SM_SID=$(grep -i mcp-session-id /tmp/sm-headers | tr -d '\r' | awk '{print $2}')
+
+echo "Stock-market tools:"
+curl -s -X POST "$SM_URL" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $SM_SID" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -m json.tool | grep '"name"'
+----
+
+[source,bash,role="execute"]
+----
+# Initialize project-helper (local)
+PH_URL="http://localhost:8080/mcp"
+PH_RESP=$(curl -sD /tmp/ph-headers -X POST "$PH_URL" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+PH_SID=$(grep -i mcp-session-id /tmp/ph-headers | tr -d '\r' | awk '{print $2}')
+
+echo "Project-helper tools:"
+curl -s -X POST "$PH_URL" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $PH_SID" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' | python3 -m json.tool | grep '"name"'
+----
+
+Call one tool from each:
+
+[source,bash,role="execute"]
+----
+echo "=== Stock info (from stock-market server) ==="
+curl -s -X POST "$SM_URL" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $SM_SID" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_stock_info","arguments":{"ticker":"AAPL"}}}' | python3 -m json.tool | head -15
+
+echo ""
+echo "=== Git status (from project-helper server) ==="
+curl -s -X POST "$PH_URL" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $PH_SID" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_git_status","arguments":{}}}' | python3 -m json.tool | head -15
+----
+
+Clean up the local server:
+
+[source,bash,role="execute"]
+----
+kill $PH_PID 2>/dev/null
+----
+--
+====
+
+== Exercise 4: Understand the composition model
 
 [mermaid]
 ....
 flowchart TD
-    Agent["OpenCode Agent"]
-    LLM["LLM (reasoning)"]
+    Client["Client (agent or curl)"]
     S1["stock-market<br/>prices, news, options, financials"]
     S2["project-helper<br/>search_code, list_files, git_status"]
     S3["future server<br/>database, monitoring, ..."]
 
-    Agent <--> LLM
-    Agent <-->|streamable-http| S1
-    Agent <-->|stdio| S2
-    Agent <-.->|any transport| S3
+    Client <-->|streamable-http| S1
+    Client <-->|stdio or http| S2
+    Client <-.->|any transport| S3
 ....
 
 Key properties of MCP composition:
@@ -123,16 +217,15 @@ Key properties of MCP composition:
 | *Independent servers*
 | Each server is a separate process or container. They do not know about each other.
 
-| *Agent-side routing*
-| The agent (LLM) decides which server's tool to call based on the tool name
-  and description.
+| *Client-side routing*
+| The client (or agent LLM) decides which server's tool to call based on the
+  tool name and description.
 
 | *Mixed transports*
 | Some servers can be local (stdio), others deployed (streamable-http).
-  The agent handles both.
 
 | *Dynamic discovery*
-| When the agent connects to a server, it discovers all tools automatically.
+| When a client connects to a server, it discovers all tools automatically.
   No hardcoded tool list.
 
 | *Additive*
@@ -154,8 +247,8 @@ cp solutions/lab-07/multi-server.py scaffold/project-helper.py
 You should now have:
 
 * [x] A second MCP server (`project-helper`) with different tools
-* [x] Both servers connected to OpenCode (one remote, one local)
-* [x] Agent routing tool calls to the correct server
-* [x] Cross-server queries working
+* [x] Both servers accessible (one remote, one local)
+* [x] Successfully called tools on each server
+* [x] Cross-server queries working _(agent mode)_
 
 Proceed to xref:10-module-08-governance.adoc[Module 8: Enterprise Governance].

@@ -42,8 +42,9 @@ This achieves up to 69% p90 TTFT reduction compared to round-robin.
 == Where MCP fits in
 
 MCP servers are *separate from the inference path*. They are tool backends
-that the agent calls when it needs to take an action — query a database,
-list pods, read a file. The flow is:
+that any client calls when it needs to take an action -- query a database,
+list pods, read a file. That client can be an AI agent (like OpenCode) or
+a human using `curl` and JSON-RPC. The flow is:
 
 [mermaid]
 ....
@@ -64,7 +65,11 @@ flowchart LR
 . The MCP server runs the tool and returns the result.
 . The agent feeds the result back to the LLM for the next reasoning step.
 
-The MCP server never talks to the LLM directly. It only talks to the agent.
+The MCP server never talks to the LLM directly. It only talks to the client.
+
+NOTE: In *manual mode*, you replace the agent with `curl`: you send the
+`tools/call` JSON-RPC request yourself and read the response directly. The
+server does not care who is calling -- it speaks the same protocol either way.
 
 == MCP protocol basics
 

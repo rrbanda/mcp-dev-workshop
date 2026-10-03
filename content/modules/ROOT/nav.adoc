@@ -4,9 +4,9 @@
 
 .Core Track (~90 Minutes)
 * xref:03-module-01-launch.adoc[Module 1: Launch Your Workspace]
-* xref:04-module-02-skills.adoc[Module 2: Understand Agent Skills]
+* xref:04-module-02-skills.adoc[Module 2: Understand MCP Patterns]
 * xref:05-module-03-build.adoc[Module 3: Build a Stock Market MCP Server]
-* xref:06-module-04-test.adoc[Module 4: Test with Your Agent]
+* xref:06-module-04-test.adoc[Module 4: Test Your MCP Server]
 * xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift]
 * xref:08-module-06-use.adoc[Module 6: Close the Feedback Loop]
 

@@ -1,19 +1,24 @@
-= Module 2: Understand Agent Skills
-:navtitle: Understand Agent Skills
+= Module 2: Understand MCP Patterns
+:navtitle: Understand MCP Patterns
 
-Agent Skills are how you teach an AI agent new capabilities without retraining
-the model. In this module you inspect how skills work, observe the agent
-discovering and loading one, and understand the mechanism that makes the
-next module — building an MCP server — possible.
+Before building your MCP server, you need to understand the patterns it uses.
+This module covers the MCP Python SDK v2 structure and — in agent mode — how
+Agent Skills teach the AI agent those same patterns automatically.
 
 == Learning objectives
 
-* Explain what an Agent Skill is and how it differs from a system prompt.
-* Locate skill files in the standard directory structure.
-* Observe lazy loading: the agent lists skills by name, then loads the full
-  body on demand.
-* Trigger the agent to use a skill and identify it in the response.
+* Identify the MCP Python SDK v2 patterns: `MCPServer`, `@server.tool()`,
+  type hints, docstrings, transport modes.
+* _(Agent mode)_ Explain what Agent Skills are and how they differ from a system prompt.
+* _(Agent mode)_ Observe the agent discovering and loading skills on demand.
+* Understand how the three knowledge layers (framework, domain, specification)
+  combine to produce a well-structured server.
 
+[tabs]
+====
+Agent Mode::
++
+--
 == What is an Agent Skill?
 
 A skill is a Markdown file (`SKILL.md`) placed in a known directory. It contains
@@ -44,7 +49,7 @@ descriptions. When a task matches, the agent loads the full skill body into
 its context. This is lazy loading — the skill only consumes context when it
 is relevant.
 
-== Exercise 1: List available skills
+=== Exercise 1: List available skills
 
 In the OpenCode chat, ask:
 
@@ -53,34 +58,64 @@ What skills do you have available?
 ----
 
 Expected result: The agent lists the available skills — `build-mcp-server`,
-`yfinance-api`, and `stock-market-mcp-spec` (and any others in the project).
+`yfinance-api`, and `stock-market-mcp-spec` (and others).
 It shows each skill name and a short description, but does *not*
 load the full content yet.
 
-== Exercise 2: Read the skill files directly
+=== Exercise 2: Observe skill loading
 
-In the terminal, read the MCP framework skill:
+In the OpenCode chat, ask:
+
+----
+I want to build an MCP server. What would the basic structure look like? Don't write any files yet.
+----
+
+Expected result: The agent loads the `build-mcp-server` skill and describes
+the structure — `MCPServer` class, `@server.tool()` decorators, `server.run()`.
+--
+
+Manual Mode::
++
+--
+== Read the SDK patterns directly
+
+The reference implementation and skill files contain all the patterns you need.
+You will read them to understand MCP before writing your own server.
+
+=== Exercise 1: Read the MCP framework patterns
 
 [source,bash,role="execute"]
 ----
 cat .opencode/skills/build-mcp-server/SKILL.md
 ----
 
-Observe the structure:
+Focus on these sections:
 
-* *Title and description* — first two lines, what the agent sees in the listing.
-* *When to use* — tells the agent when this skill is relevant.
-* *Related skills* — cross-references to `yfinance-api` and `stock-market-mcp-spec`.
-* *API reference* — MCP Python SDK v2 imports, decorators, patterns.
-* *Best practices* — error handling, timeouts, type hints.
-* *File structure* — what files to generate (server.py, requirements.txt,
-  Containerfile, deployment.yaml).
+* *Server creation* — `MCPServer("name", instructions="...")`
+* *Tool decorator* — `@server.tool(name="...", description="...")`
+* *Type hints* — how they map to JSON Schema for tool parameters
+* *Transport modes* — stdio (local dev) vs streamable-http (deployed)
+* *Entry point* — `server.run()` with transport selection
 
-Now look at the domain-specific skills:
+=== Exercise 2: Read the domain reference
 
 [source,bash,role="execute"]
 ----
-head -20 .opencode/skills/yfinance-api/SKILL.md
+head -60 .opencode/skills/yfinance-api/SKILL.md
+----
+
+This shows the yfinance `Ticker` API — what methods exist, what they return,
+and common gotchas (ticker normalization, date formats, etc.).
+--
+====
+
+== Exercise: Review the three knowledge layers
+
+Regardless of your mode, read through the skill files to understand how they decompose the problem:
+
+[source,bash,role="execute"]
+----
+ls .opencode/skills/*/SKILL.md
 ----
 
 [source,bash,role="execute"]
@@ -92,7 +127,7 @@ The three skills work together:
 
 [cols="1,2",options="header"]
 |===
-| Skill | What it teaches
+| Skill / Reference | What it teaches
 
 | `build-mcp-server`
 | *How* to build any MCP server — SDK v2 patterns, transports, deployment
@@ -104,39 +139,13 @@ The three skills work together:
 | *Exactly what to build* — 9 tools, 3 Enums, 4 helpers, error handling
 |===
 
-This decomposition means the agent gets framework knowledge, domain knowledge,
-AND an exact specification. The result is a server that matches the spec
-precisely — not an approximation.
+This decomposition means the problem is split into framework knowledge, domain knowledge,
+and an exact specification. Whether an agent reads these or you do, the result is the same:
+a server that matches the spec precisely.
 
-== Exercise 3: Observe skill loading
+== Exercise: Cross-harness portability
 
-In the OpenCode chat, ask:
-
-----
-I want to build an MCP server. What would the basic structure look like? Don't write any files yet.
-----
-
-Expected result: The agent loads the `build-mcp-server` skill (and possibly
-`stock-market-mcp-spec`) and describes the structure — `MCPServer` class,
-`@server.tool()` decorators, `server.run()`, requirements.txt, Containerfile.
-You may see an indicator that skills were loaded.
-
-.How does the agent decide to load the skill?
-[%collapsible]
-====
-The agent matches your intent ("build an MCP server") against the skill's
-name and "When to use" section. The match triggers a full load of the
-SKILL.md body into the context window. For a stock market server, the agent
-may also load `yfinance-api` and `stock-market-mcp-spec` because their
-"When to use" sections match financial data topics.
-
-Multiple skills can be loaded in a single conversation — the agent combines
-framework knowledge, domain knowledge, and exact specifications.
-====
-
-== Exercise 4: Cross-harness portability
-
-The same skill is available in multiple directories for different AI tools:
+The same files are available in multiple directories for different AI tools:
 
 [source,bash,role="execute"]
 ----
@@ -145,8 +154,7 @@ ls -la .claude/skills/*/SKILL.md
 ls -la .cursor/skills/*/SKILL.md
 ----
 
-Expected result: The same three SKILL.md files exist in all three paths. This
-means the skills work with OpenCode, Claude Code, and Cursor — any tool that
+This means the skills work with OpenCode, Claude Code, and Cursor — any tool that
 supports the Agent Skills convention. Write once, use with any agent.
 
 == Key takeaways
@@ -155,29 +163,29 @@ supports the Agent Skills convention. Write once, use with any agent.
 |===
 | Concept | Detail
 
-| *Lazy loading*
-| Skills are listed by name; full body loaded only when relevant.
+| *Composable knowledge*
+| Framework + domain + specification combine for precise output.
 
 | *Portable*
-| Same SKILL.md works across OpenCode, Claude Code, Cursor, Agents.
+| Same files work across OpenCode, Claude Code, Cursor, Agents.
 
 | *Versioned*
 | Skills live in your repo — PR reviews, git history, branch-per-experiment.
 
-| *Composable*
-| Multiple skills can be loaded in a single conversation.
-
 | *Zero platform change*
 | Adding a skill is adding a file. No operator, no CRD, no restart.
+
+| _(Agent mode)_ *Lazy loading*
+| Skills are listed by name; full body loaded only when relevant.
 |===
 
 == Checkpoint
 
 You should now understand:
 
-* [x] What Agent Skills are and how they differ from system prompts
-* [x] Where skill files live in the project structure
-* [x] How lazy loading works (name listing → on-demand full load)
-* [x] That skills are portable across AI coding tools
+* [x] The MCP Python SDK v2 patterns (MCPServer, @server.tool, type hints, transports)
+* [x] How framework, domain, and spec knowledge combine
+* [x] _(Agent mode)_ How Agent Skills work (lazy loading, discovery)
+* [x] That the skill files are portable across AI coding tools
 
 Proceed to xref:05-module-03-build.adoc[Module 3: Build an MCP Server].

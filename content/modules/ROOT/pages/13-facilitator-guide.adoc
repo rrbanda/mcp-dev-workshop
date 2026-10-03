@@ -169,11 +169,25 @@ done
 * Verify all workspaces can start: navigate to each DevSpaces URL and confirm
   the workspace reaches Running state.
 * Confirm model connectivity: from any workspace terminal, run
-  `curl -s $OPENAI_BASE_URL/models` — it should return the model list.
+  `curl -s $OPENAI_BASE_URL/models` -- it should return the model list.
 * Share the workshop guide URL: `https://rrbanda.github.io/mcp-dev-workshop/`
 * Hand out credentials cards.
 * Walk through xref:02-prerequisites.adoc[Prerequisites] as a group to verify
   everyone is connected before starting Module 1.
+
+=== Dual-track options
+
+The workshop supports two participation modes. Announce the choice at the start:
+
+* *Agent mode (AI-assisted)* -- participants use OpenCode's AI agent to
+  generate code, load skills, and call tools. Best for exploring how AI agents
+  consume MCP.
+* *Manual mode (CLI)* -- participants read the reference code, copy the
+  scaffold, and call tools with `curl` / JSON-RPC. Best for understanding MCP
+  internals without an AI layer.
+
+Both tracks produce the same outcome. Each module page has `[tabs]` blocks that
+show instructions for both modes. Participants can switch modes at any time.
 
 == Timing guide
 
