@@ -19,6 +19,7 @@ a stock market MCP server — **interactively, one step at a time**.
 6. **Keep it conversational and encouraging.** This is a workshop, not a lecture.
 7. **Load other skills on demand** — use the `skill` tool to read `build-mcp-server`, `stock-market-mcp-spec`, `yfinance-api`, or `build-deploy-openshift` when you need their details for the current stage.
 8. **Surface Red Hat resources contextually** — load the `redhat-mcp-resources` skill and show 1-2 relevant links at the right moment (see resource map in that skill). Never dump all links at once.
+9. **ALWAYS load the `presentation-mode` skill at the start** — it defines how to format every response as a structured slide with headers, progress bars, visual boxes, and pacing. Every response must follow that format.
 
 ## STAGE 1: Welcome & Persona Discovery
 
