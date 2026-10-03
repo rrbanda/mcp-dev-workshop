@@ -1,87 +1,60 @@
 ---
 name: interactive-challenge
-description: Mini-challenges between workshop stages that reinforce learning and earn Exploration Bonus points. Each challenge is optional, timed, and adapted to the participant's persona. Load between stages for bonus engagement.
+description: Optional bonus challenges between stages. Earn Exploration points. Always optional, always use the question tool.
 ---
 
 # Interactive Challenges
 
-Optional mini-challenges between stages that reinforce learning. Each challenge
-earns Exploration Bonus points and deepens understanding through hands-on practice.
+Optional mini-challenges between stages. Always present as a choice — never force.
 
 ## RULES
 
-1. **Always optional.** Present as "Want a bonus challenge?" — never force.
-2. **Timed guidance, not pressure.** "This usually takes 2-3 minutes" — not a countdown.
-3. **Adapted to persona.** Beginners get simpler challenges. Developers get harder ones.
-4. **Celebrate attempts.** Even partial completion gets points.
-5. **Show solution.** Always offer to show the answer if they're stuck.
+1. **Always optional.** Ask "Want a bonus challenge?" using the question tool.
+2. **One challenge per pause.** Don't stack multiple.
+3. **Adapted to persona.** Beginners get simpler ones.
+4. **Celebrate attempts.** Partial completion gets points.
+5. **Show solution on request.**
+6. **Use markdown only** — no box-drawing characters.
 
-## CHALLENGE FORMAT
+## FORMAT
 
-```
-╔══════════════════════════════════════════════════════╗
-║  ⭐ Bonus Challenge — Before Stage [N+1]             ║
-╚══════════════════════════════════════════════════════╝
+### ⭐ Bonus Challenge
 
-  [Challenge description]
+*[Description]*
 
-  ⏱️ Usually takes 2-3 minutes
-  🏅 Worth: +[N] Exploration Bonus points
-```
+⏱️ Usually takes 2-3 minutes | 🏅 Worth +3 Exploration points
 
-Use the question tool:
-- "I'll try it!" → present the challenge
-- "Skip for now" → proceed to next stage, no penalty
-- "Show me the solution" → show solution, +1 point for engagement
+Use question tool:
+- I'll try it!
+- Skip for now
+- Show me the solution
 
-## CHALLENGE CATALOG
+## CHALLENGES
 
-### After Stage 1 (Concepts) → Before Stage 2
+### After Stage 1 (Concepts)
 
-**Challenge: Name That Primitive**
+**Name That Primitive** — for each scenario, is it a Tool, Resource, or Prompt?
 
-"For each scenario, tell me if it's a Tool, Resource, or Prompt:"
+Use question tool for each:
+1. "A function that fetches current weather" → **Tool**
+2. "A read-only endpoint returning server config" → **Resource**
+3. "A template message: 'Analyze this stock'" → **Prompt**
 
-Use the question tool for each:
+Points: 1 per correct, max 3
 
-1. "A function that fetches the current weather for a city"
-   → **Tool** (model-controlled, performs an action)
+### After Stage 3 (Build)
 
-2. "A read-only endpoint that returns the server's configuration"
-   → **Resource** (application-controlled, read-only data)
-
-3. "A template message that says 'Analyze this stock ticker for investment potential'"
-   → **Prompt** (user-controlled, template message)
-
-**Points:** 1 pt per correct answer, max 3 pts Exploration Bonus
-
----
-
-### After Stage 3 (Build) → Before Stage 4
-
-**Challenge: Improve a Tool Description**
-
-"Here's a tool with a mediocre description. Rewrite it to be better:"
+**Improve a Tool Description** — rewrite this vague description:
 
 ```python
 @server.tool(name="get_news", description="Gets news")
-async def get_news(ticker: str) -> str:
 ```
 
-Ask the participant to type a better description. Score:
-- Mentions what kind of news (financial/stock): +1 pt
-- Mentions the parameter purpose: +1 pt
-- Mentions return format or content: +1 pt
+Score: mentions financial/stock news (+1), parameter purpose (+1), return content (+1). Max 3.
 
-**Points:** max 3 pts Exploration Bonus
+### After Stage 4 (Test)
 
----
-
-### After Stage 4 (Test) → Before Stage 5
-
-**Challenge: Debug This Tool**
-
-"This tool has 3 bugs. Can you spot them?"
+**Debug This Tool** — spot 3 bugs:
 
 ```python
 @server.tool(name="stock_price", description="Get stock price")
@@ -90,60 +63,32 @@ async def stock_price(ticker):
     return company.info["currentPrice"]
 ```
 
-Bugs:
-1. No type hint on `ticker` parameter → AI can't see the JSON Schema
-2. No error handling → exception on invalid ticker
-3. Returns a float, not a string → MCP tools must return strings
+Bugs: no type hint, no error handling, returns float not string. Max 3 pts.
 
-Use the question tool for each bug found. Accept any phrasing that identifies the issue.
+### After Stage 5 (Deploy)
 
-**Points:** 1 pt per bug found, max 3 pts Exploration Bonus
+**Predict the Architecture** — describe the network path from user question to answer.
 
----
+Expected: User → OpenCode AI → MCP Client → HTTP to server pod → yfinance → response back.
 
-### After Stage 5 (Deploy) → Before Stage 6
+Points: 2 for full chain, 1 for partial.
 
-**Challenge: Predict the Architecture**
+### After Stage 6 (Connect)
 
-"Your server is deployed. Draw me the network path (in words) from when a user
-asks 'What's AAPL's price?' to when they see the answer."
+**Add a Custom Tool** — build a tool NOT in the standard spec.
 
-Accept any answer that includes these hops:
-1. User → OpenCode AI
-2. AI → MCP Client
-3. MCP Client → HTTP POST to server pod
-4. Server → yfinance API
-5. Response flows back the same path
+Examples: compare_stocks, market_summary, calculate_returns.
 
-**Points:** 2 pts if they get the full chain, 1 pt for partial
+Points: 5 + 🌟 Innovator achievement.
 
----
+## SCORING
 
-### After Stage 6 (Connect) → Before Stage 7
-
-**Challenge: Add a Custom Tool**
-
-"Can you add a tool that's NOT in the standard spec? Any financial data tool you
-think would be useful. I'll help you implement it."
-
-This is the highest-value challenge — earning the 🌟 Innovator achievement.
-
-Examples they might suggest:
-- `compare_stocks` — compare two tickers side by side
-- `get_market_summary` — overall market indices
-- `calculate_returns` — return on investment calculator
-- `get_sector_performance` — sector comparison
-
-**Points:** 5 pts Exploration Bonus + 🌟 Innovator achievement
-
-## SCORING INTEGRATION
-
-After each challenge, update the scoring system:
+After each challenge, update todowrite silently:
 
 ```
 todowrite([
-  { id: "score-exploration", content: "⭐ Exploration Bonus: [X]/15 pts (challenges: Y pts)" }
+  { id: "score-exploration", content: "Exploration: X/15" }
 ], merge: true)
 ```
 
-Also check if any achievements were unlocked (e.g., 🌟 Innovator for custom tool).
+Then show the formatted scorecard.
