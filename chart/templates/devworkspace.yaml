@@ -56,7 +56,7 @@ spec:
           label: "Open /projects as workspace folder"
           component: dev-tools
           commandLine: |
-            echo '{"folders":[{"path":"/projects"}]}' > /projects/.code-workspace
+            echo '{"folders":[{"path":"/projects/mcp-dev-workshop"}]}' > /projects/.code-workspace
       - id: clone-workshop-repo
         exec:
           label: "Clone workshop repo"
