@@ -55,27 +55,289 @@ Store the persona internally. Adapt ALL subsequent stages:
 | Architect | Interfaces + design patterns | Review spec, then batch | Deployment topology | High-level |
 | Beginner | Explain every line | One tool at a time | Step by step with pauses | Maximum, use analogies |
 
-### 1c. MCP Introduction
+### 1c. MCP Concepts — Teach Before Building
 
-**If MCP-experienced**: Skip to a one-liner recap:
-"Great, you know MCP. We're building a streamable-HTTP server using the Python SDK v2."
+This is the teaching stage. Adapt depth to persona + MCP experience.
+**If MCP-experienced**: deliver the 30-second recap and move on.
+**If heard-of-it**: cover the Core Concepts (2-3 min).
+**If brand new**: cover ALL concept sections below (5-8 min), using analogies.
 
-**If heard-of-it**:
-"MCP is an open protocol that lets AI models call external tools. Think of it as a
-standardized way for an AI to say 'I need stock data' and get it from your server.
-Your server defines **tools** (functions the AI can call), and the AI discovers and
-uses them automatically."
+Always end with: "Ready to start building? Let's design your server."
 
-**If brand new**:
-"Imagine you're at a restaurant. The menu lists what the kitchen can make — that's your
-**MCP server** listing its **tools**. When you order, the waiter (the AI model) calls the
-kitchen (your server) with your request. MCP is just the protocol for how the waiter
-talks to the kitchen.
+---
 
-Today, you'll build the kitchen — a server that serves stock market data. Any AI model
-that speaks MCP can use it."
+#### CONCEPT 1: What is MCP?
 
-Then say: "Ready to design your server? Let's go to Stage 2."
+**Beginner version (use analogy)**:
+"Imagine you're at a restaurant. The **menu** lists what the kitchen can make — appetizers,
+mains, desserts. When you order, the **waiter** takes your request to the kitchen and
+brings back the food.
+
+MCP works the same way:
+- **Your MCP server** = the kitchen (it has the capabilities)
+- **Tools** = the menu items (each tool does one thing: get a stock price, fetch news, etc.)
+- **The AI model** = the waiter (it reads the menu, takes orders from the user, calls the kitchen)
+- **MCP protocol** = the language the waiter and kitchen speak
+
+Without MCP, every AI model would need custom code to talk to every data source.
+With MCP, you build ONE server and ANY AI model that speaks MCP can use it."
+
+**Developer version**:
+"MCP (Model Context Protocol) is an open standard from Anthropic (2024) that defines how
+AI models discover and call external tools. Think of it as a **standardized plugin system**
+for LLMs — the model gets a typed function signature, calls it with JSON arguments, and
+gets a string result back. One server, any client."
+
+**Architect version**:
+"MCP is the interoperability layer between AI hosts and capability providers. It defines
+a JSON-RPC 2.0 protocol for tool discovery (`tools/list`), invocation (`tools/call`),
+resource access, and prompt templates. The key architectural property: **servers are
+stateless capability endpoints** that multiple clients can connect to simultaneously."
+
+---
+
+#### CONCEPT 2: The Architecture — Host, Client, Server
+
+Present this diagram:
+
+```
+┌─────────────────────────────────────────────────┐
+│  HOST (OpenCode / IDE)                          │
+│                                                 │
+│   ┌──────────┐    MCP Protocol    ┌──────────┐  │
+│   │  AI      │◄──────────────────►│  MCP     │  │
+│   │  Model   │   JSON-RPC 2.0    │  Client   │  │
+│   │ (qwen38) │                   │          │  │
+│   └──────────┘                   └────┬─────┘  │
+│                                       │         │
+└───────────────────────────────────────┼─────────┘
+                                        │
+                              ┌─────────▼─────────┐
+                              │   MCP SERVER       │
+                              │   (your code!)     │
+                              │                    │
+                              │  ┌──────────────┐  │
+                              │  │ Tool 1       │  │
+                              │  │ get_stock_   │  │
+                              │  │ info         │  │
+                              │  ├──────────────┤  │
+                              │  │ Tool 2       │  │
+                              │  │ get_prices   │  │
+                              │  ├──────────────┤  │
+                              │  │ Tool N       │  │
+                              │  │ ...          │  │
+                              │  └──────────────┘  │
+                              │                    │
+                              │  Data sources:     │
+                              │  Yahoo Finance API │
+                              └────────────────────┘
+```
+
+Explain the three layers:
+- **Host**: The application running the AI (OpenCode in our case)
+- **Client**: Built into the host. Discovers tools, routes calls, returns results
+- **Server**: YOUR code. Defines tools. Connects to external data. This is what we're building today.
+
+For architects, add: "The host can connect to MULTIPLE MCP servers simultaneously.
+Each server is an independent capability domain. This is how you compose a rich
+AI agent from modular services."
+
+---
+
+#### CONCEPT 3: The Three Primitives
+
+"MCP servers can expose three types of capabilities:"
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  MCP Primitives                      │
+├─────────────┬──────────────────┬────────────────────┤
+│   TOOLS     │   RESOURCES      │   PROMPTS          │
+│             │                  │                    │
+│  Functions  │  Read-only data  │  Template          │
+│  the AI     │  the AI can      │  messages the      │
+│  can CALL   │  READ            │  AI can USE        │
+│             │                  │                    │
+│  Examples:  │  Examples:       │  Examples:         │
+│  get_price  │  config://info   │  "Analyze this     │
+│  place_order│  file://readme   │   stock for me"    │
+│  send_email │  db://schema     │                    │
+├─────────────┼──────────────────┼────────────────────┤
+│  Model      │  Application     │  User              │
+│  controlled │  controlled      │  controlled        │
+└─────────────┴──────────────────┴────────────────────┘
+```
+
+"Today we focus on **Tools** — they're the most powerful and the most common.
+A tool is a function the AI model can decide to call based on the user's request.
+
+The key insight: **the model reads the tool's name, description, and parameter types**
+to decide WHEN and HOW to call it. Good descriptions = good AI behavior."
+
+For developers, add:
+"Tool parameters use Python type hints that map directly to JSON Schema.
+`str` → `string`, `int` → `integer`, `float` → `number`, `bool` → `boolean`.
+Enum types become `{\"enum\": [...]}` so the model knows exactly what values are valid."
+
+---
+
+#### CONCEPT 4: How a Tool Call Works (the lifecycle)
+
+"Here's what happens when a user asks 'What's Apple's stock price?':"
+
+```
+User: "What's Apple's stock price?"
+  │
+  ▼
+AI Model thinks: "I need stock data. I have a tool called
+  get_stock_info that takes a ticker. Apple's ticker is AAPL."
+  │
+  ▼
+AI sends tool call: { "name": "get_stock_info", "arguments": { "ticker": "AAPL" } }
+  │
+  ▼
+MCP Client routes call to your server
+  │
+  ▼
+Your server:
+  1. Receives { ticker: "AAPL" }
+  2. Calls yfinance: yf.Ticker("AAPL").info
+  3. Formats the data as JSON string
+  4. Returns: '{"symbol":"AAPL","price":227.50,"marketCap":3.4T,...}'
+  │
+  ▼
+AI Model reads the result and responds:
+  "Apple (AAPL) is currently trading at $227.50 with a market cap of $3.4 trillion."
+```
+
+"Notice: the AI decides WHICH tool to call and WHAT arguments to pass.
+Your server just needs to handle the request and return data.
+That's the beauty of MCP — the AI does the thinking, your server does the doing."
+
+---
+
+#### CONCEPT 5: Transport — How Client Talks to Server
+
+"MCP supports two ways for the client to connect to the server:"
+
+```
+┌────────────────────────────────┬────────────────────────────────┐
+│        stdio (local)           │     streamable-http (remote)   │
+├────────────────────────────────┼────────────────────────────────┤
+│  Client spawns server as a     │  Server runs as HTTP service   │
+│  child process. Communication  │  (pod, container). Client      │
+│  via stdin/stdout pipes.       │  sends POST to /mcp endpoint.  │
+│                                │                                │
+│  Best for: local dev, testing  │  Best for: production,         │
+│  No network needed.            │  shared servers, OpenShift.    │
+│                                │                                │
+│  server.run()                  │  server.run(                   │
+│                                │    transport="streamable-http",│
+│                                │    host="0.0.0.0", port=8080)  │
+└────────────────────────────────┴────────────────────────────────┘
+```
+
+"We'll build our server to support BOTH — stdio for local testing, streamable-http
+for running on OpenShift. An environment variable (`MCP_TRANSPORT`) switches between them."
+
+For DevOps, add: "In production, the streamable-http transport means your MCP server is
+just a regular HTTP microservice. It gets a Deployment, Service, Route — standard
+Kubernetes patterns. Health checks, scaling, monitoring all work the same way."
+
+---
+
+#### CONCEPT 6: Writing Good Tool Descriptions (critical for AI quality)
+
+"This is the most important concept for building effective MCP servers.
+The AI model can only use your tools if it understands them. It reads:
+
+1. **Tool name** — should be a clear verb_noun: `get_stock_info`, not `data` or `helper`
+2. **Description** — one sentence explaining what the tool does and when to use it
+3. **Parameter types** — the AI sees the JSON Schema and knows what to pass
+4. **Parameter descriptions** — from your function's docstring Args section
+
+Bad example:"
+```python
+@server.tool(name="data", description="Gets data")
+async def data(x: str) -> str:  # AI has no idea what this does
+```
+
+"Good example:"
+```python
+@server.tool(
+    name="get_stock_info",
+    description="Get comprehensive stock data including current price, "
+                "company details, and key financial metrics."
+)
+async def get_stock_info(ticker: str) -> str:
+    """Get stock info for a ticker symbol.
+
+    Args:
+        ticker: Stock ticker symbol (e.g. AAPL, TSLA, NVDA).
+    """
+```
+
+"The AI reads that description and knows: this tool is for stock data, it takes a
+ticker symbol, and it returns price + company + metrics. It will call this tool
+whenever a user asks about a stock."
+
+---
+
+#### CONCEPT 7: Error Handling — Return Errors, Never Raise
+
+"One rule that trips up every new MCP developer:
+**Tools must return error strings, never raise exceptions.**
+
+Why? If your tool raises an exception, the MCP framework catches it and sends a
+generic error to the AI. The AI can't help the user fix the problem.
+
+If your tool returns a clear error string, the AI can tell the user what went wrong:"
+
+```python
+# ❌ BAD — AI sees "Internal error"
+@server.tool(name="get_stock_info", description="...")
+async def get_stock_info(ticker: str) -> str:
+    company = yf.Ticker(ticker)
+    info = company.info  # Raises if ticker invalid!
+    return json.dumps(info)
+
+# ✅ GOOD — AI sees a helpful message
+@server.tool(name="get_stock_info", description="...")
+async def get_stock_info(ticker: str) -> str:
+    try:
+        ticker = normalize_ticker(ticker)
+        company = yf.Ticker(ticker)
+        info = company.info
+        if not info or 'symbol' not in info:
+            return f"No stock info found for ticker '{ticker}'."
+        return json.dumps(info)
+    except Exception as e:
+        return f"Error getting stock info for {ticker}: {e}"
+```
+
+---
+
+#### CONCEPT RECAP (show after all concepts)
+
+"Here's everything we just covered:"
+
+```
+✅ MCP = standardized protocol for AI ↔ tools
+✅ Architecture: Host → Client → Server (you build the server)
+✅ Three primitives: Tools (functions), Resources (data), Prompts (templates)
+✅ Tool call lifecycle: User asks → AI picks tool → Server executes → AI responds
+✅ Transport: stdio (local) vs streamable-http (production)
+✅ Good descriptions = good AI behavior
+✅ Return errors as strings, never raise exceptions
+```
+
+"Now you know enough to build a production MCP server. Let's design yours!"
+
+Use the **question** tool:
+"Ready to move on to designing your server?"
+- "Yes, let's build!"
+- "I have a question about [concept]"
+- "Can you explain [concept] in more detail?"
 
 ---
 
