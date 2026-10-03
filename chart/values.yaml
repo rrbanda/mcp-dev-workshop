@@ -12,7 +12,7 @@ llm:
   # Model ID as the endpoint expects it in chat/completions requests
   modelId: ""
   tokens:
-    context: 20000
+    context: 32000
     output: 8192
   # JSON string merged into every API request body.
   # qwen/vLLM: '{"chat_template_kwargs":{"enable_thinking":false}}'
