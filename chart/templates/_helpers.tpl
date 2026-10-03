@@ -51,23 +51,24 @@ cat > ~/.opencode/opencode.json <<'OCEOF'
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
-    "vllm": {
+    "rhoai-maas": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "Workshop LLM",
+      "name": "RHOAI MaaS",
       "options": {
         "baseURL": "PLACEHOLDER_BASE_URL",
         "extraBody": {"chat_template_kwargs": {"enable_thinking": false}}
       },
       "models": {
-        "PLACEHOLDER_MODEL": {
-          "name": "PLACEHOLDER_MODEL",
+        "qwen38-27b": {
+          "modelID": "PLACEHOLDER_MODEL",
+          "name": "qwen38-27b",
           "limit": {"context": {{ include "mcp-workshop.tokens.context" . }}, "output": {{ include "mcp-workshop.tokens.output" . }}}
         }
       }
     }
   },
-  "model": "vllm/PLACEHOLDER_MODEL",
-  "enabled_providers": ["vllm"],
+  "model": "rhoai-maas/qwen38-27b",
+  "enabled_providers": ["rhoai-maas"],
   "permission": "allow",
   "default_agent": "code",
   "agent": {
@@ -95,7 +96,7 @@ cat > ~/.opencode/opencode.json <<'OCEOF'
 OCEOF
 sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.opencode/opencode.json
 sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.opencode/opencode.json
-echo "{\"vllm\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
+echo "{\"rhoai-maas\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
 echo "OpenCode config written (agent=code, skills enabled, welcome prompt set)"
 {{- end -}}
 
@@ -126,5 +127,5 @@ fi
 {{- $model := include "mcp-workshop.llmModelId" . -}}
 {{- $ctx := include "mcp-workshop.tokens.context" . -}}
 {{- $out := include "mcp-workshop.tokens.output" . -}}
-{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Workshop LLM","options":{"baseURL":{{ $url | quote }},"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{ {{ $model | quote }}:{"name":{{ $model | quote }},"limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "vllm/%s" $model | quote }},"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
+{"$schema":"https://opencode.ai/config.json","provider":{"rhoai-maas":{"npm":"@ai-sdk/openai-compatible","name":"RHOAI MaaS","options":{"baseURL":{{ $url | quote }},"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{"qwen38-27b":{"modelID":{{ $model | quote }},"name":"qwen38-27b","limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":"rhoai-maas/qwen38-27b","enabled_providers":["rhoai-maas"],"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
 {{- end -}}
