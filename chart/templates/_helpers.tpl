@@ -38,17 +38,82 @@
 {{- end -}}
 
 {{/*
-  Compact opencode.json body.
-  Uses shell variable expansion at postStart time ($OPENAI_BASE_URL, $VLLM_MODEL_ID)
-  so the config adapts without image rebuild.
+  Write opencode.json — agent "code" with all tools enabled + welcome system prompt.
+  Skills are at ~/.config/opencode/skills/ (written by write-opencode-skills postStart).
+  Uses shell $VARS so the config adapts without image rebuild.
 */}}
 {{- define "mcp-workshop.opencodeWriteConfigScript" -}}
-mkdir -p ~/.local/share/opencode
-cat > ~/.config/opencode/opencode.json <<EOF
-{"\$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Workshop LLM","options":{"baseURL":"$OPENAI_BASE_URL","extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{"$VLLM_MODEL_ID":{"name":"$VLLM_MODEL_ID","limit":{"context":{{ include "mcp-workshop.tokens.context" . }},"output":{{ include "mcp-workshop.tokens.output" . }}}}}}},"model":"vllm/$VLLM_MODEL_ID","permission":"allow","default_agent":"build","agent":{"build":{"prompt":"You are the MCP Developer Workshop assistant. On every new session, load the workshop-guide and presentation-mode skills, then deliver the Stage 1 welcome greeting. All generated code goes into the scaffold/ folder. Skills are in .opencode/skills/.","tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
-EOF
+mkdir -p ~/.config/opencode/skills ~/.local/share/opencode
+rm -f ~/.local/share/opencode/opencode.db* 2>/dev/null
+rm -rf ~/.java 2>/dev/null
+cat > ~/.config/opencode/opencode.json <<'OCEOF'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "vllm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Workshop LLM",
+      "options": {
+        "baseURL": "PLACEHOLDER_BASE_URL",
+        "extraBody": {"chat_template_kwargs": {"enable_thinking": false}}
+      },
+      "models": {
+        "PLACEHOLDER_MODEL": {
+          "name": "PLACEHOLDER_MODEL",
+          "limit": {"context": {{ include "mcp-workshop.tokens.context" . }}, "output": {{ include "mcp-workshop.tokens.output" . }}}
+        }
+      }
+    }
+  },
+  "model": "vllm/PLACEHOLDER_MODEL",
+  "permission": "allow",
+  "default_agent": "code",
+  "agent": {
+    "code": {
+      "prompt": "You are the facilitator for the MCP Developer Workshop, hosted on a private OpenShift cluster.\n\nFIRST MESSAGE RULE: When you receive the VERY FIRST message in a session (regardless of what the user types), ALWAYS begin your response with this welcome banner:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  Welcome to the MCP Developer Workshop\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nIn this workshop you will build a real stock market\nMCP server, deploy it on OpenShift, and use it from\nthis IDE — all guided by AI.\n\nThen use the question tool to present these options:\n\n\"What would you like to do?\"\n- Start the guided workshop (recommended for first-timers) — I will walk you through building an MCP server step by step, tailored to your role and experience\n- Build me a stock market MCP server — Skip the tutorial, generate and deploy everything automatically\n- I already built a server — help me deploy it — Jump straight to building the container image and deploying to OpenShift\n- Tell me about MCP — Learn what Model Context Protocol is and why it matters\n\nSUBSEQUENT MESSAGES: After the first message, behave normally as a coding agent. Follow the user choice above and load the appropriate skill:\n- Guided workshop: load the workshop-guide skill and follow its stages\n- Auto-build: load build-mcp-server, stock-market-mcp-spec, yfinance-api skills and generate everything\n- Deploy only: load build-deploy-openshift skill\n- Learn about MCP: explain MCP with examples\n\nGENERAL RULES:\n- You are in a DevSpaces workspace on OpenShift. The oc CLI is available.\n- When a task matches an agent skill, load that skill with the skill tool before writing code.\n- Skills are in ~/.config/opencode/skills/ — use the skill tool to discover and read them.\n- Always use bash for terminal commands, write/edit for files, question for choices.\n- Never embed credentials in code. Use environment variables or mounted secrets.",
+      "tools": {
+        "write": true,
+        "edit": true,
+        "read": true,
+        "bash": true,
+        "glob": true,
+        "grep": true,
+        "webfetch": false,
+        "websearch": false,
+        "task": true,
+        "skill": true,
+        "lsp": false,
+        "todowrite": true,
+        "todoread": true,
+        "question": true
+      }
+    }
+  }
+}
+OCEOF
+sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.config/opencode/opencode.json
+sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.config/opencode/opencode.json
 echo "{\"vllm\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
-echo "OpenCode config written"
+echo "OpenCode config written (agent=code, skills enabled, welcome prompt set)"
+{{- end -}}
+
+{{/*
+  Copy all skills from the cloned workshop repo to ~/.config/opencode/skills/.
+  This ensures skills load in EVERY session regardless of which project is active.
+*/}}
+{{- define "mcp-workshop.opencodeWriteSkillsScript" -}}
+SKILLS_SRC="/projects/mcp-dev-workshop/.opencode/skills"
+SKILLS_DST="$HOME/.config/opencode/skills"
+if [ -d "$SKILLS_SRC" ]; then
+  for skill_dir in "$SKILLS_SRC"/*/; do
+    skill_name=$(basename "$skill_dir")
+    mkdir -p "$SKILLS_DST/$skill_name"
+    cp "$skill_dir/SKILL.md" "$SKILLS_DST/$skill_name/SKILL.md"
+  done
+  echo "OpenCode skills written ($(ls -1d "$SKILLS_DST"/*/ 2>/dev/null | wc -l) skills)"
+else
+  echo "Warning: $SKILLS_SRC not found — skills not copied"
+fi
 {{- end -}}
 
 {{/*
@@ -59,5 +124,5 @@ echo "OpenCode config written"
 {{- $model := include "mcp-workshop.llmModelId" . -}}
 {{- $ctx := include "mcp-workshop.tokens.context" . -}}
 {{- $out := include "mcp-workshop.tokens.output" . -}}
-{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Workshop LLM","options":{"baseURL":{{ $url | quote }},"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{ {{ $model | quote }}:{"name":{{ $model | quote }},"limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "vllm/%s" $model | quote }},"permission":"allow","default_agent":"build","agent":{"build":{"prompt":"You are a coding agent in a workshop Dev Space.","tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
+{"$schema":"https://opencode.ai/config.json","provider":{"vllm":{"npm":"@ai-sdk/openai-compatible","name":"Workshop LLM","options":{"baseURL":{{ $url | quote }},"extraBody":{"chat_template_kwargs":{"enable_thinking":false}}},"models":{ {{ $model | quote }}:{"name":{{ $model | quote }},"limit":{"context":{{ $ctx }},"output":{{ $out }}}}}}},"model":{{ printf "vllm/%s" $model | quote }},"permission":"allow","default_agent":"code","agent":{"code":{"tools":{"write":true,"edit":true,"read":true,"bash":true,"glob":true,"grep":true,"webfetch":false,"websearch":false,"task":true,"skill":true,"lsp":false,"todowrite":true,"todoread":true,"question":true}}}}
 {{- end -}}

@@ -7,6 +7,9 @@
 #   2. Generate .code-workspace with the project as the root folder
 # This ensures VS Code opens directly into mcp-dev-workshop.
 #
+# Skills are copied from the repo to ~/.config/opencode/skills/ so they
+# load in EVERY OpenCode session regardless of which project is active.
+#
 # NOTE: DevWorkspaces are created with started: false. Users start their workspace
 # from the DevSpaces dashboard so the controller stamps the correct creator identity
 # (required for terminal exec to work).
@@ -75,6 +78,12 @@ spec:
           component: dev-tools
           commandLine: |
 {{ include "mcp-workshop.opencodeWriteConfigScript" . | indent 12 }}
+      - id: write-opencode-skills
+        exec:
+          label: "Write OpenCode Skills"
+          component: dev-tools
+          commandLine: |
+{{ include "mcp-workshop.opencodeWriteSkillsScript" . | indent 12 }}
       - id: download-opencode-extension
         exec:
           label: "Download OpenCode Extension"
@@ -102,5 +111,6 @@ spec:
       postStart:
         - update-workshop-repo
         - write-opencode-config
+        - write-opencode-skills
         - download-opencode-extension
         - start-opencode-web
