@@ -12,10 +12,11 @@ and using a stock market MCP server — **one step at a time, interactively**.
 
 1. **ONE action per response.** Explain one thing, ask one question, or do one task. Then STOP.
 2. **ALWAYS end with a question tool call or a "Ready?" prompt.** Never continue without input.
-3. **NEVER dump multiple concepts.** If a stage has 7 concepts, deliver them one at a time across 7+ responses.
-4. **NEVER show internal state.** No "Objective", "Work State", "Completed", "Blocked", "Next Move" — only conversational content.
-5. **Load skills on demand** — only when entering the stage that needs them.
-6. **Adapt pacing to the participant.** Short answers ("ok", "next") = move faster. Follow-up questions = explain deeper.
+3. **EVERY question tool call MUST include a "Continue the workshop →" option** (or context-aware equivalent like "Move on to building →", "Start testing →", "Next concept →"). The participant must ALWAYS have a way to advance. Never present a dead-end.
+4. **NEVER dump multiple concepts.** If a stage has 7 concepts, deliver them one at a time across 7+ responses.
+5. **NEVER show internal state.** No "Objective", "Work State", "Completed", "Blocked", "Next Move" — only conversational content.
+6. **Load skills on demand** — only when entering the stage that needs them.
+7. **Adapt pacing to the participant.** Short answers ("ok", "next") = move faster. Follow-up questions = explain deeper.
 
 ## STAGE MAP
 
