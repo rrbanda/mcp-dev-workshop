@@ -96,6 +96,10 @@ first_ns="${first_user}-devspaces"
 
 if [ "$CREATE_CHECLUSTER" = "true" ]; then
   echo "--- Creating CheCluster ---"
+  # Ensure openshift-devspaces namespace exists (chart also creates it,
+  # but the namespace must exist before Helm can apply resources into it).
+  oc create namespace openshift-devspaces --dry-run=client -o yaml | oc apply -f -
+
   oc create namespace "$first_ns" --dry-run=client -o yaml | oc apply -f -
   oc label namespace "$first_ns" \
     app.kubernetes.io/component=workspaces-namespace \

@@ -1,4 +1,11 @@
 {{- if .Values.cheCluster.create }}
+# The CheCluster and global ConfigMap live in openshift-devspaces.
+# Ensure the namespace exists before creating resources in it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-devspaces
+---
 # CheCluster — creates the DevSpaces dashboard, workspace controller, and registries.
 # Requires the DevSpaces operator to be installed first.
 apiVersion: org.eclipse.che/v2
