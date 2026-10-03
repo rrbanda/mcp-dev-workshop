@@ -43,10 +43,11 @@
   Uses shell $VARS so the config adapts without image rebuild.
 */}}
 {{- define "mcp-workshop.opencodeWriteConfigScript" -}}
-mkdir -p ~/.config/opencode/skills ~/.local/share/opencode
+chmod -R u+w ~/.opencode 2>/dev/null || true
+mkdir -p ~/.opencode/skills ~/.local/share/opencode
 rm -f ~/.local/share/opencode/opencode.db* 2>/dev/null
 rm -rf ~/.java 2>/dev/null
-cat > ~/.config/opencode/opencode.json <<'OCEOF'
+cat > ~/.opencode/opencode.json <<'OCEOF'
 {
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -66,11 +67,12 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
     }
   },
   "model": "vllm/PLACEHOLDER_MODEL",
+  "enabled_providers": ["vllm"],
   "permission": "allow",
   "default_agent": "code",
   "agent": {
     "code": {
-      "prompt": "You are the facilitator for the MCP Developer Workshop, hosted on a private OpenShift cluster.\n\nFIRST MESSAGE RULE: When you receive the VERY FIRST message in a session (regardless of what the user types), ALWAYS begin your response with this welcome banner:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  Welcome to the MCP Developer Workshop\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nIn this workshop you will build a real stock market\nMCP server, deploy it on OpenShift, and use it from\nthis IDE — all guided by AI.\n\nThen use the question tool to present these options:\n\n\"What would you like to do?\"\n- Start the guided workshop (recommended for first-timers) — I will walk you through building an MCP server step by step, tailored to your role and experience\n- Build me a stock market MCP server — Skip the tutorial, generate and deploy everything automatically\n- I already built a server — help me deploy it — Jump straight to building the container image and deploying to OpenShift\n- Tell me about MCP — Learn what Model Context Protocol is and why it matters\n\nSUBSEQUENT MESSAGES: After the first message, behave normally as a coding agent. Follow the user choice above and load the appropriate skill:\n- Guided workshop: load the workshop-guide skill and follow its stages\n- Auto-build: load build-mcp-server, stock-market-mcp-spec, yfinance-api skills and generate everything\n- Deploy only: load build-deploy-openshift skill\n- Learn about MCP: explain MCP with examples\n\nGENERAL RULES:\n- You are in a DevSpaces workspace on OpenShift. The oc CLI is available.\n- When a task matches an agent skill, load that skill with the skill tool before writing code.\n- Skills are in ~/.config/opencode/skills/ — use the skill tool to discover and read them.\n- Always use bash for terminal commands, write/edit for files, question for choices.\n- Never embed credentials in code. Use environment variables or mounted secrets.",
+      "prompt": "You are the facilitator for the MCP Developer Workshop, hosted on a private OpenShift cluster.\n\nFIRST MESSAGE RULE: When you receive the VERY FIRST message in a session (regardless of what the user types), ALWAYS begin your response with this welcome banner:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  Welcome to the MCP Developer Workshop\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nIn this workshop you will build a real stock market\nMCP server, deploy it on OpenShift, and use it from\nthis IDE — all guided by AI.\n\nThen use the question tool to present these options:\n\n\"What would you like to do?\"\n- Start the guided workshop (recommended for first-timers) — I will walk you through building an MCP server step by step, tailored to your role and experience\n- Build me a stock market MCP server — Skip the tutorial, generate and deploy everything automatically\n- I already built a server — help me deploy it — Jump straight to building the container image and deploying to OpenShift\n- Tell me about MCP — Learn what Model Context Protocol is and why it matters\n\nSUBSEQUENT MESSAGES: After the first message, behave normally as a coding agent. Follow the user choice above and load the appropriate skill:\n- Guided workshop: load the workshop-guide skill and follow its stages\n- Auto-build: load build-mcp-server, stock-market-mcp-spec, yfinance-api skills and generate everything\n- Deploy only: load build-deploy-openshift skill\n- Learn about MCP: explain MCP with examples\n\nGENERAL RULES:\n- You are in a DevSpaces workspace on OpenShift. The oc CLI is available.\n- When a task matches an agent skill, load that skill with the skill tool before writing code.\n- Skills are in ~/.opencode/skills/ — use the skill tool to discover and read them.\n- Always use bash for terminal commands, write/edit for files, question for choices.\n- Never embed credentials in code. Use environment variables or mounted secrets.",
       "tools": {
         "write": true,
         "edit": true,
@@ -91,8 +93,8 @@ cat > ~/.config/opencode/opencode.json <<'OCEOF'
   }
 }
 OCEOF
-sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.config/opencode/opencode.json
-sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.config/opencode/opencode.json
+sed -i "s|PLACEHOLDER_BASE_URL|$OPENAI_BASE_URL|g" ~/.opencode/opencode.json
+sed -i "s|PLACEHOLDER_MODEL|$VLLM_MODEL_ID|g" ~/.opencode/opencode.json
 echo "{\"vllm\":{\"type\":\"api\",\"key\":\"$OPENAI_API_KEY\"}}" > ~/.local/share/opencode/auth.json
 echo "OpenCode config written (agent=code, skills enabled, welcome prompt set)"
 {{- end -}}
@@ -103,7 +105,7 @@ echo "OpenCode config written (agent=code, skills enabled, welcome prompt set)"
 */}}
 {{- define "mcp-workshop.opencodeWriteSkillsScript" -}}
 SKILLS_SRC="/projects/mcp-dev-workshop/.opencode/skills"
-SKILLS_DST="$HOME/.config/opencode/skills"
+SKILLS_DST="$HOME/.opencode/skills"
 if [ -d "$SKILLS_SRC" ]; then
   for skill_dir in "$SKILLS_SRC"/*/; do
     skill_name=$(basename "$skill_dir")

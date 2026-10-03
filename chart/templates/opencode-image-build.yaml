@@ -38,6 +38,7 @@ spec:
       RUN curl -fsSL https://opencode.ai/install | OPENCODE_VERSION={{ .Values.opencodeBuild.opencodeVersion }} bash && \
           cp /home/user/.opencode/bin/opencode /usr/local/bin/opencode && \
           chmod 755 /usr/local/bin/opencode && \
+          rm -rf /home/user/.opencode && \
           printf '#!/bin/sh\nexit 0\n' > /usr/local/bin/xdg-open && \
           chmod 755 /usr/local/bin/xdg-open
       RUN pip install --no-cache-dir uv "mcp[cli]>=2.0" && \
