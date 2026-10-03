@@ -91,6 +91,7 @@ spec:
             export OPENCODE_SERVER_PASSWORD
             printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
             export PATH="/tmp:$PATH"
+            cd /projects/mcp-dev-workshop
             nohup opencode web --port 4096 --hostname 0.0.0.0 > /tmp/opencode-web.log 2>&1 &
             echo "OpenCode Web UI started on port 4096 (password-protected)"
     events:
