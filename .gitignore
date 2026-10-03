@@ -11,3 +11,7 @@ values-secret.yaml
 my-*.yaml
 *-secret*.yaml
 *-credentials*.yaml
+
+# Ansible vars with real cluster values — never commit
+deploy/vars.yml
+deploy/credentials-output.txt

@@ -1,0 +1,27 @@
+# MCP Workshop — Ansible inventory variables.
+# Copy this file and fill in your cluster-specific values.
+# Usage: cp deploy/vars.example.yml deploy/vars.yml && vi deploy/vars.yml
+#
+# NEVER commit vars.yml — it is in .gitignore.
+---
+# LLM endpoint (any OpenAI-compatible URL)
+llm_url: ""                    # REQUIRED — e.g. https://llama32-fp8-ai501.apps.cluster.example.com/v1
+llm_api_key: "EMPTY"           # set a real key if the endpoint requires auth
+model_id: ""                   # REQUIRED — e.g. llama32-fp8
+context_tokens: 20000
+output_tokens: 4096
+
+# Participants
+user_prefix: "user"            # RHPDS = "user", PCA = "dev-user"
+user_count: 30
+
+# DevSpaces
+install_operator: true         # false if DevSpaces operator is already installed
+create_checluster: true        # false if CheCluster already exists
+
+# Workshop repo (cloned into every workspace)
+workshop_repo: "https://github.com/rrbanda/mcp-dev-workshop.git"
+workshop_branch: "main"
+
+# OpenCode
+opencode_version: "1.15.13"

@@ -1,0 +1,38 @@
+---
+# Deploy one user's workspace. Called from playbook.yml via include_tasks.
+- name: "Skip {{ user_name }} (already deployed with CheCluster)"
+  ansible.builtin.debug:
+    msg: "Skipping {{ user_name }} — already deployed in CheCluster phase"
+  when: skip_first | bool
+
+- name: "Deploy workspace for {{ user_name }}"
+  when: not (skip_first | bool)
+  block:
+    - name: "Create namespace {{ user_name }}-devspaces"
+      ansible.builtin.shell: |
+        NS="{{ user_name }}-devspaces"
+        oc create namespace "$NS" --dry-run=client -o yaml | oc apply -f -
+        oc label namespace "$NS" \
+          app.kubernetes.io/component=workspaces-namespace \
+          app.kubernetes.io/part-of=che.eclipse.org --overwrite
+        oc annotate namespace "$NS" \
+          che.eclipse.org/username="{{ user_name }}" --overwrite
+      changed_when: true
+
+    - name: "Helm install for {{ user_name }}"
+      ansible.builtin.command: >
+        helm upgrade --install {{ user_name }}-devspaces-workshop {{ chart_dir }}
+        --namespace {{ user_name }}-devspaces
+        --set llm.baseUrl={{ llm_url }}
+        --set llm.apiKey={{ llm_api_key }}
+        --set llm.modelId={{ model_id }}
+        --set llm.tokens.context={{ context_tokens }}
+        --set llm.tokens.output={{ output_tokens }}
+        --set user.name={{ user_name }}
+        --set opencodeBuild.enabled=false
+        --set globalConfig.enabled={{ (user_idx == 1) | ternary('true', 'false') }}
+        --set cheCluster.create=false
+        --set workshop.repo={{ workshop_repo }}
+        --set workshop.branch={{ workshop_branch }}
+      register: helm_result
+      changed_when: "'STATUS: deployed' in helm_result.stdout"

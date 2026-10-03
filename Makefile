@@ -1,4 +1,4 @@
-.PHONY: help test-local validate build-image deploy expose connect-mcp test-mcp verify verify-mcp clean antora operator workshop-deploy workshop-undeploy credentials
+.PHONY: help test-local validate build-image deploy expose connect-mcp test-mcp verify verify-mcp clean antora operator preflight dry-run workshop-deploy workshop-deploy-checluster credentials workshop-undeploy ansible-deploy ansible-dry-run
 
 NAMESPACE ?= $(shell oc project -q 2>/dev/null || echo "my-namespace")
 SERVER_NAME ?= stock-market-mcp
@@ -119,6 +119,29 @@ operator: ## Install DevSpaces operator (cluster-admin required)
 		-l operators.coreos.com/devspaces.openshift-operators \
 		--for=jsonpath='{.status.phase}'=Succeeded --timeout=300s 2>/dev/null || \
 		echo "⚠ Operator not ready yet — check: oc get csv -n openshift-operators | grep devspaces"
+	@echo "Waiting for DevWorkspace CRD..."
+	@for i in $$(seq 1 30); do \
+		oc api-resources --api-group=workspace.devfile.io 2>/dev/null | grep -q devworkspaces && break; \
+		sleep 10; \
+	done
+	@oc api-resources --api-group=workspace.devfile.io 2>/dev/null | grep -q devworkspaces && \
+		echo "✓ DevWorkspace CRD ready" || echo "⚠ DevWorkspace CRD not found yet"
+
+preflight: ## Run pre-flight checks (LLM_URL=, MODEL_ID= optional)
+	LLM_URL="$(LLM_URL)" MODEL_ID="$(MODEL_ID)" deploy/preflight.sh
+
+dry-run: ## Helm dry-run for first user (LLM_URL=, MODEL_ID= required)
+	@if [ -z "$(LLM_URL)" ]; then echo "ERROR: LLM_URL is required"; exit 1; fi
+	@if [ -z "$(MODEL_ID)" ]; then echo "ERROR: MODEL_ID is required"; exit 1; fi
+	helm template $(USER_PREFIX)1-devspaces-workshop chart/ \
+		--namespace $(USER_PREFIX)1-devspaces \
+		--set llm.baseUrl=$(LLM_URL) \
+		--set llm.apiKey=$(LLM_API_KEY) \
+		--set llm.modelId=$(MODEL_ID) \
+		--set user.name=$(USER_PREFIX)1 \
+		--set cheCluster.create=true
+	@echo ""
+	@echo "--- Dry run complete — review the YAML above before deploying ---"
 
 workshop-deploy: ## Deploy workshop DevSpaces for N participants (LLM_URL=, MODEL_ID= required)
 	@if [ -z "$(LLM_URL)" ]; then echo "ERROR: LLM_URL is required"; exit 1; fi
@@ -143,3 +166,13 @@ credentials: ## Generate credentials cards for all participants
 workshop-undeploy: ## Remove all workshop DevSpaces and namespaces
 	USER_PREFIX="$(USER_PREFIX)" USER_COUNT="$(USER_COUNT)" \
 		deploy/workshop-undeploy.sh
+
+# ==== Ansible (alternative to shell scripts) ====
+
+ansible-deploy: ## Deploy via Ansible playbook (requires deploy/vars.yml)
+	@test -f deploy/vars.yml || (echo "ERROR: deploy/vars.yml not found. Copy deploy/vars.example.yml and fill in values."; exit 1)
+	ansible-playbook deploy/playbook.yml -e @deploy/vars.yml
+
+ansible-dry-run: ## Ansible dry-run — check mode, no changes (requires deploy/vars.yml)
+	@test -f deploy/vars.yml || (echo "ERROR: deploy/vars.yml not found. Copy deploy/vars.example.yml and fill in values."; exit 1)
+	ansible-playbook deploy/playbook.yml -e @deploy/vars.yml --check -v

@@ -1,0 +1,253 @@
+---
+# MCP Workshop — end-to-end deploy playbook.
+#
+# Deploys DevSpaces + OpenCode workspaces for N participants, each pointed at
+# an existing OpenAI-compatible LLM endpoint. No LLM/vLLM/llm-d deployment.
+#
+# Usage:
+#   # Copy and edit variables
+#   cp deploy/vars.example.yml deploy/vars.yml
+#   vi deploy/vars.yml
+#
+#   # Dry run (no changes)
+#   ansible-playbook deploy/playbook.yml -e @deploy/vars.yml --check
+#
+#   # Deploy
+#   ansible-playbook deploy/playbook.yml -e @deploy/vars.yml
+#
+# Requires: ansible, helm, oc (logged in as cluster-admin), curl
+
+- name: Deploy MCP Dev Workshop
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    llm_url: ""
+    llm_api_key: "EMPTY"
+    model_id: ""
+    user_prefix: "user"
+    user_count: 30
+    context_tokens: 20000
+    output_tokens: 4096
+    install_operator: true
+    create_checluster: true
+    workshop_repo: "https://github.com/rrbanda/mcp-dev-workshop.git"
+    workshop_branch: "main"
+    opencode_version: "1.15.13"
+    chart_dir: "{{ playbook_dir }}/../chart"
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - llm_url | length > 0
+          - model_id | length > 0
+        fail_msg: "llm_url and model_id are required. Set them in deploy/vars.yml."
+
+    - name: Check oc is logged in
+      ansible.builtin.command: oc whoami
+      register: oc_whoami
+      changed_when: false
+
+    - name: Show login context
+      ansible.builtin.debug:
+        msg: "Logged in as {{ oc_whoami.stdout }} on {{ lookup('pipe', 'oc whoami --show-server') }}"
+
+    - name: Check cluster-admin permissions
+      ansible.builtin.command: oc auth can-i create namespaces
+      register: can_create_ns
+      changed_when: false
+      failed_when: can_create_ns.stdout != "yes"
+
+    - name: Check LLM endpoint is reachable
+      ansible.builtin.uri:
+        url: "{{ llm_url | regex_replace('/v1$', '') }}/v1/models"
+        method: GET
+        validate_certs: false
+        return_content: true
+        timeout: 10
+      register: llm_check
+      failed_when: "'object' not in llm_check.content"
+
+    - name: Confirm model ID exists at endpoint
+      ansible.builtin.assert:
+        that:
+          - model_id in llm_check.content
+        fail_msg: "Model '{{ model_id }}' not found at {{ llm_url }}/models"
+
+  tasks:
+    # ---- Phase 1: DevSpaces Operator ----
+    - name: Install DevSpaces operator
+      when: install_operator
+      block:
+        - name: Apply DevSpaces Subscription
+          ansible.builtin.command: oc apply -f {{ playbook_dir }}/operator.yaml
+          register: operator_apply
+          changed_when: "'created' in operator_apply.stdout"
+
+        - name: Wait for DevSpaces operator CSV to succeed
+          ansible.builtin.command: >
+            oc get csv -n openshift-operators
+            -l operators.coreos.com/devspaces.openshift-operators
+            -o jsonpath='{.items[0].status.phase}'
+          register: csv_phase
+          until: csv_phase.stdout == "Succeeded"
+          retries: 30
+          delay: 10
+          changed_when: false
+
+        - name: Wait for DevWorkspace CRD to exist
+          ansible.builtin.command: oc api-resources --api-group=workspace.devfile.io
+          register: dw_crd
+          until: "'devworkspaces' in dw_crd.stdout"
+          retries: 30
+          delay: 10
+          changed_when: false
+
+    # ---- Phase 2: CheCluster ----
+    - name: Check if CheCluster already exists
+      ansible.builtin.command: oc get checluster devspaces -n openshift-devspaces
+      register: checluster_exists
+      failed_when: false
+      changed_when: false
+
+    - name: Create CheCluster
+      when: create_checluster and checluster_exists.rc != 0
+      block:
+        - name: Ensure openshift-devspaces namespace exists
+          ansible.builtin.command: >
+            oc create namespace openshift-devspaces --dry-run=client -o yaml
+          register: ns_yaml
+          changed_when: false
+
+        - name: Apply openshift-devspaces namespace
+          ansible.builtin.command: oc apply -f -
+          args:
+            stdin: "{{ ns_yaml.stdout }}"
+          changed_when: true
+
+        - name: Create first user namespace (Helm needs it for CheCluster release)
+          ansible.builtin.shell: |
+            NS="{{ user_prefix }}1-devspaces"
+            oc create namespace "$NS" --dry-run=client -o yaml | oc apply -f -
+            oc label namespace "$NS" \
+              app.kubernetes.io/component=workspaces-namespace \
+              app.kubernetes.io/part-of=che.eclipse.org --overwrite
+            oc annotate namespace "$NS" \
+              che.eclipse.org/username="{{ user_prefix }}1" --overwrite
+          changed_when: true
+
+        - name: Deploy first user with CheCluster
+          ansible.builtin.command: >
+            helm upgrade --install {{ user_prefix }}1-devspaces-workshop {{ chart_dir }}
+            --namespace {{ user_prefix }}1-devspaces
+            --set llm.baseUrl={{ llm_url }}
+            --set llm.apiKey={{ llm_api_key }}
+            --set llm.modelId={{ model_id }}
+            --set llm.tokens.context={{ context_tokens }}
+            --set llm.tokens.output={{ output_tokens }}
+            --set user.name={{ user_prefix }}1
+            --set opencodeBuild.enabled=true
+            --set globalConfig.enabled=true
+            --set cheCluster.create=true
+            --set workshop.repo={{ workshop_repo }}
+            --set workshop.branch={{ workshop_branch }}
+            --set opencodeBuild.opencodeVersion={{ opencode_version }}
+          register: first_deploy
+
+        - name: Wait for CheCluster to become Active
+          ansible.builtin.command: >
+            oc get checluster devspaces -n openshift-devspaces
+            -o jsonpath='{.status.chePhase}'
+          register: che_phase
+          until: che_phase.stdout == "Active"
+          retries: 60
+          delay: 10
+          changed_when: false
+
+    # ---- Phase 3: OpenCode image build ----
+    - name: Check if OpenCode image already exists
+      ansible.builtin.command: oc get istag devspaces-opencode:latest -n opencode-build
+      register: image_exists
+      failed_when: false
+      changed_when: false
+
+    - name: Wait for OpenCode image build to complete
+      when: image_exists.rc != 0
+      block:
+        - name: Check for running build
+          ansible.builtin.command: >
+            oc get builds -n opencode-build -l buildconfig=devspaces-opencode
+            --no-headers
+          register: builds
+          changed_when: false
+
+        - name: Start build if none running
+          ansible.builtin.command: oc start-build devspaces-opencode -n opencode-build
+          when: "'Running' not in builds.stdout and 'Complete' not in builds.stdout"
+          changed_when: true
+
+        - name: Wait for build to complete (up to 10 min)
+          ansible.builtin.command: >
+            oc get istag devspaces-opencode:latest -n opencode-build
+          register: build_done
+          until: build_done.rc == 0
+          retries: 60
+          delay: 10
+          changed_when: false
+
+    # ---- Phase 4: Deploy remaining users ----
+    - name: Set first user index based on CheCluster creation
+      ansible.builtin.set_fact:
+        first_user_deployed: "{{ create_checluster and checluster_exists.rc != 0 }}"
+
+    - name: Deploy user workspaces
+      ansible.builtin.include_tasks: deploy-one-user.yml
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      loop_control:
+        loop_var: user_idx
+      vars:
+        user_name: "{{ user_prefix }}{{ user_idx }}"
+        skip_first: "{{ first_user_deployed | bool and user_idx == 1 }}"
+
+    # ---- Phase 5: Generate credentials ----
+    - name: Generate credentials cards
+      ansible.builtin.shell: |
+        echo "================================================================"
+        echo "  MCP Workshop Credentials"
+        echo "  Console: $(oc whoami --show-console)"
+        echo "================================================================"
+        echo ""
+        for i in $(seq 1 {{ user_count }}); do
+          user="{{ user_prefix }}${i}"
+          ns="${user}-devspaces"
+          oc_pass=$(oc get secret opencode-web-password -n "$ns" \
+            -o jsonpath='{.data.password}' 2>/dev/null | base64 -d 2>/dev/null || echo "N/A")
+          echo "--- ${user} ---"
+          echo "  OpenCode Web Password: ${oc_pass}"
+          echo ""
+        done
+      register: credentials
+      changed_when: false
+
+    - name: Show credentials
+      ansible.builtin.debug:
+        msg: "{{ credentials.stdout_lines }}"
+
+    - name: Save credentials to file
+      ansible.builtin.copy:
+        content: "{{ credentials.stdout }}"
+        dest: "{{ playbook_dir }}/credentials-output.txt"
+        mode: "0600"
+
+    - name: Deploy summary
+      ansible.builtin.debug:
+        msg:
+          - "=== MCP Workshop Deploy Complete ==="
+          - "Users: {{ user_prefix }}1 through {{ user_prefix }}{{ user_count }}"
+          - "LLM: {{ llm_url }} (model: {{ model_id }})"
+          - "Credentials saved to: deploy/credentials-output.txt"
+          - ""
+          - "Participants: log in at {{ lookup('pipe', 'oc whoami --show-console') }}"
+          - "Then open DevSpaces from the grid icon → start workspace."
