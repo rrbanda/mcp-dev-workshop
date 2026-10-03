@@ -1,5 +1,5 @@
 ---
-name: workshop-facilitator-tone
+name: voice-and-pacing
 description: Sets personality, tone, and pacing for the workshop facilitator. Load at session start silently — never mention loading this skill in chat.
 ---
 
