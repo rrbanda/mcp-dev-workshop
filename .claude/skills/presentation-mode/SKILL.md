@@ -126,7 +126,7 @@ kind: MCPServerRegistration
 metadata:
   name: user1-stock-mcp-reg       # ← user-scoped
 spec:
-  toolPrefix: "user1_stock_"      # ← namespace tools to avoid collisions
+  prefix: "user1_stock_"            # ← namespace tools to avoid collisions
   targetRef:
     kind: HTTPRoute
     name: user1-stock-mcp-route   # ← routes traffic through the gateway

@@ -308,7 +308,7 @@ kind: MCPServerRegistration
 metadata:
   name: ${APP_NAME}-reg
 spec:
-  toolPrefix: "${USER_PREFIX}_stock_"
+  prefix: "${USER_PREFIX}_stock_"
   targetRef:
     group: gateway.networking.k8s.io
     kind: HTTPRoute
@@ -317,7 +317,7 @@ spec:
 EOF
 ```
 
-The `toolPrefix` ensures your tools don't collide with other users' tools
+The `prefix` ensures your tools don't collide with other users' tools
 on the same gateway. Your tools will appear as `user1_stock_get_stock_info`,
 `user1_stock_get_historical_stock_prices`, etc.
 
