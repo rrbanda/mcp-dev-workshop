@@ -13,23 +13,24 @@ NEVER use box-drawing characters (╔═╗║╚┌─┐│└) — they rende
 
 ### 1. Slide Header (always first)
 
-Use a markdown heading with emoji + stage context:
+Use a markdown heading with emoji + stage + SDLC phase:
 
 ```
-## 🔨 Stage 3 · Build Your Server
-### Tool 2 of 4: get_historical_stock_prices
+## 📋 Stage 4 · Design Your Server
+### Requirements & Design
 ```
 
 Emoji prefixes by stage:
 - 👋 Stage 1: Welcome
-- 📘 Concepts
-- 🎨 Stage 2: Design
-- 🔨 Stage 3: Build
-- 🧪 Stage 4: Test
-- 🚀 Stage 5: Deploy
-- 🔗 Stage 6: Connect
-- ⚡ Stage 7: Use
-- 🎓 Wrap-up
+- 📘 Stage 1: Concepts
+- 🎯 Stage 2: Capture Intent
+- 📚 Stage 3: Skills & Knowledge
+- 🎨 Stage 4: Design
+- 🗺️ Stage 5: Plan
+- 🔨 Stage 6: Build + Test
+- 🚀 Stage 7: Deploy
+- 🔗 Stage 8: Connect & Use
+- 🎓 Stage 9: Wrap-up
 
 ### 2. Progress Bar (after header)
 
@@ -41,16 +42,15 @@ Use filled/empty blocks on one line:
 
 Or for stages:
 ```
-**Workshop:** ██████░░░░░░░░ Stage 3 of 7
+**Workshop:** █████░░░░░░░░░ Stage 5 of 9 · Plan
 ```
 
 ### 3. Content Body (ONE topic per slide)
 
 Rules:
 - **ONE concept per slide.** Never two.
-- **Maximum 20 lines** before a break.
+- **Maximum 20 lines** before a visual break.
 - Use `##` / `###` for sections, `**bold**` for key terms, `>` for callouts.
-- Diagrams → use code fences (monospace renders correctly inside fences).
 - Code blocks limited to **15 lines max**.
 
 ### 4. Visual Elements
@@ -62,75 +62,65 @@ Rules:
 > MCP Tools are functions the AI model can discover and call.
 > The model reads your tool's name and description to decide when to use it.
 
+**SDLC Teaching Moment** — brief, one-line, after a natural pause:
+
+> **🔄 SDLC INSIGHT:** *Skills are how you encode institutional knowledge for agents — same pattern works across any coding agent.*
+
+**Code Summary** — after generating code, always provide a plain-English summary:
+
+> **✅ What I built:** `get_historical_stock_prices(ticker, period, interval)`
+> **How it works:** Calls yf.Ticker().history() → DataFrame → JSON records
+> **Key decision:** Capped at 500 data points for token limits
+
 **Code Spotlight** — use a code fence with comments for annotations:
 
 ```python
 @server.tool(
     name="get_stock_info",
-    description="Get stock data..."  # ← AI reads this
+    description="Get stock data..."  # ← AI reads this to decide when to call it
 )
 async def get_stock_info(
-    ticker: str  # ← becomes JSON Schema
+    ticker: str  # ← becomes JSON Schema for the AI model
 ) -> str:
 ```
 
 **Comparison** — use a markdown table:
 
-| ❌ Without MCP | ✅ With MCP |
+| Traditional SDLC | AI-native SDLC |
 |---|---|
-| Custom code per AI model | One standard protocol |
-| Hard to test | Discoverable tools |
-| Tightly coupled | Modular servers |
+| Requirements → Design → Build (weeks) | Intent → Skills → Plan → Build (one session) |
+| Test after build | Test during build |
+| Review every line | Review plans and outputs |
 
 **Step Checklist** — use emoji list:
 
-- ✅ Build container image
-- ✅ Push to internal registry
-- 🔵 Deploy pod + service ← *current*
-- ⬜ Create route
-- ⬜ Register in OpenCode
+- ✅ Capture intent
+- ✅ Load skills
+- ✅ Design approved
+- 🔵 **Plan mode** ← *current*
+- ⬜ Build + Test
+- ⬜ Deploy
+- ⬜ Connect & Use
 
 **Callout** — use blockquote with emoji prefix:
 
-> 💡 **TIP:** The AI reads your tool description to decide when to call it. Better descriptions = smarter AI behavior.
+> 💡 **TIP:** The better your skills, the better the agent's output. Writing good skills is the highest-leverage thing you can do.
 
-> ⚠️ **WARNING:** Start a NEW session after registering the MCP server. Tools only load at session start.
-
-> 📘 **RED HAT:** [Model Context Protocol — The Missing Link](https://www.redhat.com/en/blog/model-context-protocol-discover-missing-link-ai-integration)
+> ⚠️ **NOTE:** Start a NEW session after registering the MCP server. Tools only load at session start.
 
 ### 5. Slide Footer — Navigation (always last)
 
-Every response MUST end with a clear next action.
-
-**When there's a choice:** Use the `question` tool.
-
-**When there's no choice:** End with a single line:
-
-> *Next: [what's coming] →*
-
-The participant types anything to continue.
+Every response MUST end with a **question tool call**. NEVER use plain-text lists for options.
 
 ---
 
 ## PACING RULES
 
 1. **ONE concept per response, then STOP.** Wait for participant input.
-2. **Live demos every 2-3 slides.** "Let me show you this..." → run code → show output.
-3. **Celebrate milestones** with a scorecard:
-
-### ✅ Milestone: Tool 2 of 4 built
-
-**`get_stock_info`** — tested with AAPL ✅
-
-**Progress:** ████████░░░░░░░░ 50%
-
-4. **Stage transitions** — use horizontal rules + heading:
-
----
-
-## 🚀 Stage 5: Deploy to OpenShift AI
-
-Your server has 4 tools, all tested. Now let's package and deploy it.
+2. **Live demos every 2-3 slides.** "Let me show you..." → run code → show output.
+3. **Celebrate milestones** with a brief scorecard.
+4. **SDLC teaching moments are ONE line** — never interrupt flow with a lecture.
+5. **Stage transitions** — use horizontal rules + heading + SDLC phase label.
 
 ---
 
@@ -140,6 +130,8 @@ Your server has 4 tools, all tested. Now let's package and deploy it.
 2. ❌ Multiple concepts in one response
 3. ❌ Code dump — more than 15 lines without explanation
 4. ❌ Missing progress indicator
-5. ❌ No interaction — every slide must end with a question or "next →"
+5. ❌ No interaction — every slide must end with a question tool call
 6. ❌ Box-drawing characters (╔═╗║╚┌─┐│└) — use markdown instead
-7. ❌ Showing internal state, planning, or skill-loading status
+7. ❌ Showing internal state, planning, or raw skill content
+8. ❌ SDLC lectures — teaching moments are one line, woven in naturally
+9. ❌ Plain-text numbered lists for choices — always use the question tool
