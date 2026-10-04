@@ -23,6 +23,10 @@ llm:
 workshop:
   repo: "https://github.com/rrbanda/mcp-dev-workshop.git"
   branch: "main"
+  # Customer / team name shown in the welcome message.
+  teamName: "UPS"
+  # Workshop title shown in the banner.
+  title: "MCP Developer Workshop"
 
 # ---- DevSpaces CheCluster ----
 cheCluster:
