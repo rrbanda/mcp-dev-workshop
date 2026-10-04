@@ -84,22 +84,30 @@ async def get_stock_info(
 ) -> str:
 ```
 
-**MCPServer CR Spotlight** — when showing the RHOAI deploy pattern:
+**MCPServer CR Spotlight** — when showing the deploy pattern:
 
 ```yaml
 apiVersion: mcp.x-k8s.io/v1alpha1
 kind: MCPServer
 metadata:
-  name: stock-market-mcp          # ← one resource replaces six manual steps
+  name: user1-stock-mcp            # ← user-scoped name
 spec:
   source:
     type: ContainerImage
     containerImage:
-      ref: image-registry.../stock-market-mcp@sha256:...  # ← from ImageStream
+      ref: image-registry.../user1-stock-mcp@sha256:...  # ← from ImageStream
   config:
     port: 8080                    # ← operator creates the Service automatically
     path: /mcp                    # ← operator verifies MCP handshake here
 ```
+
+**MCP Lifecycle Diagram** — when introducing Stage 7 deploy:
+
+> **🏗️ THE MCP SERVER LIFECYCLE**
+>
+> **Layer 1 — Deploy:** MCPServer CR → MCP Lifecycle Operator → Deployment + Service + NetworkPolicy + handshake
+> **Layer 2 — Discover:** AI Hub MCP Catalog → browse, search, and manage servers from the dashboard
+> **Layer 3 — Route & Govern:** MCP Gateway (RHCL) → HTTPRoute + MCPServerRegistration → federated tool discovery with `toolPrefix`
 
 **Operator vs Manual Comparison** — when introducing the deploy stage:
 
@@ -109,6 +117,20 @@ spec:
 | You manage Deployment, Service, Route | Operator manages everything |
 | Security is opt-in | Security enforced automatically |
 | No protocol verification | MCP handshake verified by operator |
+
+**Gateway Registration Spotlight** — when showing MCPServerRegistration:
+
+```yaml
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: user1-stock-mcp-reg       # ← user-scoped
+spec:
+  toolPrefix: "user1_stock_"      # ← namespace tools to avoid collisions
+  targetRef:
+    kind: HTTPRoute
+    name: user1-stock-mcp-route   # ← routes traffic through the gateway
+```
 
 **Comparison** — use a markdown table:
 

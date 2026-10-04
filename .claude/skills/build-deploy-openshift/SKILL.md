@@ -1,13 +1,19 @@
 ---
 name: build-deploy-openshift
-description: Build a container image, deploy it on OpenShift AI using the RHOAI MCPServer CR, and register it in OpenCode. Use when asked to deploy, ship, build and deploy, containerize, or put an MCP server on the cluster.
+description: Build a container image, deploy it on OpenShift using the MCP Lifecycle Operator, import it to the AI Hub MCP Catalog, register it with the MCP Gateway, and connect it in OpenCode. Use when asked to deploy, ship, build and deploy, containerize, or put an MCP server on the cluster.
 ---
 
-# Build, Deploy & Connect on OpenShift AI (RHOAI 3.5)
+# Build, Deploy & Register an MCP Server on OpenShift
 
-Build a container image using OpenShift binary builds, deploy it as a managed
-MCPServer resource via the RHOAI MCP Lifecycle Operator, register it in OpenCode,
-and verify the full chain — all from inside this DevSpaces workspace.
+Build a container image, deploy it as a managed MCPServer resource, import it to
+the AI Hub MCP Catalog, register it with the MCP Gateway for governed access,
+and connect it in OpenCode — all from inside this DevSpaces workspace.
+
+MCP (Model Context Protocol) is an **open standard** for connecting AI agents to
+tools and data sources. It works across platforms and runtimes. On OpenShift,
+the MCP Lifecycle Operator provides managed deployment, the AI Hub provides
+discovery, and the MCP Gateway (Red Hat Connectivity Link) provides governed
+routing — but MCP itself is not tied to any single vendor or platform.
 
 ## When to use
 
@@ -16,26 +22,39 @@ a server on OpenShift. Also use when asked to connect, register, or test a deplo
 MCP server from OpenCode. Works for any Python MCP server that has a `Dockerfile`
 (or `Containerfile`) and listens on a port.
 
-## How it works
+## Architecture overview
 
-The RHOAI MCP Lifecycle Operator watches for `MCPServer` custom resources
-(`mcp.x-k8s.io/v1alpha1`). When you create one, the operator automatically:
+The full MCP server lifecycle on OpenShift has three layers:
 
-- Creates a **Deployment** with security-hardened pods (non-root, drop ALL
-  capabilities, read-only root filesystem, seccomp RuntimeDefault)
-- Creates a **Service** (ClusterIP) for internal access
-- Creates a **NetworkPolicy** for network segmentation
-- Performs an **MCP protocol handshake** to verify the server responds correctly
-- Populates `status.address.url` with the internal service URL
-- Reports `Ready=True` when the server is healthy
-
-You do NOT manually create Deployments, Services, Routes, or security contexts.
+| Layer | Component | What it does |
+|-------|-----------|-------------|
+| **Deploy** | MCP Lifecycle Operator | Watches MCPServer CRs, auto-creates Deployment + Service + NetworkPolicy, performs MCP handshake |
+| **Discover** | AI Hub MCP Catalog | Dashboard UI where deployed MCPServer CRs appear on the Deployments tab for browsing and management |
+| **Route & Govern** | MCP Gateway (RHCL) | Single entry point for all MCP servers; federated tool discovery, auth, rate limiting via HTTPRoute + MCPServerRegistration |
 
 ## Prerequisites
 
 The workspace service account already has the `edit` role in this namespace.
 The `oc` CLI is available and authenticated via the mounted service account token.
-The MCP Lifecycle Operator is enabled in the DataScienceCluster (`mcplifecycleoperator: Managed`).
+
+**Platform admin prerequisites** (already done — users do not need to do these):
+- MCP Lifecycle Operator enabled in DSC (`mcplifecycleoperator: Managed`)
+- MCP Catalog enabled in dashboard (`mcpCatalog: true`)
+- MCP Gateway Operator installed in `mcp-system`
+- Gateway `mcp-gateway` and MCPGatewayExtension created in `mcp-system`
+
+See the **Platform Admin Setup** section at the end of this file for the one-time
+commands that a cluster admin runs before the workshop.
+
+## User-scoped naming
+
+Every resource uses the participant's username as a prefix to avoid collisions
+when multiple users share the same cluster:
+
+- MCPServer: `$USER-stock-mcp`
+- BuildConfig / ImageStream: `$USER-stock-mcp`
+- HTTPRoute: `$USER-stock-mcp-route`
+- MCPServerRegistration: `$USER-stock-mcp-reg`
 
 ## Step-by-step procedure
 
@@ -45,9 +64,6 @@ tool. Do NOT skip steps or combine them.
 ---
 
 ### Phase 1: Build the Container Image
-
-The MCPServer CR needs an OCI image reference. We use OpenShift binary builds
-to build and push the image to the internal registry.
 
 #### Step 0: Prepare the project directory
 
@@ -71,20 +87,21 @@ ls -la Dockerfile requirements.txt server.py
 > **Critical**: OpenShift binary builds require the file to be named `Dockerfile`,
 > not `Containerfile`. Always ensure `Dockerfile` exists before building.
 
-#### Step 1: Detect the namespace
+#### Step 1: Detect namespace and username
 
 ```bash
 NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+# Extract username from namespace (e.g., user1-devspaces → user1)
+USER_PREFIX=$(echo "$NS" | sed 's/-devspaces$//')
 echo "Namespace: $NS"
+echo "User prefix: $USER_PREFIX"
 ```
 
-#### Step 2: Choose an app name
-
-Derive from the project directory name. Use lowercase, hyphens only.
-Example: `stock-market-mcp`
+#### Step 2: Set the app name (user-scoped)
 
 ```bash
-APP_NAME="stock-market-mcp"
+APP_NAME="${USER_PREFIX}-stock-mcp"
+echo "App name: $APP_NAME"
 ```
 
 #### Step 3: Clean up any previous deployment (idempotent)
@@ -92,6 +109,10 @@ APP_NAME="stock-market-mcp"
 ```bash
 # Remove MCPServer CR (operator will garbage-collect Deployment, Service, NetworkPolicy)
 oc delete mcpserver "$APP_NAME" -n "$NS" 2>/dev/null || true
+
+# Remove gateway registration
+oc delete mcpserverregistration "${APP_NAME}-reg" -n "$NS" 2>/dev/null || true
+oc delete httproute "${APP_NAME}-route" -n "$NS" 2>/dev/null || true
 
 # Remove build resources
 oc delete bc "$APP_NAME" -n "$NS" 2>/dev/null || true
@@ -111,12 +132,6 @@ echo "Previous resources cleaned (if any)"
 oc new-build --binary --name="$APP_NAME" --strategy=docker -n "$NS"
 ```
 
-Expected output includes:
-```
-imagestream.image.openshift.io "stock-market-mcp" created
-buildconfig.build.openshift.io "stock-market-mcp" created
-```
-
 #### Step 5: Start the build (uploads source, builds image)
 
 ```bash
@@ -130,12 +145,32 @@ and pushes the image to the internal registry. Wait for "Push successful".
 
 ---
 
-### Phase 2: Deploy via MCPServer CR
+### Phase 2: Browse the AI Hub MCP Catalog
 
-This is the RHOAI way — one declarative resource replaces manual Deployment,
-Service, Route, and security configuration.
+Before deploying your own server, explore what's already available.
 
-#### Step 6: Get the image reference
+#### Step 6: Tell the user to browse the catalog
+
+> **Action for the participant**: Open the Red Hat OpenShift AI dashboard in your
+> browser. Navigate to **AI Hub → MCP servers**. You'll see pre-curated MCP servers
+> from Red Hat, technology partners, and the open source community.
+>
+> Each server card shows the name, description, tools, and support tier (Red Hat /
+> Partner / Community). You could deploy any of these with one click — but we're
+> going to deploy the server YOU just built.
+
+This is a teaching moment: the catalog is a discovery hub. Pre-built servers are
+ready to go, but the real power is deploying your own custom MCP servers.
+
+---
+
+### Phase 3: Import to the MCP Catalog (MCPServer CR)
+
+Creating an MCPServer CR is how you "import" your server into the managed
+platform. The MCP Lifecycle Operator picks it up, deploys it with security
+hardening, and it appears on the AI Hub **Deployments** tab.
+
+#### Step 7: Get the image reference
 
 ```bash
 IMAGE_REF=$(oc get is "$APP_NAME" -n "$NS" \
@@ -145,7 +180,7 @@ echo "Image: $IMAGE_REF"
 
 > Use the full `@sha256:` reference for reproducible deployments.
 
-#### Step 7: Apply the MCPServer CR
+#### Step 8: Apply the MCPServer CR
 
 ```bash
 cat <<EOF | oc apply -n "$NS" -f -
@@ -185,19 +220,22 @@ spec:
 EOF
 ```
 
-**What this does:**
-- The operator creates a Deployment, Service, and NetworkPolicy automatically
-- Security is enforced: non-root, drop ALL capabilities, read-only root FS, seccomp
-- The `/tmp` and `/.cache` EmptyDir mounts provide writable space for runtime data
-  (yfinance caches, temp files) on the read-only root filesystem
-- `stateless: true` allows load balancing across replicas
-- The operator performs an MCP handshake to verify the server is functional
+**What the operator does automatically:**
+- Creates a **Deployment** with security-hardened pods (non-root, drop ALL
+  capabilities, read-only root filesystem, seccomp RuntimeDefault)
+- Creates a **Service** (ClusterIP) for internal access
+- Creates a **NetworkPolicy** for network segmentation
+- Performs an **MCP protocol handshake** to verify the server responds correctly
+- Populates `status.address.url` with the internal service URL
+- Reports `Ready=True` when the server is healthy
 
-#### Step 8: Wait for the MCPServer to be ready
+You do NOT manually create Deployments, Services, Routes, or security contexts.
+
+#### Step 9: Wait for the MCPServer to be ready
 
 ```bash
 echo "Waiting for MCPServer to be ready..."
-for i in $(seq 1 20); do
+for i in $(seq 1 30); do
   READY=$(oc get mcpserver "$APP_NAME" -n "$NS" \
     -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
   REASON=$(oc get mcpserver "$APP_NAME" -n "$NS" \
@@ -211,43 +249,109 @@ for i in $(seq 1 20); do
 done
 ```
 
-#### Step 9: Get the service URL and verify
+#### Step 10: Verify on the AI Hub Deployments tab
 
-```bash
-# The operator auto-populates the internal service URL
-MCP_URL=$(oc get mcpserver "$APP_NAME" -n "$NS" \
-  -o jsonpath='{.status.address.url}')
-echo "MCP URL: $MCP_URL"
-
-# Show server info from the MCP handshake
-echo ""
-echo "Server capabilities (from operator handshake):"
-oc get mcpserver "$APP_NAME" -n "$NS" \
-  -o jsonpath='  Name: {.status.serverInfo.name}{"\n"}  Tools: {.status.serverInfo.capabilities.tools}{"\n"}'
-
-# Verify the MCP endpoint responds
-echo ""
-echo "Testing MCP endpoint..."
-curl -s -X POST "$MCP_URL" \
-  -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}' | head -c 500
-```
-
-A successful response contains `"result"` with server capabilities.
+> **Action for the participant**: Go back to the OpenShift AI dashboard →
+> **AI Hub → MCP servers → Deployments** tab. You should now see your
+> `$APP_NAME` listed with a Ready status.
+>
+> This confirms the MCP Lifecycle Operator is managing your server. From this
+> tab you can also scale, upgrade, edit the YAML, or delete the server.
 
 ---
 
-### Phase 3: Register & Use
+### Phase 4: Register with the MCP Gateway
 
-#### Step 10: Register as MCP server in OpenCode
+The MCP Gateway provides a single, governed entry point for all MCP servers
+on the cluster. Registering your server makes its tools discoverable through
+the gateway's federated tool catalog.
 
-Connect the deployed server to OpenCode so the AI agent can use it as a
-tool provider. Use the internal URL from the MCPServer status:
+#### Step 11: Create an HTTPRoute to the gateway
 
 ```bash
+# Get the MCP Gateway hostname
+GW_HOSTNAME=$(oc get gateway mcp-gateway -n mcp-system \
+  -o jsonpath='{.spec.listeners[0].hostname}')
+echo "Gateway hostname: $GW_HOSTNAME"
+
+cat <<EOF | oc apply -n "$NS" -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ${APP_NAME}-route
+spec:
+  parentRefs:
+    - group: gateway.networking.k8s.io
+      kind: Gateway
+      name: mcp-gateway
+      namespace: mcp-system
+      sectionName: http
+  hostnames:
+    - ${GW_HOSTNAME}
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp
+      backendRefs:
+        - name: ${APP_NAME}
+          port: 8080
+EOF
+```
+
+#### Step 12: Create the MCPServerRegistration
+
+```bash
+cat <<EOF | oc apply -n "$NS" -f -
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: ${APP_NAME}-reg
+spec:
+  toolPrefix: "${USER_PREFIX}_stock_"
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: ${APP_NAME}-route
+    namespace: ${NS}
+EOF
+```
+
+The `toolPrefix` ensures your tools don't collide with other users' tools
+on the same gateway. Your tools will appear as `user1_stock_get_stock_info`,
+`user1_stock_get_historical_stock_prices`, etc.
+
+#### Step 13: Wait for the registration to be ready
+
+```bash
+echo "Waiting for gateway registration..."
+for i in $(seq 1 20); do
+  READY=$(oc get mcpserverregistration "${APP_NAME}-reg" -n "$NS" \
+    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
+  TOOLS=$(oc get mcpserverregistration "${APP_NAME}-reg" -n "$NS" \
+    -o jsonpath='{.status.discoveredTools}')
+  echo "  $i: Ready=$READY, Tools=$TOOLS"
+  if [ "$READY" = "True" ]; then
+    echo "Registered with gateway! $TOOLS tools discovered."
+    break
+  fi
+  sleep 5
+done
+```
+
+---
+
+### Phase 5: Connect & Use in OpenCode
+
+#### Step 14: Get the service URL and register in OpenCode
+
+```bash
+# Direct service URL (cluster-internal, no gateway)
 MCP_URL=$(oc get mcpserver "$APP_NAME" -n "$NS" \
   -o jsonpath='{.status.address.url}')
+echo "Direct MCP URL: $MCP_URL"
 
+# Register with OpenCode using the direct URL
 opencode mcp add "$APP_NAME" --url "$MCP_URL"
 ```
 
@@ -258,53 +362,52 @@ opencode mcp list
 
 Expected output:
 ```
-●  ✓ stock-market-mcp  connected
-     http://stock-market-mcp.dev-user1-devspaces.svc.cluster.local:8080/mcp
+●  ✓ user1-stock-mcp  connected
+     http://user1-stock-mcp.user1-devspaces.svc.cluster.local:8080/mcp
 ```
 
-#### Step 11: Print summary
+#### Step 15: Print summary
 
 ```bash
 MCP_URL=$(oc get mcpserver "$APP_NAME" -n "$NS" \
   -o jsonpath='{.status.address.url}')
+TOOLS=$(oc get mcpserverregistration "${APP_NAME}-reg" -n "$NS" \
+  -o jsonpath='{.status.discoveredTools}' 2>/dev/null || echo "N/A")
 
 echo ""
 echo "============================================"
-echo "  Deployment Complete (RHOAI MCPServer)"
+echo "  MCP Server Lifecycle Complete"
 echo "============================================"
-echo "  App:            $APP_NAME"
-echo "  Namespace:      $NS"
-echo "  MCP URL:        $MCP_URL"
-echo "  OpenCode MCP:   registered ✓"
+echo "  Server:           $APP_NAME"
+echo "  Namespace:        $NS"
+echo "  MCP URL:          $MCP_URL"
+echo "  OpenCode:         registered"
+echo "  AI Hub Catalog:   visible on Deployments tab"
+echo "  MCP Gateway:      registered ($TOOLS tools)"
 echo ""
-echo "  Managed by:     MCP Lifecycle Operator"
-echo "  Security:       non-root, drop ALL, read-only FS"
-echo "  Auto-created:   Deployment, Service, NetworkPolicy"
+echo "  Managed by:       MCP Lifecycle Operator"
+echo "  Security:         non-root, drop ALL, read-only FS"
+echo "  Auto-created:     Deployment, Service, NetworkPolicy"
 echo "============================================"
-echo ""
-echo "The MCP server is now available as a tool in OpenCode."
-echo "Start a new session and ask the agent to use the stock market tools."
 ```
 
-#### Step 12: Inform the user to start a new session
+#### Step 16: Inform the user to start a new session
 
 > **IMPORTANT**: After registering the MCP server, the tools are only visible
 > in a **new** OpenCode session. Tell the user:
 
 ```bash
 echo ""
-echo "⚠️  To use the MCP tools, start a NEW OpenCode session."
-echo "   Press Ctrl+N or click '+ New Session' in the sidebar."
-echo "   Then ask: 'Use the stock market tools to get the AAPL stock price'"
-echo ""
+echo "To use the MCP tools, start a NEW OpenCode session."
+echo "Press Ctrl+N or click '+ New Session' in the sidebar."
+echo "Then ask: 'Use the stock market tools to get the AAPL stock price'"
 ```
+
+---
 
 ## Testing the MCP server from OpenCode
 
-After registration (Step 10), the user must start a **new OpenCode session**.
-The MCP tools will NOT appear in the current session. This is an OpenCode
-limitation — MCP server connections are loaded at session start.
-
+After registration (Step 14), the user must start a **new OpenCode session**.
 In the new session, ask:
 
 > "Use the stock market MCP tools to get the current price of AAPL"
@@ -313,8 +416,6 @@ The agent will see the registered MCP server's tools and call them directly.
 This proves the full chain: OpenCode → MCPServer pod → yfinance → Yahoo Finance.
 
 ## Rebuilding after code changes
-
-If you need to update the deployed server after code changes:
 
 ```bash
 # Re-trigger the build
@@ -337,111 +438,185 @@ for i in $(seq 1 20); do
 done
 ```
 
-## Checking MCPServer status
+## Checking status
 
 ```bash
-# Quick status
+# MCPServer status
 oc get mcpserver "$APP_NAME" -n "$NS"
 
-# Detailed status with conditions
-oc get mcpserver "$APP_NAME" -n "$NS" -o yaml
+# Gateway registration status
+oc get mcpserverregistration "${APP_NAME}-reg" -n "$NS"
 
 # Operator-managed resources
-oc get deploy,svc,networkpolicy -l mcp-server="$APP_NAME" -n "$NS"
+oc get deploy,svc,networkpolicy -n "$NS" | grep "$APP_NAME"
 ```
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---------|-----|
-| `error: open /tmp/build/inputs/Dockerfile: no such file or directory` | Copy `Containerfile` to `Dockerfile` |
+| Build fails: `Dockerfile: no such file` | Copy `Containerfile` to `Dockerfile` |
 | Build fails pulling base image | Check network; use `registry.access.redhat.com/ubi9/python-312:latest` |
 | MCPServer `Ready=False` `DeploymentUnavailable` | Check pod logs: `oc logs -l mcp-server=$APP_NAME -n $NS` |
 | MCPServer `Accepted=False` `Invalid` | Check the CR spec — port, image ref, or path may be wrong |
-| MCP handshake fails | Server must respond to MCP `initialize` on the configured `path` |
-| "already exists" errors | Run Step 3 cleanup first, then retry from Step 4 |
-| OpenCode MCP shows "disconnected" | Check pod is running: `oc get mcpserver $APP_NAME -n $NS` |
+| MCPServerRegistration `Ready=False` | Check HTTPRoute accepted: `oc get httproute ${APP_NAME}-route -n $NS -o yaml` |
+| Tools not showing in gateway | Check broker logs: `oc logs -n mcp-system deployment/mcp-gateway --tail=20` |
 | MCP tools not visible in OpenCode | Start a new session after registering the MCP server |
 | Write errors in container (read-only FS) | Add writable mount in `config.storage` for the needed path |
 
-## Complete example (stock market MCP server)
+---
 
-After generating the server code with the `build-mcp-server` skill:
+## Platform Admin Setup (one-time, before the workshop)
+
+These commands prepare the cluster for the workshop. Run them once as
+`cluster-admin`. Replace `<GATEWAY_HOSTNAME>` with the cluster's apps domain
+(e.g., `mcp-gateway.apps.<cluster-domain>`).
+
+### 1. Enable the MCP Lifecycle Operator
 
 ```bash
-cd ~/mcp-dev-workshop/scaffold
-NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-APP_NAME="stock-market-mcp"
+oc patch datasciencecluster default-dsc --type=merge \
+  -p '{"spec":{"components":{"mcplifecycleoperator":{"managementState":"Managed"}}}}'
+```
 
-# Ensure Dockerfile exists
-cp Containerfile Dockerfile 2>/dev/null || true
+Verify:
+```bash
+oc get pods -n redhat-ods-applications -l app.kubernetes.io/name=mcp-lifecycle-operator
+# Expect 1/1 Running
+oc get crd mcpservers.mcp.x-k8s.io
+# Expect the CRD to exist
+```
 
-# Clean previous
-oc delete mcpserver "$APP_NAME" -n "$NS" 2>/dev/null || true
-oc delete bc "$APP_NAME" -n "$NS" 2>/dev/null || true
-oc delete is "$APP_NAME" -n "$NS" 2>/dev/null || true
-oc delete route "$APP_NAME" -n "$NS" 2>/dev/null || true
-oc delete svc "$APP_NAME" -n "$NS" 2>/dev/null || true
-oc delete deployment "$APP_NAME" -n "$NS" 2>/dev/null || true
+### 2. Enable the MCP Catalog in the dashboard
 
-# Build
-oc new-build --binary --name="$APP_NAME" --strategy=docker -n "$NS"
-oc start-build "$APP_NAME" --from-dir=. --follow -n "$NS"
+```bash
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  --type=merge -p '{"spec":{"dashboardConfig":{"mcpCatalog":true}}}'
+```
 
-# Get image reference
-IMAGE_REF=$(oc get is "$APP_NAME" -n "$NS" \
-  -o jsonpath='{.status.tags[0].items[0].dockerImageReference}')
+Verify: Open the RHOAI dashboard → AI Hub → MCP servers tab should appear.
 
-# Deploy via MCPServer CR
-cat <<EOF | oc apply -n "$NS" -f -
-apiVersion: mcp.x-k8s.io/v1alpha1
-kind: MCPServer
+### 3. Install the MCP Gateway Operator
+
+```bash
+oc create ns mcp-system
+
+cat <<EOF | oc apply -n mcp-system -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
 metadata:
-  name: $APP_NAME
+  name: mcp-gateway
 spec:
-  source:
-    type: ContainerImage
-    containerImage:
-      ref: $IMAGE_REF
-  config:
-    port: 8080
-    path: /mcp
-    storage:
-      - path: /tmp
-        permissions: ReadWrite
-        source:
-          type: EmptyDir
-          emptyDir: {}
-      - path: /.cache
-        permissions: ReadWrite
-        source:
-          type: EmptyDir
-          emptyDir: {}
-  mcp:
-    stateless: true
-  runtime:
-    resources:
-      requests:
-        cpu: "100m"
-        memory: "256Mi"
-      limits:
-        cpu: "1"
-        memory: "512Mi"
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  name: mcp-gateway
+  channel: preview
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: mcp-gateway
+spec:
+  targetNamespaces:
+  - mcp-system
 EOF
 
-# Wait for ready
-for i in $(seq 1 20); do
-  READY=$(oc get mcpserver "$APP_NAME" -n "$NS" \
-    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}')
-  [ "$READY" = "True" ] && echo "MCPServer ready!" && break
-  sleep 5
-done
-
-# Get URL and register in OpenCode
-MCP_URL=$(oc get mcpserver "$APP_NAME" -n "$NS" \
-  -o jsonpath='{.status.address.url}')
-echo "MCP URL: $MCP_URL"
-
-opencode mcp add "$APP_NAME" --url "$MCP_URL"
-opencode mcp list
+# Wait for install
+oc wait csv -n mcp-system -l operators.coreos.com/mcp-gateway.mcp-system="" \
+  --for=jsonpath='{.status.phase}'=Succeeded --timeout=5m
 ```
+
+### 4. Fix kuadrant-operator memory limit
+
+The kuadrant-operator (installed as a dependency) defaults to 300Mi which
+causes OOMKilled. Increase to 1Gi:
+
+```bash
+oc patch deployment -n mcp-system kuadrant-operator-controller-manager \
+  --type=json \
+  -p='[{"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/memory","value":"1Gi"},{"op":"replace","path":"/spec/template/spec/containers/0/resources/requests/memory","value":"512Mi"}]'
+oc rollout status deployment/kuadrant-operator-controller-manager -n mcp-system --timeout=120s
+```
+
+### 5. Create the MCP Gateway
+
+Replace `<GATEWAY_HOSTNAME>` with your cluster's hostname (e.g.,
+`mcp-gateway.apps.mycluster.example.com`).
+
+```bash
+cat <<EOF | oc apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mcp-gateway
+  namespace: mcp-system
+  labels:
+    istio.io/rev: openshift-gateway
+spec:
+  gatewayClassName: data-science-gateway-class
+  listeners:
+    - name: http
+      hostname: <GATEWAY_HOSTNAME>
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+EOF
+```
+
+Verify:
+```bash
+oc get gateway mcp-gateway -n mcp-system
+# Expect PROGRAMMED=True
+```
+
+### 6. Create the MCPGatewayExtension
+
+```bash
+cat <<EOF | oc apply -f -
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPGatewayExtension
+metadata:
+  name: mcp-gateway-extension
+  namespace: mcp-system
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    namespace: mcp-system
+    sectionName: http
+  httpRouteManagement: Enabled
+EOF
+```
+
+Verify:
+```bash
+oc wait --for=condition=Ready mcpgatewayextension/mcp-gateway-extension \
+  -n mcp-system --timeout=120s
+# Expect: condition met
+
+# Verify broker-router is running
+oc get pods -n mcp-system | grep mcp-gateway
+# Expect mcp-gateway-* (broker) and mcp-gateway-data-science-gateway-class-* (Envoy)
+
+# Verify EnvoyFilter created
+oc get envoyfilter -n mcp-system
+```
+
+### Verify the full platform setup
+
+```bash
+echo "=== MCP Lifecycle Operator ===" && \
+oc get pods -n redhat-ods-applications -l app.kubernetes.io/name=mcp-lifecycle-operator --no-headers && \
+echo "=== MCP Gateway ===" && \
+oc get gateway mcp-gateway -n mcp-system --no-headers && \
+echo "=== MCPGatewayExtension ===" && \
+oc get mcpgatewayextension -n mcp-system --no-headers && \
+echo "=== Broker pod ===" && \
+oc get pods -n mcp-system -l app.kubernetes.io/name=mcp-gateway --no-headers
+```
+
+All components should show Ready/Running. The cluster is now prepared for
+workshop participants to deploy MCP servers.

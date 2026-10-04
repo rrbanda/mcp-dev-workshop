@@ -35,7 +35,7 @@ learns two things simultaneously:
 | **4. Design** | Design: Requirements & Design | Present categories → participant picks → confirm | (already loaded) |
 | **5. Plan** | Build: Plan Mode | Agent creates build plan, participant approves | (already loaded) |
 | **6. Build + Test** | Build + Test: Feedback Loop | Generate → summarize → review → test per tool | (already loaded) |
-| **7. Deploy** | Deploy: Governance | Build image → deploy → route, with governance | `build-deploy-openshift` |
+| **7. Deploy** | Deploy: Governance | Build image → browse AI Hub catalog → import to catalog (MCPServer CR) → verify on Deployments tab → register with MCP Gateway (HTTPRoute + MCPServerRegistration) → connect & test | `build-deploy-openshift` |
 | **8. Connect & Use** | Maintain: Closing the Loop | Wire agent to server, use it, iterate | `use-mcp-tools` |
 | **9. Wrap-up** | — | Score → SDLC recap → certificate → quiz | `workshop-certificate`, `knowledge-check`, `workshop-cleanup` |
 
@@ -297,33 +297,41 @@ Use question tool: **"What's next?"**
 
 ---
 
-## STAGE 7: DEPLOY (with governance)
+## STAGE 7: DEPLOY (full MCP lifecycle)
 
-> **SDLC phase:** *In the AI-native SDLC, governance is enforced as the agent acts — not in a review meeting weeks later. Watch how the MCP Lifecycle Operator enforces security automatically.*
+> **SDLC phase:** *In the AI-native SDLC, governance is enforced as the agent acts — not in a review meeting weeks later. Watch how the MCP Lifecycle Operator, MCP Catalog, and MCP Gateway work together.*
 
 **Load `build-deploy-openshift` skill** using the skill tool.
 
-"I'm loading the deployment skill — it encodes our organization's deployment standards for OpenShift AI, using the RHOAI MCP Lifecycle Operator."
+"I'm loading the deployment skill — it encodes the full MCP server lifecycle: build, catalog, deploy, govern, and connect."
 
-Three steps, each a separate response:
+The deploy stage has six sub-steps, each a separate response:
 
 ### Step 7a — Build Image (one response)
 
 Before building, call out governance:
 
-"Before I deploy, note how governance works in the RHOAI pattern:
+"Before I deploy, note how governance works in this pattern:
 - **No secrets in code** — API keys go in Kubernetes Secrets, never in source
 - **MCPServer CR** — instead of manual Deployments, I declare a single resource and the operator handles the rest
 - **Security hardened automatically** — the operator enforces non-root, drops ALL capabilities, sets read-only root filesystem, and applies seccomp profiles
-- **Internal routing** — the MCP connection uses the cluster-internal service URL, no public routes needed"
+- **MCP Gateway** — governed routing, federated tool discovery, and tool-level namespacing"
 
-Then build the image using OpenShift binary builds. Show progress.
+Then build the image using OpenShift binary builds. User-scoped name: `$USER-stock-mcp`. Show progress.
 
-"✅ Image built and pushed to the internal registry. Ready for the MCPServer CR?"
+"✅ Image built and pushed to the internal registry."
 
-### Step 7b — Deploy via MCPServer CR (one response)
+### Step 7b — Browse the AI Hub MCP Catalog (one response)
 
-Apply the MCPServer custom resource. Explain what the operator does:
+> **Action for the participant**: "Open the OpenShift AI dashboard → **AI Hub → MCP servers**. You'll see pre-curated MCP servers from Red Hat, partners, and the community. Each card shows the name, description, and tools. You could deploy any of these with one click — but we're going to deploy the server YOU just built."
+
+This is a teaching moment: the MCP Catalog is a discovery hub for any MCP server — open standard, not platform-specific.
+
+Use question tool: **"Had a look at the catalog? Ready to import your server?"**
+
+### Step 7c — Import to Catalog via MCPServer CR (one response)
+
+Apply the MCPServer custom resource with user-scoped name (`$USER-stock-mcp`). Explain what the operator does:
 
 "I'm creating a single `MCPServer` resource. The MCP Lifecycle Operator will automatically:
 - Create a security-hardened **Deployment** (non-root, drop ALL caps, read-only FS)
@@ -335,16 +343,31 @@ Show the CR being applied and wait for `Ready=True`.
 
 "✅ MCPServer is ready — operator verified the MCP handshake!"
 
-### Step 7c — Verify (one response)
+### Step 7d — Verify on AI Hub Deployments tab (one response)
 
-Show the auto-populated status: URL, capabilities, server info.
+> **Action for the participant**: "Go to the OpenShift AI dashboard → **AI Hub → MCP servers → Deployments** tab. Your `$USER-stock-mcp` should appear with a Ready status. This confirms it's imported to the catalog and managed by the operator."
 
-"✅ **Your server is live!**"
-Show the MCPServer status with the internal URL and detected capabilities.
+Use question tool: **"Can you see your server on the Deployments tab?"**
 
-> **Teaching moment:** *"One YAML resource replaced six manual steps. The operator enforced security policies, created networking, and verified the MCP protocol — all automatically. This is governance as code."*
+### Step 7e — Register with the MCP Gateway (one response)
 
-Use question tool: **"Ready to connect this server to the IDE?"**
+Create the HTTPRoute and MCPServerRegistration. Explain:
+
+"The MCP Gateway is a single, governed entry point for all MCP servers on the cluster. I'm registering your server with a tool prefix (`$USER_stock_`) so your tools don't collide with other participants' tools."
+
+Show both resources being applied and wait for `Ready=True` with discovered tools.
+
+"✅ Registered with the gateway! Your tools are now discoverable through the federated catalog."
+
+### Step 7f — Connect & Verify (one response)
+
+Show the auto-populated status: URL, capabilities, discovered tools. Register in OpenCode.
+
+"✅ **Your server is fully deployed and governed!**"
+
+> **Teaching moment:** *"One MCPServer CR replaced six manual steps. The operator enforced security, the catalog provides discovery, and the gateway provides governed routing — all automatically. This is the full MCP lifecycle: deploy, discover, route & govern."*
+
+Use question tool: **"Ready to use your MCP tools in a conversation?"**
 
 ---
 
