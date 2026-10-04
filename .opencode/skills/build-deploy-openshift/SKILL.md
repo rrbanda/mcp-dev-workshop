@@ -269,9 +269,9 @@ the gateway's federated tool catalog.
 #### Step 11: Create an HTTPRoute to the gateway
 
 ```bash
-# Get the MCP Gateway hostname
-GW_HOSTNAME=$(oc get gateway mcp-gateway -n mcp-system \
-  -o jsonpath='{.spec.listeners[0].hostname}')
+# Get the MCP Gateway hostname (derived from the cluster's apps domain)
+CLUSTER_DOMAIN=$(oc get route -n "$NS" -o jsonpath='{.items[0].spec.host}' 2>/dev/null | sed 's|^[^.]*\.||')
+GW_HOSTNAME="mcp-gateway.${CLUSTER_DOMAIN}"
 echo "Gateway hostname: $GW_HOSTNAME"
 
 cat <<EOF | oc apply -n "$NS" -f -
