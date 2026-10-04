@@ -2,13 +2,13 @@
 :navtitle: Close the Feedback Loop
 
 The defining moment of this workshop: the AI agent uses the MCP server *it
-helped build*. You wire OpenCode to the deployed remote server, and the agent
+helped build*. You wire AgentSherpa to the deployed remote server, and the agent
 calls stock market tools that are running as a container on OpenShift -- not as a
 local process.
 
 == Learning objectives
 
-* Configure OpenCode to connect to a deployed MCP server via streamable-http.
+* Configure AgentSherpa to connect to a deployed MCP server via streamable-http.
 * Observe the agent calling tools over the network.
 * Reflect on the full agent tool development loop.
 
@@ -23,9 +23,9 @@ NAMESPACE=$(oc project -q)
 echo "http://stock-market-mcp.${NAMESPACE}.svc:8080/mcp"
 ----
 
-== Exercise 2: Wire OpenCode to the deployed server
+== Exercise 2: Wire AgentSherpa to the deployed server
 
-In the OpenCode chat, tell the agent to register and use the deployed server:
+In the AgentSherpa chat, tell the agent to register and use the deployed server:
 
 ----
 I have an MCP server deployed on OpenShift. Connect to it using streamable-http transport at:
@@ -41,7 +41,7 @@ Or use the Makefile:
 make connect-mcp
 ----
 
-Expected result: OpenCode connects to the remote MCP server and discovers the
+Expected result: AgentSherpa connects to the remote MCP server and discovers the
 nine stock market tools. It calls `get_stock_info` and returns Apple's price.
 
 == Exercise 3: Agent uses what it built

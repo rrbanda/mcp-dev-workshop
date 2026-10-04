@@ -84,11 +84,11 @@ spec:
 {{ include "mcp-workshop.opencodeWriteSkillsScript" . | indent 12 }}
       - id: start-opencode-web
         exec:
-          label: "Start AgentRB Web UI"
+          label: "Start AgentSherpa Web UI"
           component: dev-tools
           commandLine: |
             NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-            OPENCODE_SERVER_PASSWORD=$(oc get secret opencode-web-password -n "$NS" \
+            OPENCODE_SERVER_PASSWORD=$(oc get secret agentsherpa-password -n "$NS" \
               -o jsonpath='{.data.password}' | base64 -d)
             export OPENCODE_SERVER_PASSWORD
             printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open

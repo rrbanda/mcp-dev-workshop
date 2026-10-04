@@ -6,13 +6,13 @@ response and back.
 
 == The inference traffic path
 
-When a request goes to the LLM (whether from the OpenCode agent or a `curl`
+When a request goes to the LLM (whether from the AgentSherpa or a `curl`
 command in the terminal), here is the path it takes:
 
 [mermaid]
 ....
 flowchart TD
-    IDE["OpenCode<br/>(DevSpaces)"]
+    IDE["AgentSherpa<br/>(DevSpaces)"]
     MaaS["maas-default-gateway<br/>(API key auth)"]
     LLMd["llm-d Gateway"]
     EPP["Endpoint Picker (EPP)<br/>Filter → Score → Pick"]
@@ -43,13 +43,13 @@ This achieves up to 69% p90 TTFT reduction compared to round-robin.
 
 MCP servers are *separate from the inference path*. They are tool backends
 that any client calls when it needs to take an action -- query a database,
-list pods, read a file. That client can be an AI agent (like OpenCode) or
+list pods, read a file. That client can be an AI agent (like AgentSherpa) or
 a human using `curl` and JSON-RPC. The flow is:
 
 [mermaid]
 ....
 flowchart LR
-    Agent["OpenCode Agent"]
+    Agent["AgentSherpa"]
     LLM["LLM (via MaaS)"]
     MCP1["MCP Server A<br/>(your server)"]
     MCP2["MCP Server B<br/>(OpenShift MCP)"]
@@ -90,7 +90,7 @@ server does not care who is calling -- it speaks the same protocol either way.
 | How agent and server communicate: *stdio* (local), *streamable-http* (remote/deployed).
 
 | *Client*
-| Any program that connects to an MCP server -- the OpenCode agent (agent mode) or `curl` / Python (manual mode).
+| Any program that connects to an MCP server -- the AgentSherpa (agent mode) or `curl` / Python (manual mode).
 |===
 
 == Agent Skills architecture
@@ -127,7 +127,7 @@ Each participant gets their own namespace (`<username>-devspaces`) with:
 * The workshop repository pre-cloned at `/projects/mcp-dev-workshop`
 * Agent Skills pre-loaded in the project structure
 * Python and `pip` available for running MCP servers locally
-* _(Agent mode)_ An OpenCode Web UI on port 4096 (password-protected)
+* _(Agent mode)_ An AgentSherpa on port 4096 (password-protected)
 
 You do no platform configuration. The facilitator has set up the AI serving
 stack, MaaS gateway, API keys, and DevSpaces operator before the workshop.

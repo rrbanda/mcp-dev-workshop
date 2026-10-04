@@ -3,13 +3,13 @@
 
 Your workspace is running and you have verified the LLM in the Prerequisites
 page. Now get oriented -- learn where things are in the IDE, explore the
-project layout, and verify the OpenCode agent responds.
+project layout, and verify the AgentSherpa responds.
 
 == Learning objectives
 
 * Navigate the VS Code editor (file tree, terminal, ports).
 * Locate the workshop project files and understand the directory structure.
-* Open the OpenCode Web UI and send a message to the agent.
+* Open the AgentSherpa and send a message to the agent.
 * Confirm environment variables are set.
 
 == Your IDE at a glance
@@ -34,18 +34,18 @@ DevSpaces. Here is what you should see:
   another terminal tab.
 
 | *Ports / Endpoints tab*
-| Shows exposed ports. Port 4096 is the OpenCode Web UI -- you will use this
+| Shows exposed ports. Port 4096 is the AgentSherpa -- you will use this
   for every exercise.
 |===
 
-== Exercise 1: Open the OpenCode Web UI
+== Exercise 1: Open the AgentSherpa
 
 In the VS Code editor, look at the bottom panel or the *Ports* tab.
 Find the endpoint labeled *opencode-web* on port *4096*.
 Click the link (or the globe icon) to open it in a new browser tab.
-Enter the *OpenCode Web Password* from your credentials card.
+Enter the *AgentSherpa Password* from your credentials card.
 
-You should see the OpenCode chat interface with a prompt input at the bottom.
+You should see the AgentSherpa chat interface with a prompt input at the bottom.
 
 Type a simple message to verify the agent is connected:
 
@@ -102,7 +102,7 @@ Key directories and files:
 
 == Exercise 3: Ask the agent to discover skills
 
-In the OpenCode chat:
+In the AgentSherpa chat:
 
 ----
 What skills do you have available? List them.
@@ -146,7 +146,7 @@ The remaining modules depend on all four being set.
 
 You should now have:
 
-* [x] OpenCode Web UI open and the agent responding
+* [x] AgentSherpa open and the agent responding
 * [x] VS Code editor with the workshop project visible
 * [x] Terminal working with `oc`, `python`, `make` available
 * [x] Agent skills discovered (listed but not yet loaded)

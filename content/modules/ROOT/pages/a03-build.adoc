@@ -14,7 +14,7 @@ stock market data. You review the code and optionally customize it.
 
 == Exercise 1: Ask the agent to build your MCP server
 
-In the OpenCode chat, give the agent a clear description of what you want.
+In the AgentSherpa chat, give the agent a clear description of what you want.
 Here is a suggested prompt -- feel free to customize it:
 
 ----

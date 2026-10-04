@@ -2,14 +2,14 @@
 :navtitle: Test with Your Agent
 
 Before deploying anywhere, test the MCP server locally. You install
-dependencies, run a smoke test, then wire OpenCode to your server so the
+dependencies, run a smoke test, then wire AgentSherpa to your server so the
 agent can call your stock market tools through the stdio transport.
 
 == Learning objectives
 
 * Install Python dependencies with `pip`.
 * Verify the server starts and registers all tools.
-* Configure OpenCode to connect to a local MCP server via stdio.
+* Configure AgentSherpa to connect to a local MCP server via stdio.
 * Observe the agent discovering and calling stock market tools.
 
 == Exercise 1: Install dependencies
@@ -71,13 +71,13 @@ for name, tool in server._tool_manager._tools.items():
 
 Expected result: All nine stock market tools listed.
 
-== Exercise 4: Wire OpenCode to your server
+== Exercise 4: Wire AgentSherpa to your server
 
-Connect OpenCode to your MCP server so the agent can call your tools.
-The connection uses the stdio transport -- OpenCode spawns the server as a
+Connect AgentSherpa to your MCP server so the agent can call your tools.
+The connection uses the stdio transport -- AgentSherpa spawns the server as a
 child process and communicates through stdin/stdout.
 
-In the OpenCode chat:
+In the AgentSherpa chat:
 
 ----
 I have an MCP server at scaffold/server.py. Can you help me configure it?
@@ -85,7 +85,7 @@ The server runs with: python /projects/mcp-dev-workshop/scaffold/server.py
 Use stdio transport.
 ----
 
-Expected result: OpenCode connects to your MCP server and discovers all nine tools.
+Expected result: AgentSherpa connects to your MCP server and discovers all nine tools.
 
 == Exercise 5: Call tools through the agent
 
@@ -132,7 +132,7 @@ If the agent does not find your MCP server, check:
 
 . Is the server path correct? `ls /projects/mcp-dev-workshop/scaffold/server.py`
 . Does the server start? `python /projects/mcp-dev-workshop/scaffold/server.py`
-. Did you restart OpenCode after adding the MCP config?
+. Did you restart AgentSherpa after adding the MCP config?
 ====
 
 == Checkpoint
@@ -141,7 +141,7 @@ You should now have:
 
 * [x] MCP SDK and yfinance installed, server starts without errors
 * [x] Nine tools listed with correct names and descriptions
-* [x] OpenCode connected to the local MCP server via stdio
+* [x] AgentSherpa connected to the local MCP server via stdio
 * [x] Agent successfully calling stock market tools and returning real data
 
 Proceed to xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift].

@@ -44,7 +44,7 @@ is relevant.
 
 == Exercise 1: List available skills
 
-In the OpenCode chat, ask:
+In the AgentSherpa chat, ask:
 
 ----
 What skills do you have available?
@@ -57,7 +57,7 @@ load the full content yet.
 
 == Exercise 2: Observe skill loading
 
-In the OpenCode chat, ask:
+In the AgentSherpa chat, ask:
 
 ----
 I want to build an MCP server. What would the basic structure look like? Don't write any files yet.

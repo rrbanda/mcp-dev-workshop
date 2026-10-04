@@ -1,5 +1,5 @@
 {{- if .Values.opencodeBuild.enabled }}
-# OpenCode (AgentRB) DevSpaces image.
+# OpenCode (AgentSherpa) DevSpaces image.
 # Two modes based on whether opencodeBuild.binaryUrl is set:
 #   - URL set:   Dockerfile source + ConfigChange trigger (fully automatic)
 #   - URL empty: Binary source (one-time: oc start-build --from-dir=<dir>)

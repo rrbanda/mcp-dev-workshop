@@ -148,7 +148,7 @@ For each participant, prepare a credentials card with:
 | OpenShift Console URL | The cluster console URL (e.g. `https://console-openshift-console.apps.<cluster>`)
 | Username | `user1` through `userN` (or whichever prefix your provisioner uses)
 | Password | Shared password from the provisioner (all users may share the same one)
-| OpenCode Web password | From the `opencode-web-password` Secret in each user's namespace (available only *after* DevSpaces is deployed -- see Step 6 below)
+| AgentSherpa Password | From the `agentsherpa-password` Secret in each user's namespace (available only *after* DevSpaces is deployed -- see Step 6 below)
 |===
 
 NOTE: Do *not* include the DevSpaces URL on the card. Participants reach
@@ -156,7 +156,7 @@ DevSpaces through the OpenShift console application launcher (grid icon).
 This avoids hardcoding a URL that changes per cluster.
 
 Generate credentials cards (run *after* DevSpaces workspaces are created, since the
-OpenCode Web Password comes from a Secret in each user's namespace):
+AgentSherpa Password comes from a Secret in each user's namespace):
 
 [source,bash]
 ----
@@ -165,17 +165,17 @@ COUNT="${2:-30}"
 
 for i in $(seq 1 "$COUNT"); do
   NS="${PREFIX}${i}-devspaces"
-  OC_PASS=$(oc get secret opencode-web-password -n "$NS" -o jsonpath='{.data.password}' | base64 -d 2>/dev/null || echo "N/A — workspace not yet started")
+  OC_PASS=$(oc get secret agentsherpa-password -n "$NS" -o jsonpath='{.data.password}' | base64 -d 2>/dev/null || echo "N/A — workspace not yet started")
   echo "=== ${PREFIX}${i} ==="
   echo "  Namespace: ${NS}"
-  echo "  OpenCode password: ${OC_PASS}"
+  echo "  AgentSherpa password: ${OC_PASS}"
   echo ""
 done
 ----
 
 TIP: If all participants share the same cluster password (common with RHPDS),
 the credentials card only needs: *Console URL*, *username* (e.g. `user5`),
-*shared password*, and *OpenCode Web password*.
+*shared password*, and *AgentSherpa Password*.
 
 == Day of class
 
@@ -193,7 +193,7 @@ the credentials card only needs: *Console URL*, *username* (e.g. `user5`),
 The workshop has two separate tracks in the navigation. Announce the choice
 at the start of class:
 
-* *Agentic track* -- participants use the OpenCode AI chat to generate code,
+* *Agentic track* -- participants use the AgentSherpa to generate code,
   load skills, and call tools. Best for exploring how AI agents consume MCP.
 * *Manual track* -- participants read the reference code, copy the scaffold,
   and call tools with `curl` / JSON-RPC. Best for understanding MCP internals

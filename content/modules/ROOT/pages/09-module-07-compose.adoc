@@ -90,7 +90,7 @@ for name, tool in mod.mcp._tool_manager._tools.items():
 Agent Mode::
 +
 --
-Configure OpenCode with both MCP servers:
+Configure AgentSherpa with both MCP servers:
 
 ----
 I have two MCP servers now:

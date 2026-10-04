@@ -39,8 +39,8 @@ Your facilitator will hand you a card (or shared doc) with these fields:
 | *Password*
 | Your login password.
 
-| *OpenCode Web Password*
-| A separate password for the OpenCode AI chat UI (agent mode only).
+| *AgentSherpa Password*
+| A separate password for the AgentSherpa chat (agent mode only).
 |===
 
 NOTE: The facilitator may include additional fields depending on the cluster.
@@ -64,7 +64,7 @@ workshop. Here is what runs inside it:
 | Inside VS Code, you open terminals that have `oc`, `python`, `pip`, `curl`,
   and `make` pre-installed. You are already logged in as your user.
 
-| *OpenCode Web UI* _(agent mode only)_
+| *AgentSherpa* _(agent mode only)_
 | An AI chat interface on port 4096 that runs alongside VS Code in the same
   workspace. It talks to the LLM through the MaaS gateway. Manual mode
   participants can ignore this.
@@ -166,10 +166,10 @@ Expected result: You see `build-mcp-server/`, `yfinance-api/`, and
 
 === Step 6: Verify the LLM connection
 
-*Agentic track:* Open the OpenCode Web UI. In the VS Code editor, look at the
+*Agentic track:* Open the AgentSherpa. In the VS Code editor, look at the
 *Ports* tab, find the endpoint labeled *opencode-web* on port *4096*, and click
-the link to open it in a new browser tab. Enter the *OpenCode Web Password* from
-your credentials card. In the OpenCode chat, type "Hello, what model are you?"
+the link to open it in a new browser tab. Enter the *AgentSherpa Password* from
+your credentials card. In the AgentSherpa chat, type "Hello, what model are you?"
 and verify the model responds.
 
 *Manual track:* In the VS Code terminal, test the model endpoint with `curl`:

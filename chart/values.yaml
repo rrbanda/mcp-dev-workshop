@@ -31,11 +31,11 @@ cheCluster:
   create: false
 
 # ---- Application name (shown in UI via OPENCODE_APP_NAME) ----
-appName: "AgentRB"
+appName: "AgentSherpa"
 
 # ---- OpenCode image build ----
 # Auto-builds via ConfigChange trigger — same pattern as before.
-# Set binaryUrl to wherever the AgentRB binary is hosted.
+# Set binaryUrl to wherever the AgentSherpa binary is hosted.
 opencodeBuild:
   enabled: true
   # Base image must have glibc >= 2.30 (RHEL 9 / UBI 9).

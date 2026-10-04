@@ -154,5 +154,5 @@ fi
   App name — shown in the UI and health endpoint via OPENCODE_APP_NAME.
 */}}
 {{- define "mcp-workshop.appName" -}}
-{{- .Values.appName | default "AgentRB" -}}
+{{- .Values.appName | default "AgentSherpa" -}}
 {{- end -}}

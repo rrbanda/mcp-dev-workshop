@@ -30,8 +30,8 @@ deployed on OpenShift with 9 tools, reachable over streamable-http.
 
 === Agentic Track (~90 min)
 
-You use the *OpenCode AI chat interface* alongside the VS Code editor.
-OpenCode has pre-loaded *Agent Skills* that teach it MCP Python SDK v2
+You use the *AgentSherpa* alongside the VS Code editor.
+AgentSherpa has pre-loaded *Agent Skills* that teach it MCP Python SDK v2
 patterns, the yfinance library API, and the exact specification for a stock
 market data server. You describe what tools you want; the agent generates
 well-structured, deployable code. You review, customize, and deploy.
@@ -84,7 +84,7 @@ xref:13-facilitator-guide.adoc[Facilitator Guide].
 | Module | Outcome | Time
 
 | 1. Launch Your Workspace
-| Open OpenCode Web UI, explore project, discover agent skills.
+| Open AgentSherpa, explore project, discover agent skills.
 | 10 min
 
 | 2. Agent Skills
@@ -96,7 +96,7 @@ xref:13-facilitator-guide.adoc[Facilitator Guide].
 | 20 min
 
 | 4. Test with Your Agent
-| Install deps, wire OpenCode to local server via stdio, call tools.
+| Install deps, wire AgentSherpa to local server via stdio, call tools.
 | 15 min
 
 | 5. Deploy to OpenShift
