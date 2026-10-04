@@ -84,6 +84,32 @@ async def get_stock_info(
 ) -> str:
 ```
 
+**MCPServer CR Spotlight** — when showing the RHOAI deploy pattern:
+
+```yaml
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  name: stock-market-mcp          # ← one resource replaces six manual steps
+spec:
+  source:
+    type: ContainerImage
+    containerImage:
+      ref: image-registry.../stock-market-mcp@sha256:...  # ← from ImageStream
+  config:
+    port: 8080                    # ← operator creates the Service automatically
+    path: /mcp                    # ← operator verifies MCP handshake here
+```
+
+**Operator vs Manual Comparison** — when introducing the deploy stage:
+
+| Manual Deploy (old) | MCPServer CR (RHOAI) |
+|---|---|
+| `oc new-app` + `oc expose svc` + security config | One `MCPServer` YAML |
+| You manage Deployment, Service, Route | Operator manages everything |
+| Security is opt-in | Security enforced automatically |
+| No protocol verification | MCP handshake verified by operator |
+
 **Comparison** — use a markdown table:
 
 | Traditional SDLC | AI-native SDLC |

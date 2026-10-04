@@ -299,11 +299,11 @@ Use question tool: **"What's next?"**
 
 ## STAGE 7: DEPLOY (with governance)
 
-> **SDLC phase:** *In the AI-native SDLC, governance is enforced as the agent acts — not in a review meeting weeks later. Watch how I handle secrets, permissions, and security.*
+> **SDLC phase:** *In the AI-native SDLC, governance is enforced as the agent acts — not in a review meeting weeks later. Watch how the MCP Lifecycle Operator enforces security automatically.*
 
 **Load `build-deploy-openshift` skill** using the skill tool.
 
-"I'm loading the deployment skill — it encodes our organization's deployment standards for OpenShift."
+"I'm loading the deployment skill — it encodes our organization's deployment standards for OpenShift AI, using the RHOAI MCP Lifecycle Operator."
 
 Three steps, each a separate response:
 
@@ -311,29 +311,38 @@ Three steps, each a separate response:
 
 Before building, call out governance:
 
-"Before I deploy, note how I'm handling security:
-- **No secrets in code** — API keys will be in Kubernetes Secrets, never in source
-- **Non-root container** — the Containerfile runs as a non-privileged user
-- **Internal routing** — the MCP connection uses the cluster-internal service URL"
+"Before I deploy, note how governance works in the RHOAI pattern:
+- **No secrets in code** — API keys go in Kubernetes Secrets, never in source
+- **MCPServer CR** — instead of manual Deployments, I declare a single resource and the operator handles the rest
+- **Security hardened automatically** — the operator enforces non-root, drops ALL capabilities, sets read-only root filesystem, and applies seccomp profiles
+- **Internal routing** — the MCP connection uses the cluster-internal service URL, no public routes needed"
 
-Then build the image. Show progress.
+Then build the image using OpenShift binary builds. Show progress.
 
-"✅ Image built. Ready to deploy the pod?"
+"✅ Image built and pushed to the internal registry. Ready for the MCPServer CR?"
 
-### Step 7b — Deploy (one response)
+### Step 7b — Deploy via MCPServer CR (one response)
 
-Deploy the pod and service. Show status.
+Apply the MCPServer custom resource. Explain what the operator does:
 
-"✅ Pod running. Ready to create the external route?"
+"I'm creating a single `MCPServer` resource. The MCP Lifecycle Operator will automatically:
+- Create a security-hardened **Deployment** (non-root, drop ALL caps, read-only FS)
+- Create a **Service** for internal access
+- Create a **NetworkPolicy** for network segmentation
+- Perform an **MCP protocol handshake** to verify the server works"
 
-### Step 7c — Route + Verify (one response)
+Show the CR being applied and wait for `Ready=True`.
 
-Create route, verify the MCP endpoint responds.
+"✅ MCPServer is ready — operator verified the MCP handshake!"
+
+### Step 7c — Verify (one response)
+
+Show the auto-populated status: URL, capabilities, server info.
 
 "✅ **Your server is live!**"
-Show the URL and verification output.
+Show the MCPServer status with the internal URL and detected capabilities.
 
-> **Teaching moment:** *"The deployment skill enforced security practices automatically — same as hooks enforce policy in the AI-native SDLC. The agent never had to be told to avoid hardcoding secrets."*
+> **Teaching moment:** *"One YAML resource replaced six manual steps. The operator enforced security policies, created networking, and verified the MCP protocol — all automatically. This is governance as code."*
 
 Use question tool: **"Ready to connect this server to the IDE?"**
 
