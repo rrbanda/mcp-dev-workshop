@@ -1,85 +1,104 @@
-# Build and Deploy MCP Servers on Red Hat OpenShift AI
+# MCP Developer Workshop
 
-Hands-on workshop: build, test, and deploy MCP servers on OpenShift — with an AI agent or from the command line.
+Hands-on workshop: build, test, and deploy an MCP server on OpenShift — guided by an AI agent (AgentSherpa) inside a DevSpaces workspace.
 
-**Workshop guide:** https://rrbanda.github.io/mcp-dev-workshop/
+Participants open a browser, land in OpenCode, and work through 9 stages that mirror the **AI-native software development lifecycle**:
 
-## What participants do
+> Intent → Skills → Design → Plan → Build+Test → Deploy → Connect & Use → Wrap-up
 
-1. Log in to OpenShift, open a DevSpaces workspace (VS Code in the browser)
-2. Understand MCP Python SDK v2 patterns from skill files
-3. Build a stock market MCP server with 9 tools (using yfinance)
-4. Test locally, deploy to OpenShift, call tools over streamable-http
+## What participants experience
 
-No platform setup. No local tooling. Participants open a browser and start building.
+1. Log in to OpenShift DevSpaces, open the OpenCode Web IDE
+2. AgentSherpa guides them through building a stock market MCP server (yfinance, 9 tools)
+3. Deploy using the full MCP Lifecycle: **MCPServer CR → AI Hub Catalog → MCP Gateway**
+4. Use the deployed tools from the AI chat to query real stock data
 
-## Two modes
+No local tooling. No platform setup. Participants open a browser and start building.
 
-The workshop supports **dual-track** participation — every module page has tabs:
+## 9-stage workshop flow
 
-| Mode | How it works |
-|------|-------------|
-| **Agent mode** | Use the OpenCode AI chat to generate code, load skills, and call tools |
-| **Manual mode** | Read reference code, copy scaffold files, call tools with `curl` / JSON-RPC |
+| Stage | SDLC Phase | What happens |
+|-------|-----------|-------------|
+| 1 | Welcome | Role, experience, MCP concepts |
+| 2 | Capture Intent | Describe the server, confirm scope |
+| 3 | Skills & Knowledge | Load domain skills visibly |
+| 4 | Design | Pick tools, confirm design |
+| 5 | Plan | Review build plan before coding |
+| 6 | Build + Test | Generate code, test each tool with real data |
+| 7 | Deploy | Build image → MCPServer CR → AI Hub → MCP Gateway |
+| 8 | Connect & Use | Wire to IDE, use tools, feedback loop |
+| 9 | Wrap-up | SDLC recap → score → certificate → quiz → cleanup |
 
-Both produce the same outcome. Participants can switch modes at any time.
+## MCP server lifecycle (Stage 7)
 
-## Tracks
+The deploy stage uses three layers:
 
-| Track | Duration | Modules |
-|-------|----------|---------|
-| Core | ~90 min | Launch → Patterns → Build → Test → Deploy → Use |
-| Extended | ~2.5 hr | + Multi-server composition + Enterprise governance |
+- **Layer 1 — Deploy:** MCPServer CR → MCP Lifecycle Operator → Deployment + Service + NetworkPolicy + MCP handshake
+- **Layer 2 — Discover:** AI Hub MCP Catalog → browse and manage servers from the dashboard
+- **Layer 3 — Route & Govern:** MCP Gateway (RHCL) → HTTPRoute + MCPServerRegistration → federated tool discovery with `prefix`
 
 ## Repository structure
 
 ```
-scaffold/                  # Starter files (requirements.txt, Containerfile, deployment.yaml)
-                           # server.py is created by the participant in Module 3
+chart/                     # Helm chart (DevWorkspace, RBAC, system prompt, git-clone init)
+  templates/
+    _helpers.tpl           # System prompt (AgentSherpa), OpenCode config, skills copy
+    rbac.yaml              # edit role + explicit MCP CRD rules
+    devworkspace.yaml      # DevWorkspace CR with postStart hooks
+.opencode/skills/          # 17 Agent Skills (source of truth)
+.agents/skills/            # Mirror for generic agents
+.claude/skills/            # Mirror for Claude Code
+.cursor/skills/            # Mirror for Cursor
+scaffold/                  # Starter files (requirements.txt, Containerfile)
 solutions/                 # Per-lab reference solutions (lab-03, lab-05, lab-07)
-.opencode/skills/          # Agent Skills (9 total; 3 core for the workshop)
-.claude/skills/            # Cross-harness: Claude Code (same files)
-.cursor/skills/            # Cross-harness: Cursor (same files)
-.agents/skills/            # Cross-harness: generic agents (same files)
-content/                   # Antora showroom source (builds to GitHub Pages)
-Makefile                   # Workshop commands (validate, build-image, deploy, test-mcp, clean)
-ansible/                   # Ansible playbook for N-user deployment
-scripts/                   # generate-dw-patch.py, deploy-workshop.sh
-config/                    # OpenCode config template, system prompt
 ```
 
-## For facilitators
+## Key skills
 
-See the [Facilitator Guide](https://rrbanda.github.io/mcp-dev-workshop/modules/13-facilitator-guide.html) for cluster setup, DevSpaces configuration, and participant provisioning.
+| Skill | Purpose |
+|-------|---------|
+| `workshop-guide` | 9-stage flow with interaction rules |
+| `build-deploy-openshift` | Full MCP lifecycle: build → MCPServer CR → Gateway |
+| `build-mcp-server` | MCP Python SDK v2 patterns |
+| `stock-market-mcp-spec` | Tool specifications (9 tools, enums, helpers) |
+| `presentation-mode` | Slide formatting, visual elements |
+| `voice-and-pacing` | Tone, pacing, "explain before execute" |
+| `troubleshooting-coach` | MCPServer CR debugging |
+| `workshop-scoring` | 100-point scoring across 5 dimensions |
 
-### Deploy N participants with Ansible (recommended)
+## Deploy for N participants
+
+Uses the Helm chart in `chart/`. Each participant gets their own namespace (`userN-devspaces`).
 
 ```bash
-export RHOAI_API_KEY="your-api-key"  # never committed to git
-cd ansible/
-ansible-playbook deploy-workshop.yml --check  # dry run
-ansible-playbook deploy-workshop.yml          # real deploy
+# Deploy for user1
+helm upgrade user1-devspaces-workshop chart/ \
+  -n user1-devspaces --create-namespace \
+  --set user.name=user1 \
+  --set llm.baseUrl=<MAAS_GATEWAY_URL> \
+  --set llm.modelId=<MODEL_ID> \
+  --set llm.apiKey=<API_KEY> \
+  --set workshop.repoUrl=https://github.com/rrbanda/mcp-dev-workshop.git
+
+# Start the workspace
+oc patch dw code-workspace-1 -n user1-devspaces --type=merge -p '{"spec":{"started":true}}'
 ```
 
-### Or with shell script
+### Platform admin prerequisites
 
-```bash
-cd scripts/
-./deploy-workshop.sh --dry-run   # preview
-./deploy-workshop.sh             # deploy
-```
+Before the workshop, a cluster admin must:
+1. Enable MCP Lifecycle Operator (`mcplifecycleoperator: Managed` in DSC)
+2. Enable MCP Catalog (`mcpCatalog: true` in OdhDashboardConfig)
+3. Install MCP Gateway Operator in `mcp-system`
+4. Create Gateway + MCPGatewayExtension
 
-Both methods are idempotent — safe to re-run.
+See the **Platform Admin Setup** section in `.opencode/skills/build-deploy-openshift/SKILL.md`.
 
-## Local development
+## Security
 
-Build the workshop site locally:
-
-```bash
-npm i antora @sntke/antora-mermaid-extension @andrew-jones/antora-tabs-extension
-npx antora site.yml
-open www/modules/index.html
-```
+- No secrets or credentials in code — API keys via Kubernetes Secrets
+- No customer names, tokens, or credentials committed to git
+- MCPServer CR enforces non-root, drop ALL caps, read-only FS, seccomp
 
 ## License
 
