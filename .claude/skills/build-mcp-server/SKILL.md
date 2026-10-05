@@ -158,56 +158,10 @@ EXPOSE 8080
 CMD ["python", "server.py"]
 ```
 
-### deployment.yaml
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: my-mcp-server
-  labels:
-    app: my-mcp-server
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: my-mcp-server
-  template:
-    metadata:
-      labels:
-        app: my-mcp-server
-    spec:
-      containers:
-        - name: server
-          image: image-registry.openshift-image-registry.svc:5000/MY_NAMESPACE/my-mcp-server:latest
-          ports:
-            - containerPort: 8080
-          env:
-            - name: MCP_TRANSPORT
-              value: "streamable-http"
-          readinessProbe:
-            tcpSocket:
-              port: 8080
-            initialDelaySeconds: 10
-            periodSeconds: 10
-          resources:
-            requests:
-              memory: "256Mi"
-              cpu: "200m"
-            limits:
-              memory: "512Mi"
-              cpu: "1000m"
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-mcp-server
-spec:
-  selector:
-    app: my-mcp-server
-  ports:
-    - port: 8080
-      targetPort: 8080
-```
+> **Note on deployment:** When deploying to OpenShift, use the MCPServer CR
+> (see `build-deploy-openshift` skill). The MCP Lifecycle Operator automatically
+> creates Deployment, Service, and NetworkPolicy from a single MCPServer resource
+> — no manual deployment.yaml needed.
 
 ## Transport Reference
 

@@ -107,11 +107,19 @@ spec:
 >
 > **Layer 1 — Deploy:** MCPServer CR → MCP Lifecycle Operator → Deployment + Service + NetworkPolicy + handshake
 > **Layer 2 — Discover:** AI Hub MCP Catalog → browse, search, and manage servers from the dashboard
-> **Layer 3 — Route & Govern:** MCP Gateway (RHCL) → HTTPRoute + MCPServerRegistration → federated tool discovery with `toolPrefix`
+> **Layer 3 — Route & Govern:** MCP Gateway (RHCL) → HTTPRoute + MCPServerRegistration → federated tool discovery with `prefix`
+
+**Concept Card** — use before any command or code generation to explain the "why":
+
+> **🧠 CONCEPT**
+>
+> The MCP Lifecycle Operator works like filing a work order — you declare what you
+> want (an MCPServer CR), and the operator does the plumbing, wiring, and inspection
+> automatically: Deployment, Service, NetworkPolicy, and MCP handshake verification.
 
 **Operator vs Manual Comparison** — when introducing the deploy stage:
 
-| Manual Deploy (old) | MCPServer CR (RHOAI) |
+| Manual Deploy (old) | MCPServer CR |
 |---|---|
 | `oc new-app` + `oc expose svc` + security config | One `MCPServer` YAML |
 | You manage Deployment, Service, Route | Operator manages everything |

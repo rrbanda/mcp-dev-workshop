@@ -245,6 +245,11 @@ for i in $(seq 1 30); do
     echo "MCPServer is ready!"
     break
   fi
+  if [ "$i" -eq 30 ]; then
+    echo "ERROR: MCPServer did not become ready in 150s."
+    echo "Check pod logs: oc logs -l mcp-server=$APP_NAME -n $NS"
+    echo "Check MCPServer status: oc get mcpserver $APP_NAME -n $NS -o yaml"
+  fi
   sleep 5
 done
 ```
@@ -292,7 +297,7 @@ spec:
     - matches:
         - path:
             type: PathPrefix
-            value: /mcp
+            value: /mcp/${USER_PREFIX}-stock
       backendRefs:
         - name: ${APP_NAME}
           port: 8080
@@ -334,6 +339,11 @@ for i in $(seq 1 20); do
   if [ "$READY" = "True" ]; then
     echo "Registered with gateway! $TOOLS tools discovered."
     break
+  fi
+  if [ "$i" -eq 20 ]; then
+    echo "ERROR: MCPServerRegistration did not become ready in 100s."
+    echo "Check HTTPRoute: oc get httproute ${APP_NAME}-route -n $NS -o yaml"
+    echo "Check registration: oc get mcpserverregistration ${APP_NAME}-reg -n $NS -o yaml"
   fi
   sleep 5
 done
@@ -460,7 +470,7 @@ oc get deploy,svc,networkpolicy -n "$NS" | grep "$APP_NAME"
 | MCPServer `Ready=False` `DeploymentUnavailable` | Check pod logs: `oc logs -l mcp-server=$APP_NAME -n $NS` |
 | MCPServer `Accepted=False` `Invalid` | Check the CR spec — port, image ref, or path may be wrong |
 | MCPServerRegistration `Ready=False` | Check HTTPRoute accepted: `oc get httproute ${APP_NAME}-route -n $NS -o yaml` |
-| Tools not showing in gateway | Check broker logs: `oc logs -n mcp-system deployment/mcp-gateway --tail=20` |
+| Tools not showing in gateway | Verify MCPServerRegistration status: `oc get mcpserverregistration ${APP_NAME}-reg -n $NS -o yaml` (check `.status.discoveredTools`) |
 | MCP tools not visible in OpenCode | Start a new session after registering the MCP server |
 | Write errors in container (read-only FS) | Add writable mount in `config.storage` for the needed path |
 

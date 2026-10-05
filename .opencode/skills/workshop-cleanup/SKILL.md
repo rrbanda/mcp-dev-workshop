@@ -11,98 +11,120 @@ created during the workshop. Never delete anything without confirmation.
 ## WHEN TO TRIGGER
 
 - User says "clean up", "done", "tear down", "reset", "finished"
-- Workshop Stage 7 is complete and participant is satisfied
+- Workshop Stage 9 is complete and participant is satisfied
 - Facilitator wants to prepare for the next participant
 
 ## STEP 1: Confirm Intent
 
 Use the **question** tool:
 
-"You've completed the workshop! Before we clean up, let me check…"
+"You've completed the workshop! Before we clean up, let me check..."
 
 "What would you like to do with your MCP server?"
 - **Clean up everything** — Remove all deployed resources (recommended after workshop)
 - **Keep it running** — Leave the server deployed, I'll just summarize what was built
 - **Reset for next participant** — Full cleanup + reset scaffold to blank starter
 
-## STEP 2: Show What Will Be Deleted
-
-Before deleting anything, show exactly what exists:
+## STEP 2: Detect User-Scoped Names and Show What Exists
 
 ```bash
+NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+USER_PREFIX=$(echo "$NS" | sed 's/-devspaces$//')
+APP_NAME="${USER_PREFIX}-stock-mcp"
+
 echo "=== Your workshop resources ==="
-oc get deployment stock-market-mcp 2>/dev/null && echo "  📦 Deployment: stock-market-mcp" || echo "  (no deployment)"
-oc get svc stock-market-mcp 2>/dev/null && echo "  🔌 Service: stock-market-mcp:8080" || echo "  (no service)"
-oc get route stock-market-mcp 2>/dev/null && echo "  🌐 Route: $(oc get route stock-market-mcp -o jsonpath='{.spec.host}')" || echo "  (no route)"
-oc get bc stock-market-mcp 2>/dev/null && echo "  🏗️ BuildConfig: stock-market-mcp" || echo "  (no build config)"
-oc get is stock-market-mcp 2>/dev/null && echo "  📀 ImageStream: stock-market-mcp" || echo "  (no image stream)"
+echo "Namespace: $NS"
+echo "User: $USER_PREFIX"
+echo ""
+
+# MCP Lifecycle resources (operator-managed)
+oc get mcpserver "$APP_NAME" -n "$NS" 2>/dev/null \
+  && echo "  📦 MCPServer: $APP_NAME (operator manages Deployment, Service, NetworkPolicy)" \
+  || echo "  (no MCPServer)"
+
+# Gateway registration
+oc get mcpserverregistration "${APP_NAME}-reg" -n "$NS" 2>/dev/null \
+  && echo "  🔗 MCPServerRegistration: ${APP_NAME}-reg" \
+  || echo "  (no gateway registration)"
+
+oc get httproute "${APP_NAME}-route" -n "$NS" 2>/dev/null \
+  && echo "  🌐 HTTPRoute: ${APP_NAME}-route" \
+  || echo "  (no HTTPRoute)"
+
+# Build artifacts
+oc get bc "$APP_NAME" -n "$NS" 2>/dev/null \
+  && echo "  🏗️ BuildConfig: $APP_NAME" \
+  || echo "  (no build config)"
+
+oc get is "$APP_NAME" -n "$NS" 2>/dev/null \
+  && echo "  📀 ImageStream: $APP_NAME" \
+  || echo "  (no image stream)"
 ```
 
-Present as a checklist:
+Present the summary and use the **question** tool:
 
-```
-┌─ RESOURCES TO DELETE ──────────────────────────┐
-│                                                │
-│  📦 Deployment:   stock-market-mcp             │
-│  🔌 Service:      stock-market-mcp:8080        │
-│  🌐 Route:        stock-market-mcp-dev-...     │
-│  🏗️ BuildConfig:  stock-market-mcp (binary)    │
-│  📀 ImageStream:  stock-market-mcp:latest      │
-│  🔗 MCP Config:   opencode mcp remove          │
-│                                                │
-└────────────────────────────────────────────────┘
-```
+"These are the resources that will be deleted. The MCPServer CR deletion
+will automatically garbage-collect the Deployment, Service, and NetworkPolicy
+that the operator created."
 
-Use the **question** tool:
 "Delete all of the above?"
 - "Yes, clean it all up"
-- "Wait, keep the deployment running but remove the build artifacts"
+- "Wait, keep the deployment but remove gateway registration"
 - "Cancel — don't delete anything"
 
 ## STEP 3: Execute Cleanup
 
-Run each deletion with visible output:
+Run deletions in the correct order (registration first, then MCPServer):
 
 ```bash
-cd /projects/mcp-dev-workshop
-make clean
-```
+NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+USER_PREFIX=$(echo "$NS" | sed 's/-devspaces$//')
+APP_NAME="${USER_PREFIX}-stock-mcp"
 
-Or if `make clean` is not available, run each step:
+echo "Cleaning up workshop resources..."
 
-```bash
-echo "🗑️ Deleting route..."
-oc delete route stock-market-mcp --ignore-not-found
+# 1. Remove OpenCode MCP registration
+echo "  Removing OpenCode MCP registration..."
+opencode mcp remove "$APP_NAME" 2>/dev/null || true
 
-echo "🗑️ Deleting deployment + service..."
-oc delete -f scaffold/deployment.yaml --ignore-not-found 2>/dev/null || true
-oc delete deployment stock-market-mcp --ignore-not-found
-oc delete svc stock-market-mcp --ignore-not-found
+# 2. Remove gateway registration (MCPServerRegistration + HTTPRoute)
+echo "  Removing gateway registration..."
+oc delete mcpserverregistration "${APP_NAME}-reg" -n "$NS" --ignore-not-found
+oc delete httproute "${APP_NAME}-route" -n "$NS" --ignore-not-found
 
-echo "🗑️ Deleting build artifacts..."
-oc delete bc stock-market-mcp --ignore-not-found
-oc delete is stock-market-mcp --ignore-not-found
+# 3. Remove MCPServer CR (operator garbage-collects Deployment, Service, NetworkPolicy)
+echo "  Removing MCPServer (operator will clean up Deployment, Service, NetworkPolicy)..."
+oc delete mcpserver "$APP_NAME" -n "$NS" --ignore-not-found
 
-echo "🗑️ Removing MCP registration..."
-opencode mcp remove stock-market-mcp 2>/dev/null || true
-```
+# 4. Remove build artifacts
+echo "  Removing build artifacts..."
+oc delete bc "$APP_NAME" -n "$NS" --ignore-not-found
+oc delete is "$APP_NAME" -n "$NS" --ignore-not-found
 
-Show a progress checklist as each step completes:
+# 5. Remove any legacy manual resources (from older deploy method)
+oc delete route "$APP_NAME" -n "$NS" --ignore-not-found 2>/dev/null || true
+oc delete svc "$APP_NAME" -n "$NS" --ignore-not-found 2>/dev/null || true
+oc delete deployment "$APP_NAME" -n "$NS" --ignore-not-found 2>/dev/null || true
 
-```
-  ✅ Route deleted
-  ✅ Deployment deleted
-  ✅ Service deleted
-  ✅ BuildConfig deleted
-  ✅ ImageStream deleted
-  ✅ MCP registration removed
+echo ""
+echo "  ✅ OpenCode MCP registration removed"
+echo "  ✅ MCPServerRegistration deleted"
+echo "  ✅ HTTPRoute deleted"
+echo "  ✅ MCPServer deleted (Deployment, Service, NetworkPolicy auto-cleaned)"
+echo "  ✅ BuildConfig deleted"
+echo "  ✅ ImageStream deleted"
 ```
 
 ## STEP 4: Verify Cleanup
 
 ```bash
+NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+USER_PREFIX=$(echo "$NS" | sed 's/-devspaces$//')
+APP_NAME="${USER_PREFIX}-stock-mcp"
+
 echo "=== Verification ==="
-oc get deploy,svc,route,bc,is 2>/dev/null | grep stock-market || echo "✅ No stock-market-mcp resources found"
+oc get mcpserver,mcpserverregistration,httproute,deploy,svc,bc,is -n "$NS" 2>/dev/null \
+  | grep "$APP_NAME" || echo "✅ No $APP_NAME resources found — cleanup complete"
 ```
 
 ## STEP 5: Reset for Next Participant (optional)
@@ -128,27 +150,24 @@ echo "✅ Scaffold reset to blank starter"
 
 Always end with a summary of what was accomplished, regardless of cleanup choice:
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🎓 Workshop Complete!
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**Workshop Complete!**
 
-  What you built today:
-  ✅ A stock market MCP server with N tools
-  ✅ Containerized with UBI9 Python 3.12
-  ✅ Deployed on OpenShift AI (pod + service + route)
-  ✅ Connected to your AI IDE via MCP protocol
-  ✅ Used real stock data from the AI chat
+What you built today:
+- ✅ A stock market MCP server with N tools
+- ✅ Containerized with UBI9 Python 3.12
+- ✅ Deployed via MCPServer CR (operator-managed)
+- ✅ Imported to the AI Hub MCP Catalog
+- ✅ Registered with the MCP Gateway (federated tool discovery)
+- ✅ Connected to your AI IDE via MCP protocol
+- ✅ Used real stock data from the AI chat
 
-  What you learned:
-  ✅ MCP protocol (tools, resources, prompts)
-  ✅ Python MCP SDK (@server.tool decorator)
-  ✅ OpenShift binary builds (oc new-build)
-  ✅ MCP streamable-http transport
-  ✅ Tool design for AI discoverability
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+What you learned:
+- ✅ MCP protocol (tools, resources, prompts) — an open standard
+- ✅ Python MCP SDK (@server.tool decorator)
+- ✅ OpenShift binary builds (oc new-build)
+- ✅ MCP Lifecycle Operator (MCPServer CR)
+- ✅ MCP Gateway (HTTPRoute + MCPServerRegistration)
+- ✅ Tool design for AI discoverability
 
 Then show the "Continue Learning" resources from the `redhat-mcp-resources` skill.
 
@@ -156,15 +175,11 @@ Then show the "Continue Learning" resources from the `redhat-mcp-resources` skil
 
 If the user chose "Keep it running":
 
-```
-┌─ YOUR SERVER IS LIVE ──────────────────────────┐
-│                                                │
-│  Route: http://stock-market-mcp-dev-...        │
-│  Tools: N tools available                      │
-│                                                │
-│  To use: start a new OpenCode session          │
-│  To clean up later: type "clean up"            │
-│  To add tools: "add more tools to my server"   │
-│                                                │
-└────────────────────────────────────────────────┘
-```
+"Your server is still live and managed by the MCP Lifecycle Operator."
+
+- **Direct URL:** (from `oc get mcpserver $APP_NAME -o jsonpath='{.status.address.url}'`)
+- **Gateway URL:** (from MCP Gateway hostname)
+- **Tools:** N tools available
+- To use: start a new OpenCode session
+- To clean up later: type "clean up"
+- To add tools: "add more tools to my server"

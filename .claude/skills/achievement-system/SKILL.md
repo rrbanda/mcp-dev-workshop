@@ -15,7 +15,7 @@ card and may contribute to the Exploration Bonus in the scoring system.
 | 🔧 | First Tool | First `@server.tool` added to server.py | 0 (part of Build score) |
 | 🧪 | Data Scientist | First tool tested with real stock data | 0 |
 | 🏆 | Full Suite | 4+ tools built and working | 0 |
-| 🚀 | Deployed! | Pod running on OpenShift AI | 0 |
+| 🚀 | Deployed! | MCPServer CR Ready=True on OpenShift | 0 |
 | 🔗 | Connected | MCP server registered in OpenCode | 0 |
 | ⚡ | AI-Powered | Successfully used MCP tools from AI chat | 0 |
 | 🧠 | Quiz Master | All quiz questions correct on first try | +2 Exploration |
@@ -30,19 +30,15 @@ card and may contribute to the Exploration Bonus in the scoring system.
 
 When an achievement is unlocked, display:
 
-```
-┌─ 🏆 ACHIEVEMENT UNLOCKED ─────────────────────┐
-│                                                │
-│  🚀 Deployed!                                  │
-│                                                │
-│  Your MCP server is running on OpenShift.      │
-│  That's a real production service!             │
-│                                                │
-│  Achievements: 🔧 🧪 🏆 🚀                   │
-│  Score: +3 pts (Build Completeness)            │
-│                                                │
-└────────────────────────────────────────────────┘
-```
+**Achievement Unlocked!**
+
+> 🚀 **Deployed!**
+>
+> Your MCP server is running on OpenShift — managed by the MCP Lifecycle Operator.
+> That's a real production service!
+>
+> Achievements: 🔧 🧪 🏆 🚀
+> Score: +3 pts (Build Completeness)
 
 ## DETECTION RULES
 
@@ -51,7 +47,7 @@ The agent should detect achievements automatically:
 ### Build milestones (detected via bash tool)
 - **First Tool**: after writing `@server.tool` to server.py for the first time
 - **Full Suite**: after grep shows 4+ `@server.tool` decorators
-- **Deployed!**: after `oc get pods -l app=stock-market-mcp` shows Running
+- **Deployed!**: after `oc get mcpserver $APP_NAME -n $NS -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'` returns `True`
 - **Connected**: after `opencode mcp list` shows connected status
 - **AI-Powered**: after successfully using an MCP tool from chat
 
@@ -83,23 +79,17 @@ Update after each new achievement is unlocked.
 
 At workshop completion, show all achievements in a summary:
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  🏅 Your Achievements
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**🏅 Your Achievements**
 
-  🔧 First Tool        — Built your first MCP tool
-  🧪 Data Scientist    — Tested with real market data
-  🏆 Full Suite        — 4+ tools in your server
-  🚀 Deployed!         — Running on OpenShift AI
-  🔗 Connected         — Registered in OpenCode
-  ⚡ AI-Powered        — Used tools from AI chat
-  🎨 Customizer        — Made it your own
-  🎓 Graduate          — Completed the workshop!
+- 🔧 **First Tool** — Built your first MCP tool
+- 🧪 **Data Scientist** — Tested with real market data
+- 🏆 **Full Suite** — 4+ tools in your server
+- 🚀 **Deployed!** — MCPServer CR Ready on OpenShift
+- 🔗 **Connected** — Registered in OpenCode
+- ⚡ **AI-Powered** — Used tools from AI chat
+- 🎨 **Customizer** — Made it your own
+- 🎓 **Graduate** — Completed the workshop!
 
-  8 of 13 achievements unlocked
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+*8 of 13 achievements unlocked*
 
 This feeds into the workshop-certificate skill for the certificate.

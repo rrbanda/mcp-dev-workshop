@@ -24,13 +24,9 @@ The certificate includes their name, date, score breakdown, tier, and achievemen
 
 Use the question tool:
 
-```
-╔══════════════════════════════════════════════════════╗
-║  🎓 Workshop Complete! Let's create your certificate ║
-╚══════════════════════════════════════════════════════╝
+"🎓 **Workshop Complete!** Let's create your certificate."
 
-Before I generate your certificate, I need one thing:
-```
+"Before I generate your certificate, I need one thing:"
 
 **Question:** "What name would you like on your certificate?"
 *(Free text input — the participant types their full name)*
@@ -112,7 +108,7 @@ pdf.cell(11, 0.4, 'MCP Developer Workshop', align='C')
 pdf.set_font('Helvetica', '', 11)
 pdf.set_text_color(100, 100, 100)
 pdf.set_xy(0, 2.2)
-pdf.cell(11, 0.3, 'Model Context Protocol on OpenShift AI', align='C')
+pdf.cell(11, 0.3, 'Model Context Protocol on OpenShift', align='C')
 
 # Red divider
 pdf.set_draw_color(238, 0, 0)
@@ -225,22 +221,17 @@ Write an HTML version to `/projects/mcp-dev-workshop/certificate.html` with:
 
 ### Step 6: Present to Participant
 
-```
-╔══════════════════════════════════════════════════════╗
-║  🎓 Your Certificate is Ready!                       ║
-╚══════════════════════════════════════════════════════╝
+**🎓 Your Certificate is Ready!**
 
-  📄 PDF:  /projects/mcp-dev-workshop/certificate.pdf
-  📄 HTML: /projects/mcp-dev-workshop/certificate.html
-
-  To download your certificate:
-  1. Open the DevSpaces file explorer (left sidebar)
-  2. Navigate to mcp-dev-workshop/
-  3. Right-click certificate.pdf → Download
-
-  Or open certificate.html in your browser and
-  use Cmd+P / Ctrl+P → Save as PDF
-```
+> 📄 **PDF:** `/projects/mcp-dev-workshop/certificate.pdf`
+> 📄 **HTML:** `/projects/mcp-dev-workshop/certificate.html`
+>
+> **To download your certificate:**
+> 1. Open the DevSpaces file explorer (left sidebar)
+> 2. Navigate to `mcp-dev-workshop/`
+> 3. Right-click `certificate.pdf` → Download
+>
+> Or open `certificate.html` in your browser and use Cmd+P / Ctrl+P → Save as PDF
 
 ## CERTIFICATE DATA REQUIREMENTS
 

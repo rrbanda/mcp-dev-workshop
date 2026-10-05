@@ -31,10 +31,24 @@ for name, srv in cfg.get('mcp', {}).items():
 "
 ```
 
-### Step 2: Initialize a session (required before any tool call)
+### Step 2: Detect the user-scoped server name and initialize a session
 
 ```bash
-MCP_URL="http://stock-market-mcp.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc:8080/mcp"
+NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+USER_PREFIX=$(echo "$NS" | sed 's/-devspaces$//')
+APP_NAME="${USER_PREFIX}-stock-mcp"
+
+# Get MCP URL from the MCPServer status (operator-managed)
+MCP_URL=$(oc get mcpserver "$APP_NAME" -n "$NS" \
+  -o jsonpath='{.status.address.url}' 2>/dev/null)
+
+# Fallback: construct from service name
+if [ -z "$MCP_URL" ]; then
+  MCP_URL="http://${APP_NAME}.${NS}.svc.cluster.local:8080/mcp"
+fi
+
+echo "MCP URL: $MCP_URL"
+
 HDRFILE=$(mktemp)
 
 # Initialize
@@ -75,18 +89,27 @@ Extract the `data:` line and parse the JSON inside `result.content[0].text`.
 Use this Python script for reliable tool calls (handles SSE parsing, session management):
 
 ```bash
-python3 << 'PYEOF'
-import json, sys, os
+NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+USER_PREFIX=$(echo "$NS" | sed 's/-devspaces$//')
+APP_NAME="${USER_PREFIX}-stock-mcp"
+
+# Get MCP URL from MCPServer status or construct from service
+MCP_URL=$(oc get mcpserver "$APP_NAME" -n "$NS" \
+  -o jsonpath='{.status.address.url}' 2>/dev/null)
+if [ -z "$MCP_URL" ]; then
+  MCP_URL="http://${APP_NAME}.${NS}.svc.cluster.local:8080/mcp"
+fi
+
+python3 - "$MCP_URL" "${1:-get_stock_info}" "${2:-{\"ticker\":\"AAPL\"}}" << 'PYEOF'
+import json, sys
 try:
     from urllib.request import Request, urlopen
 except ImportError:
     from urllib2 import Request, urlopen
 
-MCP_URL = "http://stock-market-mcp.{}.svc:8080/mcp".format(
-    open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read().strip()
-)
-TOOL_NAME = sys.argv[1] if len(sys.argv) > 1 else "get_stock_info"
-ARGS_JSON = sys.argv[2] if len(sys.argv) > 2 else '{"ticker":"AAPL"}'
+MCP_URL = sys.argv[1]
+TOOL_NAME = sys.argv[2]
+ARGS_JSON = sys.argv[3]
 
 def post(url, payload, session=None, timeout=60):
     headers = {"Content-Type": "application/json",

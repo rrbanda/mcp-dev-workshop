@@ -72,16 +72,16 @@ not all at once. Each resource is tagged with WHEN to surface it.
 ## 🎥 Video Demos
 
 ### MCP & Llama: AI Chatbot Demo on OpenShift AI
-- **Link**: https://www.youtube.com/watch?v=RedHatMCPLlama (Red Hat YouTube Channel)
-- **When to show**: Stage 1c, Concept 1 — for visual learners, OR Stage 7 as "what's next"
+- **Link**: https://www.redhat.com/en/events/webinars/model-context-protocol-mcp-openshift-ai
+- **When to show**: Stage 1c, Concept 1 — for visual learners, OR Stage 8 as "what's next"
 - **One-liner**: Llama models on OpenShift AI paired with MCP servers for enterprise AI assistants.
 - **Callout format**:
-  > 🎥 **See it in action**: Red Hat's [MCP & Llama demo on OpenShift AI](https://www.youtube.com/watch?v=RedHatMCPLlama)
+  > 🎥 **See it in action**: Red Hat's [MCP on OpenShift AI webinar](https://www.redhat.com/en/events/webinars/model-context-protocol-mcp-openshift-ai)
   > shows Llama models using MCP tools in an enterprise environment.
 
 ### Multi-Server MCP Demo: OpenShift & Slack Integration
 - **Link**: https://developers.redhat.com/articles/multi-server-mcp-openshift-slack
-- **When to show**: Stage 7 (Use Your Server) — as inspiration for what's possible
+- **When to show**: Stage 8 (Connect & Use) — as inspiration for what's possible
 - **One-liner**: AI agent connecting to OpenShift + Slack MCP servers simultaneously for anomaly detection and team notifications.
 - **Callout format**:
   > 🎥 **What's possible with multiple MCP servers**: Red Hat's
@@ -101,12 +101,13 @@ Quick reference for the workshop-guide skill — which resources to surface at e
 | 1c — Error Handling / Security | "MCP Security" blog | Real attack vectors + guardrails |
 | 2 — Design Your Server | Enterprise Starter Template repo | Sets expectations for production quality |
 | 3 — Build Tools | "API's Customer Zero" blog | Tool design decisions for real APIs |
-| 7 — Use Your Server | Multi-Server MCP Demo | Inspiration for what's next |
-| 7 — Workshop complete | All remaining resources | "Continue learning" reading list |
+| 7 — Deploy (lifecycle intro) | "Building Effective AI Agents" | 3-layer lifecycle: Deploy → Discover → Route & Govern |
+| 8 — Connect & Use | Multi-Server MCP Demo | Inspiration for what's next |
+| 9 — Workshop complete | All remaining resources | "Continue learning" reading list |
 
 ## END-OF-WORKSHOP RESOURCE SUMMARY
 
-After Stage 7, present all resources as a "Continue Learning" section:
+After Stage 9, present all resources as a "Continue Learning" section:
 
 "Great work! Here are Red Hat resources to continue your MCP journey:
 
@@ -120,5 +121,5 @@ After Stage 7, present all resources as a "Continue Learning" section:
 - [Red Hat MCP Server Starter Template](https://github.com/redhat-data-and-ai/template-mcp-server) — Enterprise template with OAuth2 + UBI
 
 🎥 **Watch**
-- [MCP & Llama on OpenShift AI](https://www.youtube.com/watch?v=RedHatMCPLlama) — Live demo
+- [MCP on OpenShift AI webinar](https://www.redhat.com/en/events/webinars/model-context-protocol-mcp-openshift-ai) — Live demo
 - [Multi-Server MCP: OpenShift & Slack](https://developers.redhat.com/articles/multi-server-mcp-openshift-slack) — Advanced patterns"

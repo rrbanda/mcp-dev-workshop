@@ -35,21 +35,19 @@ todowrite([
 
 | Quiz | Questions | Points | Max |
 |------|-----------|--------|-----|
-| Stage 1 (Concepts) | 4 | 3 pts (2 retry) | 12 |
-| Stage 3 (Build) | 2 | 2 pts (1 retry) | 4 |
-| Stage 5 (Deploy) | 2 | 2 pts (1 retry) | 4 |
+| Final Quiz (Stage 9) | 8 | 2-3 pts each (retry allowed) | 20 |
 
 ### 🔨 Build Completeness (25 pts)
 
 | Milestone | Points |
 |-----------|--------|
 | Server skeleton | 3 |
-| Each tool built (×4) | 2 each |
-| Each tool tested (×4) | 1 each |
+| Each tool built (x4) | 2 each |
+| Each tool tested (x4) | 1 each |
 | Image built | 3 |
-| Pod deployed | 3 |
-| Route + MCP registered | 2 |
-| E2E verification | 2 |
+| MCPServer CR deployed + Ready | 3 |
+| Gateway registered (HTTPRoute + MCPServerRegistration) | 2 |
+| E2E verification (tool call from OpenCode) | 2 |
 
 ### 🎯 Code Quality (20 pts)
 

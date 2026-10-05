@@ -31,7 +31,7 @@ Use question tool:
 
 ## CHALLENGES
 
-### After Stage 1 (Concepts)
+### After Stage 1 (Welcome & Concepts)
 
 **Name That Primitive** — for each scenario, is it a Tool, Resource, or Prompt?
 
@@ -42,7 +42,7 @@ Use question tool for each:
 
 Points: 1 per correct, max 3
 
-### After Stage 3 (Build)
+### After Stage 3 (Skills & Knowledge)
 
 **Improve a Tool Description** — rewrite this vague description:
 
@@ -52,7 +52,7 @@ Points: 1 per correct, max 3
 
 Score: mentions financial/stock news (+1), parameter purpose (+1), return content (+1). Max 3.
 
-### After Stage 4 (Test)
+### After Stage 4 (Design)
 
 **Debug This Tool** — spot 3 bugs:
 
@@ -65,7 +65,7 @@ async def stock_price(ticker):
 
 Bugs: no type hint, no error handling, returns float not string. Max 3 pts.
 
-### After Stage 5 (Deploy)
+### After Stage 6 (Build + Test)
 
 **Predict the Architecture** — describe the network path from user question to answer.
 
@@ -73,7 +73,7 @@ Expected: User → OpenCode AI → MCP Client → HTTP to server pod → yfinanc
 
 Points: 2 for full chain, 1 for partial.
 
-### After Stage 6 (Connect)
+### After Stage 7 (Deploy)
 
 **Add a Custom Tool** — build a tool NOT in the standard spec.
 
