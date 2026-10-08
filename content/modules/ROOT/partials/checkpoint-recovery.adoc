@@ -1,19 +1,13 @@
-// Checkpoint recovery partial — include in any module.
+// Checkpoint recovery partial — include in any stage page.
 // Usage: include::partial$checkpoint-recovery.adoc[]
 
 [TIP]
 ====
-*Falling behind?* Each module has a solution checkpoint in the `solutions/`
-directory. Copy the relevant files to catch up:
+*Stuck?* Ask AgentSherpa for help. The agent has troubleshooting skills and can diagnose common issues.
 
-[source,bash,role="execute"]
-----
-ls solutions/
-----
+If the agent is unresponsive, check:
 
-For example, to recover Lab 3 artifacts:
-[source,bash,role="execute"]
-----
-cp solutions/lab-03/server.py scaffold/server.py
-----
+* Is the LLM running? `oc get pods -n ai-serving -l app=vllm`
+* Is `OPENAI_BASE_URL` set? `echo $OPENAI_BASE_URL`
+* Ask your facilitator for assistance.
 ====

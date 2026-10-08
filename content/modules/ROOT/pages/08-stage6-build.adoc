@@ -1,0 +1,75 @@
+= Stage 6: Build + Test
+:navtitle: Stage 6: Build + Test
+
+*Duration:* ~15 minutes +
+*What happens:* AgentSherpa generates the server code, installs dependencies, and tests each tool with live data.
+
+== What gets built
+
+AgentSherpa creates three files in your workspace:
+
+=== `server.py`
+
+The MCP server using `mcp[cli]` (Python SDK v2):
+
+* `FastMCP` server instance on port 8080, path `/mcp`
+* One `@mcp.tool()` function per approved tool
+* `yfinance` for data access
+* Proper type hints, docstrings, and error handling
+
+=== `requirements.txt`
+
+[source,text]
+----
+mcp[cli]>=1.9.0
+yfinance>=0.2.40
+uvicorn>=0.30.0
+----
+
+=== `Dockerfile`
+
+[source,dockerfile]
+----
+FROM registry.access.redhat.com/ubi9/python-311:latest
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY server.py .
+EXPOSE 8080
+CMD ["python", "server.py"]
+----
+
+== Testing
+
+AgentSherpa tests each tool live:
+
+. Installs `yfinance` and `mcp[cli]` in the workspace
+. Runs the tool function directly (not through the server) with a real ticker like `AAPL`
+. Shows the output so you can verify the data looks correct
+. Moves to the next tool only after confirming success
+
+For tools that return market data, results depend on market hours. The agent handles this gracefully -- if a market is closed, it shows the last available data.
+
+== What to watch for
+
+* *Type errors* -- the agent should use proper Python types, not raw strings
+* *Missing error handling* -- what happens with an invalid ticker like `XYZNOTREAL`?
+* *Tool descriptions* -- are they clear enough for an LLM to decide when to use them?
+
+If you spot issues, tell AgentSherpa. It will fix and re-test.
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| All tools tested and passing
+| 20
+
+| Interactive challenge (post-build)
+| 5
+|===
+
+== Next
+
+xref:09-stage7-deploy.adoc[Stage 7: Deploy]

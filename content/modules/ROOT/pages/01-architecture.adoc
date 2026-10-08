@@ -1,133 +1,106 @@
-= Architecture and Inference Flow
-:navtitle: Architecture and Inference Flow
+= Architecture
+:navtitle: Architecture
 
-Understanding the platform you are building on -- from request to model
-response and back.
+== MCP protocol overview
 
-== The inference traffic path
+https://modelcontextprotocol.io/[Model Context Protocol (MCP)] is an *open standard* for connecting AI agents to tools and data sources. It defines a JSON-RPC 2.0 protocol for tool discovery (`tools/list`), invocation (`tools/call`), resource access, and prompt templates.
 
-When a request goes to the LLM (whether from the AgentSherpa or a `curl`
-command in the terminal), here is the path it takes:
-
-[mermaid]
-....
-flowchart TD
-    IDE["AgentSherpa<br/>(DevSpaces)"]
-    MaaS["maas-default-gateway<br/>(API key auth)"]
-    LLMd["llm-d Gateway"]
-    EPP["Endpoint Picker (EPP)<br/>Filter → Score → Pick"]
-    vLLM1["vLLM Pod 1<br/>(GPU)"]
-    vLLM2["vLLM Pod 2<br/>(GPU)"]
-
-    IDE -->|"Bearer sk-oai-*"| MaaS
-    MaaS -->|"HTTPRoute"| LLMd
-    LLMd --> EPP
-    EPP -->|"prefix-cache + queue-depth"| vLLM1
-    EPP -.->|"or"| vLLM2
-....
-
-*MaaS (Model as a Service)* authenticates every request with an API key.
-Your API key is pre-configured in your workspace environment. Without a
-valid key, the gateway returns `403 Forbidden`.
-
-*llm-d* is the inference gateway that manages the vLLM backend pods.
-The *Endpoint Picker (EPP)* runs a Filter → Score → Pick pipeline: it scores
-each vLLM pod by prefix cache hit ratio (weight 3), queue depth (weight 2),
-and KV-cache utilization (weight 2), then routes to the best candidate.
-This achieves up to 69% p90 TTFT reduction compared to round-robin.
-
-*vLLM* pods run on GPU nodes and serve the actual model
-(default: `{model_id}`).
-
-== Where MCP fits in
-
-MCP servers are *separate from the inference path*. They are tool backends
-that any client calls when it needs to take an action -- query a database,
-list pods, read a file. That client can be an AI agent (like AgentSherpa) or
-a human using `curl` and JSON-RPC. The flow is:
-
-[mermaid]
-....
-flowchart LR
-    Agent["AgentSherpa"]
-    LLM["LLM (via MaaS)"]
-    MCP1["MCP Server A<br/>(your server)"]
-    MCP2["MCP Server B<br/>(OpenShift MCP)"]
-
-    Agent <-->|"reasoning"| LLM
-    Agent <-->|"tool calls"| MCP1
-    Agent <-->|"tool calls"| MCP2
-....
-
-. The agent sends your prompt to the LLM for reasoning.
-. The LLM decides a tool call is needed and returns a structured tool-call request.
-. The agent executes the tool call against the MCP server.
-. The MCP server runs the tool and returns the result.
-. The agent feeds the result back to the LLM for the next reasoning step.
-
-The MCP server never talks to the LLM directly. It only talks to the client.
-
-NOTE: In *manual mode*, you replace the agent with `curl`: you send the
-`tools/call` JSON-RPC request yourself and read the response directly. The
-server does not care who is calling -- it speaks the same protocol either way.
-
-== MCP protocol basics
-
-[cols="1,2",options="header"]
-|===
-| Concept | Description
-
-| *Server*
-| A process that exposes tools, resources, and prompts over the MCP protocol.
-
-| *Tool*
-| A function the agent can call. Defined with name, description, typed parameters, and a return value.
-
-| *Resource*
-| Read-only context the agent can fetch (e.g., cluster info, config files).
-
-| *Transport*
-| How agent and server communicate: *stdio* (local), *streamable-http* (remote/deployed).
-
-| *Client*
-| Any program that connects to an MCP server -- the AgentSherpa (agent mode) or `curl` / Python (manual mode).
-|===
-
-== Agent Skills architecture
-
-Agent Skills are SKILL.md files that live in the project directory structure:
+MCP is not tied to any vendor or platform. It works across AI hosts (OpenCode, Cursor, Claude, VS Code, and others) and runtimes (containers, serverless, local processes).
 
 ----
-.opencode/skills/build-mcp-server/SKILL.md
-.claude/skills/build-mcp-server/SKILL.md
-.cursor/skills/build-mcp-server/SKILL.md
+┌───────────────────────────────────────────┐
+│  HOST (OpenCode)                          │
+│   ┌──────────┐         ┌──────────┐       │
+│   │ AI Model │◄───────►│ MCP      │       │
+│   │ (LLM)    │ JSON-RPC│ Client   │       │
+│   └──────────┘         └────┬─────┘       │
+└─────────────────────────────┼─────────────┘
+                              │
+                    ┌─────────▼─────────┐
+                    │   MCP SERVER      │
+                    │   (your code)     │
+                    │                   │
+                    │  Tool: get_stock  │
+                    │  Tool: get_news   │
+                    │  Data: Yahoo API  │
+                    └───────────────────┘
 ----
 
-Skills are *lazy-loaded*: the agent sees a list of skill names and one-line
-descriptions. When the agent decides a skill is relevant, it loads the full
-SKILL.md body — which can contain API references, code patterns, best
-practices, and complete examples. This keeps the context window efficient while
-giving the agent deep knowledge on demand.
+Three layers:
 
-In this workshop, the `build-mcp-server` skill teaches the agent:
+* *Host* -- the application running the AI (OpenCode in this workshop)
+* *Client* -- built into the host; discovers tools, routes calls, returns results
+* *Server* -- YOUR code; defines tools and connects to external data
 
-* MCP Python SDK v2 API (`MCPServer`, `@mcp.tool()`, `mcp.run()`)
-* Type hints → JSON Schema mapping
-* Transport configuration (stdio vs streamable-http)
-* Containerfile and deployment patterns for OpenShift
-* Error handling and security best practices
+== MCP server lifecycle on OpenShift
 
-== DevSpaces environment
+Deploying an MCP server on OpenShift involves three layers:
 
-Your workspace runs inside OpenShift DevSpaces -- a Kubernetes-native cloud IDE.
-Each participant gets their own namespace (`<username>-devspaces`) with:
+[cols="1,2,3",options="header"]
+|===
+| Layer | Component | What it does
 
-* A VS Code editor in the browser (che-code) -- your primary IDE
-* Terminal access with `oc` CLI pre-authenticated
-* The workshop repository pre-cloned at `/projects/mcp-dev-workshop`
-* Agent Skills pre-loaded in the project structure
-* Python and `pip` available for running MCP servers locally
-* _(Agent mode)_ An AgentSherpa on port 4096 (password-protected)
+| *Deploy*
+| MCP Lifecycle Operator
+| Watches MCPServer CRs, auto-creates Deployment + Service + NetworkPolicy, performs MCP handshake verification
 
-You do no platform configuration. The facilitator has set up the AI serving
-stack, MaaS gateway, API keys, and DevSpaces operator before the workshop.
+| *Discover*
+| AI Hub MCP Catalog
+| Dashboard UI where deployed MCPServer CRs appear for browsing and management
+
+| *Route & Govern*
+| MCP Gateway (RHCL)
+| Single entry point for all MCP servers; federated tool discovery, auth, rate limiting via HTTPRoute + MCPServerRegistration
+|===
+
+=== Layer 1: Deploy (MCPServer CR)
+
+Instead of manually creating Deployments, Services, and security config, you create a single `MCPServer` custom resource:
+
+[source,yaml]
+----
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  name: user1-stock-mcp
+spec:
+  source:
+    type: ContainerImage
+    containerImage:
+      ref: image-registry.../user1-stock-mcp@sha256:...
+  config:
+    port: 8080
+    path: /mcp
+----
+
+The MCP Lifecycle Operator automatically:
+
+* Creates a security-hardened *Deployment* (non-root, drop ALL caps, read-only FS, seccomp)
+* Creates a *Service* (ClusterIP) for internal access
+* Creates a *NetworkPolicy* for network segmentation
+* Performs an *MCP protocol handshake* to verify the server responds correctly
+
+=== Layer 2: Discover (AI Hub)
+
+Deployed MCPServer CRs appear on the OpenShift AI dashboard under *AI Hub -> MCP servers -> Deployments*. Pre-built servers from Red Hat, partners, and the community are also available for one-click deployment.
+
+=== Layer 3: Route & Govern (MCP Gateway)
+
+The MCP Gateway provides a single, governed entry point. You register your server with:
+
+* An *HTTPRoute* -- maps your server's path on the gateway
+* An *MCPServerRegistration* -- tells the gateway your tools and adds a `prefix` to avoid collisions (e.g., `user1_stock_get_price`)
+
+== Inference path
+
+The workshop uses a private LLM served by llm-d + vLLM on the same cluster. The inference path:
+
+----
+OpenCode → MaaS Gateway (API key auth) → llm-d → vLLM (GPU)
+----
+
+MCP tool calls go directly from the OpenCode MCP client to your MCPServer pod -- they do not pass through the LLM inference path.
+
+== Next
+
+Verify your environment: xref:02-prerequisites.adoc[Prerequisites].

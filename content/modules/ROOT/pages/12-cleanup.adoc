@@ -1,0 +1,64 @@
+= Cleanup
+:navtitle: Cleanup
+
+This page documents the manual cleanup procedure. During the workshop, AgentSherpa handles cleanup in Stage 9d. Use this reference if you need to clean up manually.
+
+== Cleanup order
+
+Resources must be removed in reverse dependency order:
+
+[source,bash]
+----
+# 1. Remove MCP server from OpenCode (via UI or config)
+
+# 2. Delete the MCPServerRegistration (deregisters from gateway)
+oc delete mcpserverregistration ${USER_PREFIX}-stock-mcp
+
+# 3. Delete the HTTPRoute (removes gateway path)
+oc delete httproute ${USER_PREFIX}-stock-mcp
+
+# 4. Delete the MCPServer CR
+#    The MCP Lifecycle Operator garbage-collects:
+#    Deployment, Service, NetworkPolicy
+oc delete mcpserver ${USER_PREFIX}-stock-mcp
+
+# 5. Delete the BuildConfig and ImageStream
+oc delete bc/${USER_PREFIX}-stock-mcp
+oc delete is/${USER_PREFIX}-stock-mcp
+----
+
+== Why this order matters
+
+* The MCPServerRegistration references the MCPServer -- remove the registration first so the gateway stops routing to it
+* The MCPServer owns the Deployment and Service -- when the CR is deleted, the operator cleans up automatically
+* The BuildConfig and ImageStream are independent -- safe to remove last
+
+== Verify cleanup
+
+[source,bash]
+----
+oc get mcpserver,mcpserverregistration,httproute,bc,is \
+  -l app.kubernetes.io/name=${USER_PREFIX}-stock-mcp
+----
+
+Expected: no resources found.
+
+== Full namespace cleanup (facilitators)
+
+Facilitators can delete all user namespaces after the workshop:
+
+[source,bash]
+----
+for i in $(seq 1 30); do
+  oc delete namespace user${i}-devspaces --ignore-not-found
+done
+----
+
+Or uninstall the Helm release:
+
+[source,bash]
+----
+helm uninstall mcp-workshop -n mcp-system
+----
+
+This removes all workshop-created namespaces and resources.

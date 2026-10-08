@@ -1,0 +1,180 @@
+= Facilitator Guide
+:navtitle: Facilitator Guide
+
+This guide covers workshop deployment, configuration, and facilitation.
+
+== Prerequisites
+
+Before the workshop, ensure the cluster has:
+
+* *Red Hat OpenShift* 4.17+ with GPU nodes
+* *Red Hat OpenShift AI (RHOAI)* 3.5+ with MCP Lifecycle Operator enabled
+* *Red Hat Connectivity Link (RHCL)* 1.4+ for the MCP Gateway
+* *OpenShift DevSpaces* 3.x for cloud workspaces
+* *NVIDIA GPU Operator* and *Node Feature Discovery* for GPU workloads
+* *LeaderWorkerSet (LWS)* controller for llm-d
+
+== Deployment
+
+The workshop deploys via a single Helm chart.
+
+=== Step 1: Clone the repository
+
+[source,bash]
+----
+git clone https://github.com/rrbanda/mcp-dev-workshop.git
+cd mcp-dev-workshop
+----
+
+=== Step 2: Configure values
+
+Edit `chart/values.yaml` or create a values override file:
+
+[source,yaml]
+----
+# Number of participants
+userCount: 30
+
+# Cluster domain (from oc get ingresses.config cluster)
+clusterDomain: apps.ocp.example.com
+
+# AI serving namespace
+aiNamespace: ai-serving
+
+# MCP system namespace (where the MCP Gateway lives)
+mcpNamespace: mcp-system
+
+# Model for inference
+model: meta-llama/Llama-3.3-70B-Instruct
+----
+
+=== Step 3: Deploy
+
+[source,bash]
+----
+helm upgrade --install mcp-workshop chart/ \
+  -n mcp-system --create-namespace \
+  -f my-values.yaml
+----
+
+This creates:
+
+* Per-user namespaces (`user1-devspaces` through `user30-devspaces`)
+* DevWorkspaces with OpenCode Web pre-configured
+* RBAC for MCPServer CRs, HTTPRoutes, MCPServerRegistrations, BuildConfigs
+* ConfigMaps with AgentSherpa system prompt and 17 skills
+* MCP Gateway for federated tool access
+
+=== Step 4: Verify
+
+[source,bash]
+----
+# Check all workspaces are running
+for i in $(seq 1 30); do
+  oc get dw -n user${i}-devspaces
+done
+
+# Check the MCP Gateway
+oc get gateway mcp-gateway -n mcp-system
+----
+
+== Credentials distribution
+
+Each participant needs:
+
+[cols="1,2",options="header"]
+|===
+| Item | How to get it
+
+| OpenShift console URL
+| `oc whoami --show-console`
+
+| Username / password
+| `user1` / facilitator-set password (HTPasswd)
+
+| OpenCode Web URL
+| `oc get route -n user<N>-devspaces` -- the `opencode-web` route
+
+| AgentSherpa password
+| From the DevWorkspace ConfigMap: `oc get cm opencode-web-config -n user<N>-devspaces -o jsonpath='{.data.OPENCODE_WEB_PASSWORD}'`
+|===
+
+TIP: Prepare a credentials card per participant before the workshop starts.
+
+== Workshop flow
+
+[cols="1,1,2",options="header"]
+|===
+| Stage | Duration | Facilitator notes
+
+| 1. Welcome
+| 5 min
+| Let participants work at their own pace. AgentSherpa handles introductions.
+
+| 2. Intent
+| 3 min
+| Default project is stock market MCP server. Participants can propose alternatives.
+
+| 3. Skills
+| 5 min
+| Good time for a brief spoken overview of what skills are.
+
+| 4. Design
+| 5 min
+| Circulate and check participants are engaging with the tool design.
+
+| 5. Plan
+| 3 min
+| Quick stage -- most approve and move on.
+
+| 6. Build
+| 15 min
+| Longest coding stage. Help with `pip install` or import errors if participants get stuck.
+
+| 7. Deploy
+| 15 min
+| Most complex stage. Common issues: build failures (Dockerfile), MCPServer not ready (port/path mismatch).
+
+| 8. Connect
+| 10 min
+| The "wow moment" -- participants use their tools from AI chat. Encourage experimentation.
+
+| 9. Wrap-up
+| 10 min
+| Quiz, certificate, optional cleanup. Gather feedback.
+|===
+
+*Total:* ~70 minutes (allow 90 with buffer)
+
+== Common issues
+
+[cols="1,2",options="header"]
+|===
+| Issue | Resolution
+
+| Workspace stuck in "Starting"
+| Check DevWorkspace events: `oc describe dw -n user<N>-devspaces`. May need to delete and recreate.
+
+| Build fails with permission error
+| Verify the RBAC Role `mcp-workshop-resources` exists in the user namespace.
+
+| MCPServer stays not-ready
+| Most common: wrong port or path in the MCPServer CR. Check `oc describe mcpserver` for handshake errors.
+
+| LLM not responding
+| Check vLLM pod status in the AI namespace: `oc get pods -n ai-serving -l app=vllm`.
+
+| Gateway registration not accepted
+| Verify the MCPServerRegistration uses `prefix` (not `toolPrefix`) and the `mcpServerRef` namespace is correct.
+|===
+
+== Cleanup
+
+After the workshop, remove all resources:
+
+[source,bash]
+----
+helm uninstall mcp-workshop -n mcp-system
+----
+
+This deletes all user namespaces and workshop resources. The cluster operators and AI serving stack remain intact for the next workshop.

@@ -1,26 +1,21 @@
 * xref:index.adoc[Introduction]
-* xref:01-architecture.adoc[Architecture and Inference Flow]
-* xref:02-prerequisites.adoc[Prerequisites and Environment]
+* xref:01-architecture.adoc[Architecture]
+* xref:02-prerequisites.adoc[Prerequisites]
 
-.Agentic Track (~90 min)
-* xref:a01-launch.adoc[Module 1: Launch Your Workspace]
-* xref:a02-skills.adoc[Module 2: Agent Skills]
-* xref:a03-build.adoc[Module 3: Build with the Agent]
-* xref:a04-test.adoc[Module 4: Test with Your Agent]
-* xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift]
-* xref:a05-use.adoc[Module 6: Close the Feedback Loop]
+.Workshop Stages
+* xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts]
+* xref:04-stage2-intent.adoc[Stage 2: Capture Intent]
+* xref:05-stage3-skills.adoc[Stage 3: Skills & Knowledge]
+* xref:06-stage4-design.adoc[Stage 4: Design]
+* xref:07-stage5-plan.adoc[Stage 5: Plan]
+* xref:08-stage6-build.adoc[Stage 6: Build + Test]
+* xref:09-stage7-deploy.adoc[Stage 7: Deploy]
+* xref:10-stage8-connect.adoc[Stage 8: Connect & Use]
+* xref:11-stage9-wrapup.adoc[Stage 9: Wrap-up]
 
-.Manual Track (~90 min)
-* xref:m01-launch.adoc[Module 1: Launch Your Workspace]
-* xref:m02-patterns.adoc[Module 2: Understand MCP Patterns]
-* xref:m03-build.adoc[Module 3: Build from Reference]
-* xref:m04-test.adoc[Module 4: Test Your Server]
-* xref:07-module-05-deploy.adoc[Module 5: Deploy to OpenShift]
-* xref:m05-use.adoc[Module 6: Call Tools with curl]
-
-.Wrap-up
-* xref:11-cleanup.adoc[Cleanup]
-* xref:12-reference.adoc[Technical Reference]
+.Reference
+* xref:12-cleanup.adoc[Cleanup]
+* xref:13-reference.adoc[Technical Reference]
 
 .Facilitators
-* xref:13-facilitator-guide.adoc[Facilitator Guide]
+* xref:14-facilitator-guide.adoc[Facilitator Guide]

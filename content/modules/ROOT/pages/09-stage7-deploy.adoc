@@ -1,0 +1,175 @@
+= Stage 7: Deploy
+:navtitle: Stage 7: Deploy
+
+*Duration:* ~15 minutes +
+*What happens:* AgentSherpa builds a container image, creates an MCPServer CR, and registers your server with the MCP Gateway.
+
+This is the most technical stage. AgentSherpa explains every command before running it.
+
+== Step 7a: Build the container image
+
+AgentSherpa uses an OpenShift *BuildConfig* with the Source-to-Image (S2I) strategy:
+
+[source,bash]
+----
+oc new-build python:3.11-ubi9~. \
+  --name=${USER_PREFIX}-stock-mcp \
+  --strategy=docker \
+  --binary
+----
+
+Then starts the build:
+
+[source,bash]
+----
+oc start-build ${USER_PREFIX}-stock-mcp --from-dir=. --follow
+----
+
+The build runs inside the cluster -- no local Docker needed. The resulting image lands in the internal *ImageStream*.
+
+== Step 7b: Get the image reference
+
+After the build completes, the agent retrieves the `sha256` image digest:
+
+[source,bash]
+----
+oc get istag ${USER_PREFIX}-stock-mcp:latest \
+  -o jsonpath='{.image.dockerImageReference}'
+----
+
+This digest-pinned reference goes into the MCPServer CR.
+
+== Step 7c: Create the MCPServer CR
+
+This is the key moment -- instead of manually writing Deployments and Services, you create a single custom resource:
+
+[source,yaml]
+----
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  name: ${USER_PREFIX}-stock-mcp
+spec:
+  source:
+    type: ContainerImage
+    containerImage:
+      ref: <image-digest-from-7b>
+  config:
+    port: 8080
+    path: /mcp
+----
+
+The *MCP Lifecycle Operator* automatically creates:
+
+* A *Deployment* with security hardening (non-root, drop ALL caps, read-only filesystem, seccomp)
+* A *Service* (ClusterIP) for internal access
+* A *NetworkPolicy* for network segmentation
+* An *MCP protocol handshake* to verify the server responds
+
+AgentSherpa waits for `Ready=True`:
+
+[source,bash]
+----
+oc get mcpserver ${USER_PREFIX}-stock-mcp
+----
+
+Expected output:
+----
+NAME                   READY   AGE
+user1-stock-mcp        True    30s
+----
+
+== Step 7d: Verify in AI Hub
+
+Once the MCPServer is Ready, it appears in the OpenShift AI dashboard:
+
+*AI Hub → MCP servers → Deployments*
+
+You can browse it, see the tools, and verify its status.
+
+== Step 7e: Create the HTTPRoute
+
+To expose your server through the MCP Gateway, create an HTTPRoute:
+
+[source,yaml]
+----
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ${USER_PREFIX}-stock-mcp
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      namespace: mcp-system
+      kind: Gateway
+  hostnames:
+    - <gateway-hostname>
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp/${USER_PREFIX}-stock
+      backendRefs:
+        - name: ${USER_PREFIX}-stock-mcp
+          port: 8080
+----
+
+The gateway hostname is derived from the cluster route -- AgentSherpa calculates it automatically.
+
+== Step 7f: Register with the MCP Gateway
+
+The MCPServerRegistration tells the gateway about your tools and adds a prefix to avoid name collisions:
+
+[source,yaml]
+----
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: ${USER_PREFIX}-stock-mcp
+spec:
+  prefix: ${USER_PREFIX}_stock
+  mcpServerRef:
+    name: ${USER_PREFIX}-stock-mcp
+    namespace: ${USER_NAMESPACE}
+----
+
+With `prefix: user1_stock`, your tool `get_stock_price` becomes `user1_stock_get_stock_price` on the gateway -- ensuring no collisions with other participants.
+
+== Troubleshooting
+
+[cols="1,2",options="header"]
+|===
+| Issue | Check
+
+| Build fails
+| `oc logs bc/${USER_PREFIX}-stock-mcp` -- look for pip install errors or Dockerfile issues
+
+| MCPServer stays not-ready
+| `oc describe mcpserver ${USER_PREFIX}-stock-mcp` -- check events for handshake failures
+
+| MCP handshake fails
+| Verify your server listens on port 8080 at path `/mcp` and responds to `initialize`
+
+| HTTPRoute not accepted
+| `oc describe httproute ${USER_PREFIX}-stock-mcp` -- check parentRef matches the gateway
+|===
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| MCPServer CR deployed and Ready
+| 15
+
+| MCP Gateway registration complete
+| 10
+
+| Interactive challenge (post-deploy)
+| 5
+|===
+
+== Next
+
+xref:10-stage8-connect.adoc[Stage 8: Connect & Use]

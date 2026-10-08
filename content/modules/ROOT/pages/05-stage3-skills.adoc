@@ -1,0 +1,67 @@
+= Stage 3: Skills & Knowledge
+:navtitle: Stage 3: Skills & Knowledge
+
+*Duration:* ~5 minutes +
+*What happens:* AgentSherpa loads its domain skills and explains each one so you know what expertise it brings.
+
+== What are agent skills?
+
+Skills are structured knowledge files that give the AI agent domain expertise. Without skills, the agent only has general knowledge. With skills, it knows:
+
+* How to build MCP servers with the Python SDK v2
+* How to deploy using MCPServer CRs on OpenShift
+* How to register with the MCP Gateway
+* How to troubleshoot common issues
+* How to score your progress and generate certificates
+
+== The 17 skills
+
+AgentSherpa has 17 pre-loaded skills organized by domain:
+
+[cols="1,2",options="header"]
+|===
+| Category | Skills
+
+| *Workshop flow*
+| workshop-guide, voice-and-pacing, presentation-mode
+
+| *Build*
+| build-mcp-server, mcp-concepts
+
+| *Deploy & operate*
+| build-deploy-openshift, use-mcp-tools, troubleshooting-coach, workshop-cleanup
+
+| *Assessment*
+| knowledge-check, workshop-scoring, interactive-challenge, achievement-system, workshop-certificate
+
+| *Reference*
+| redhat-mcp-resources
+|===
+
+== What AgentSherpa does
+
+. Lists all loaded skills with one-line summaries
+. Explains key skills in more detail based on your experience level
+. Asks if you have questions before moving on
+
+== Why skills matter
+
+Skills are the difference between a generic chatbot and a domain expert. They encode:
+
+* *Correct patterns* -- e.g., MCPServerRegistration uses `prefix`, not `toolPrefix`
+* *Best practices* -- e.g., always wait for MCPServer Ready=True before registering
+* *Error recovery* -- e.g., if the build fails, check `oc logs bc/<name>`
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| Review skills
+| 5
+|===
+
+== Next
+
+xref:06-stage4-design.adoc[Stage 4: Design]

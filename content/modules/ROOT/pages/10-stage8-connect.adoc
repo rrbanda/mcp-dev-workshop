@@ -1,0 +1,69 @@
+= Stage 8: Connect & Use
+:navtitle: Stage 8: Connect & Use
+
+*Duration:* ~10 minutes +
+*What happens:* You connect your deployed MCP server to OpenCode and use your tools with real queries.
+
+== Step 8a: Verify the gateway registration
+
+Before connecting, AgentSherpa verifies that:
+
+. The MCPServerRegistration is accepted
+. The HTTPRoute is attached to the gateway
+. Tools are discoverable through the gateway's federated `tools/list`
+
+[source,bash]
+----
+oc get mcpserverregistration ${USER_PREFIX}-stock-mcp
+oc get httproute ${USER_PREFIX}-stock-mcp
+----
+
+Both should show accepted/attached status.
+
+== Step 8b: Add the MCP server to OpenCode
+
+AgentSherpa adds the MCP server connection to OpenCode's configuration. The server URL is:
+
+----
+https://<gateway-hostname>/mcp/${USER_PREFIX}-stock/mcp
+----
+
+OpenCode's MCP client connects, performs a `tools/list` call, and your tools appear in the sidebar.
+
+== Step 8c: Test with real queries
+
+Now the magic -- use your tools through natural language:
+
+* _"What's the current price of AAPL?"_ → `get_stock_price`
+* _"Compare MSFT, GOOGL, and AMZN"_ → `get_stock_comparison`
+* _"Show me TSLA news"_ → `get_stock_news`
+* _"What do analysts think about NVDA?"_ → `get_analyst_recommendations`
+
+Watch how the LLM decides *which tool to call* based on your question and the tool descriptions you wrote.
+
+== Step 8d: The feedback loop
+
+After testing, AgentSherpa asks:
+
+* Did the tools return the expected data?
+* Were the tool descriptions clear enough for the LLM to pick the right one?
+* Would you change any tool names or parameters?
+
+This is the *feedback* phase of the agentic SDLC -- the loop that connects "use" back to "design."
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| Tools verified via gateway
+| 5
+
+| Successfully used tools in AI chat
+| 10
+|===
+
+== Next
+
+xref:11-stage9-wrapup.adoc[Stage 9: Wrap-up]

@@ -1,205 +1,74 @@
-= Prerequisites and Environment
-:navtitle: Prerequisites and Environment
-
-Everything is pre-configured. This page tells you what you need and how to
-get into your workspace — step by step, with no hunting.
+= Prerequisites
+:navtitle: Prerequisites
 
 == What you need
 
-[cols="1,2",options="header"]
-|===
-| Item | Details
+* A web browser (Chrome, Firefox, or Edge)
+* Workshop credentials from your facilitator: *OpenShift console URL*, *username*, *password*, and *AgentSherpa password*
 
-| *Web browser*
-| Chrome, Firefox, or Edge. Safari works but may have minor layout differences.
+No local tools, no IDE installation, no Docker or Podman.
 
-| *Credentials card*
-| Provided by the facilitator at the start of class. It contains everything
-  you need -- no memorizing URLs.
+== Step 1: Open OpenCode Web
 
-| *No local tooling*
-| You do not need `oc`, Python, Docker, or any CLI on your laptop. Everything
-  runs inside the cloud workspace.
-|===
+Your facilitator will provide a direct URL to your OpenCode Web workspace, for example:
 
-== What is on your credentials card
+----
+https://user1-code-workspace-1-opencode-web.apps.<cluster-domain>
+----
 
-Your facilitator will hand you a card (or shared doc) with these fields:
+Open this URL in your browser. Log in with:
 
-[cols="1,2",options="header"]
-|===
-| Field | What it is
+* *Username:* `opencode`
+* *Password:* the AgentSherpa password from your credentials card
 
-| *OpenShift Console URL*
-| The cluster web console -- you log in here first.
+== Step 2: Verify the workspace
 
-| *Username*
-| Your personal login (e.g. `user1`).
+Once OpenCode loads, you should see:
 
-| *Password*
-| Your login password.
+* A chat interface with an input box at the bottom
+* A sidebar showing sessions and tools
 
-| *AgentSherpa Password*
-| A separate password for the AgentSherpa chat (agent mode only).
-|===
+Type anything (e.g., "hello") and press Enter. AgentSherpa should respond with its welcome message and present four options via clickable buttons.
 
-NOTE: The facilitator may include additional fields depending on the cluster.
-If anything is missing, ask before proceeding.
+If you see the welcome message, your workspace is ready.
 
-== What you get inside your workspace
+== Step 3: Verify cluster connectivity
 
-When you start your workspace, you get a *full VS Code editor in the browser*
-powered by Red Hat OpenShift DevSpaces. This is your IDE for the entire
-workshop. Here is what runs inside it:
+Open the terminal in OpenCode (or use the bash tool in chat) and run:
 
-[cols="1,2",options="header"]
-|===
-| Component | What it does
-
-| *VS Code (che-code)*
-| A browser-based VS Code editor with file tree, syntax highlighting, and
-  integrated terminal. This is what DevSpaces provides. Both tracks use this.
-
-| *Terminal*
-| Inside VS Code, you open terminals that have `oc`, `python`, `pip`, `curl`,
-  and `make` pre-installed. You are already logged in as your user.
-
-| *AgentSherpa* _(agent mode only)_
-| An AI chat interface on port 4096 that runs alongside VS Code in the same
-  workspace. It talks to the LLM through the MaaS gateway. Manual mode
-  participants can ignore this.
-
-| */projects/mcp-dev-workshop*
-| The workshop repository, pre-cloned with skills, scaffold files, Makefile,
-  and reference solutions.
-|===
-
-[IMPORTANT]
-====
-*DevSpaces is not OpenCode.* DevSpaces provides the cloud IDE (VS Code in the
-browser + terminal + container). OpenCode is a separate AI coding agent that
-runs as an additional process inside the same workspace. Both tracks use the
-DevSpaces VS Code editor and terminal. Only agent mode also uses the OpenCode
-chat UI.
-====
-
-== Step-by-step: get into your workspace
-
-Follow these steps exactly. Do not skip ahead.
-
-=== Step 1: Log in to OpenShift
-
-Open the *OpenShift Console URL* from your credentials card in your browser.
-
-. Click *Log in* (or the identity provider your facilitator specified).
-. Enter your *Username* and *Password* from the credentials card.
-. You should see the OpenShift web console. You do not need to do anything
-  here -- this login also authenticates you for DevSpaces.
-
-=== Step 2: Open the DevSpaces dashboard
-
-From the OpenShift web console:
-
-. Click the *application launcher* icon (grid icon, top-right corner).
-. Select *Red Hat OpenShift Dev Spaces*.
-. The DevSpaces dashboard opens in a new tab.
-
-Expected result: You see the DevSpaces dashboard with your workspace listed.
-
-[TIP]
-====
-If the application launcher does not show DevSpaces, ask your facilitator for
-the direct DevSpaces URL.
-====
-
-=== Step 3: Start your workspace
-
-. In the DevSpaces dashboard, find your workspace (named after your user).
-. If it shows *Stopped*, click the *Start* button (play icon).
-. Wait for the status to change to *Running* -- this takes 1-2 minutes on
-  first launch.
-. Once running, click the workspace name to open it.
-
-Expected result: *A VS Code editor opens in your browser.* This is your IDE.
-You should see a file tree on the left with `/projects/mcp-dev-workshop`.
-
-=== Step 4: Open a terminal
-
-Inside the VS Code editor:
-
-. Go to *Terminal* menu -> *New Terminal* (or press `Ctrl+{backtick}`).
-. A terminal panel appears at the bottom of the editor.
-
-Verify you are logged in:
-
-[source,bash,role="execute"]
+[source,bash]
 ----
 oc whoami
 ----
 
-Expected result: Your username (e.g. `user1`).
+Expected: your service account name (e.g., `system:serviceaccount:user1-devspaces:...`).
 
-[source,bash,role="execute"]
+[source,bash]
 ----
-oc project
-----
-
-Expected result: Your namespace (e.g. `user1-devspaces`).
-
-=== Step 5: Verify the workshop files
-
-[source,bash,role="execute"]
-----
-ls /projects/mcp-dev-workshop/
+echo $OPENAI_BASE_URL
 ----
 
-Expected result: You see directories like `scaffold/`, `solutions/`, `content/`,
-`Makefile`, and `.opencode/`.
+Expected: the MaaS gateway URL for the LLM.
 
-[source,bash,role="execute"]
-----
-ls /projects/mcp-dev-workshop/.opencode/skills/
-----
+== Troubleshooting
 
-Expected result: You see `build-mcp-server/`, `yfinance-api/`, and
-`stock-market-mcp-spec/` -- the three skills used in the workshop.
+[cols="1,2",options="header"]
+|===
+| Issue | Resolution
 
-=== Step 6: Verify the LLM connection
+| Blank screen after login
+| Clear browser cache and reload. If the workspace is stopped, ask the facilitator to start it.
 
-*Agentic track:* Open the AgentSherpa. In the VS Code editor, look at the
-*Ports* tab, find the endpoint labeled *opencode-web* on port *4096*, and click
-the link to open it in a new browser tab. Enter the *AgentSherpa Password* from
-your credentials card. In the AgentSherpa chat, type "Hello, what model are you?"
-and verify the model responds.
+| "401 Unauthorized" on login
+| Double-check the AgentSherpa password from your credentials card. Username is always `opencode`.
 
-*Manual track:* In the VS Code terminal, test the model endpoint with `curl`:
+| `oc whoami` fails
+| The workspace service account token is injected automatically. If missing, the workspace may need a restart.
 
-[source,bash,role="execute"]
-----
-curl -s "$OPENAI_BASE_URL/chat/completions" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"'"$VLLM_MODEL_ID"'","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":50}' | python3 -m json.tool | grep -A2 '"content"'
-----
-
-Expected result: A JSON response with the model's reply.
-
-[IMPORTANT]
-====
-If any step fails, *stop and ask the facilitator*. Do not proceed with a
-broken workspace or model connection. Every module depends on these working.
-====
+| No response from AgentSherpa
+| Check that `OPENAI_BASE_URL` is set. The LLM may still be loading -- wait 1-2 minutes and try again.
+|===
 
 == Ready?
 
-You have a working workspace with:
-
-* [x] VS Code editor in the browser
-* [x] Terminal with `oc` authenticated
-* [x] Workshop files at `/projects/mcp-dev-workshop`
-* [x] LLM responding to prompts
-
-Pick your track from the left navigation:
-
-* *Agentic Track* -- start with xref:a01-launch.adoc[Module 1: Launch Your Workspace]
-* *Manual Track* -- start with xref:m01-launch.adoc[Module 1: Launch Your Workspace]
+Proceed to xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts].

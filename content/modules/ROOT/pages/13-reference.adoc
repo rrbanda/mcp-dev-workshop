@@ -1,0 +1,214 @@
+= Technical Reference
+:navtitle: Technical Reference
+
+== MCP protocol
+
+* *Specification:* https://modelcontextprotocol.io/specification
+* *Python SDK:* https://github.com/modelcontextprotocol/python-sdk (`mcp[cli]` v1.9+)
+* *Transport:* Streamable HTTP (HTTP + SSE) -- replaces the older stdio transport for remote servers
+
+=== Key protocol methods
+
+[cols="1,2",options="header"]
+|===
+| Method | Description
+
+| `initialize`
+| Client → Server handshake, exchanges capabilities
+
+| `tools/list`
+| Client discovers available tools (names, descriptions, parameters)
+
+| `tools/call`
+| Client invokes a tool by name with JSON arguments
+
+| `resources/list`
+| Client discovers available data resources (optional)
+
+| `prompts/list`
+| Client discovers prompt templates (optional)
+|===
+
+== MCPServer CR reference
+
+[source,yaml]
+----
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  name: <user-prefix>-stock-mcp
+spec:
+  source:
+    type: ContainerImage
+    containerImage:
+      ref: <image-registry-url>@sha256:<digest>
+  config:
+    port: 8080
+    path: /mcp
+----
+
+=== Status conditions
+
+[cols="1,2",options="header"]
+|===
+| Condition | Meaning
+
+| `Ready=True`
+| Deployment running, handshake successful, service reachable
+
+| `Ready=False` / DeploymentUnavailable
+| Pods not ready -- check events and pod logs
+
+| `Ready=False` / HandshakeFailed
+| Server did not respond to MCP `initialize` -- check port, path, and server startup
+|===
+
+=== What the operator creates
+
+When you apply an MCPServer CR, the MCP Lifecycle Operator creates:
+
+* *Deployment* -- security-hardened (non-root UID, drop ALL capabilities, read-only root filesystem, seccomp RuntimeDefault)
+* *Service* -- ClusterIP targeting the configured port
+* *NetworkPolicy* -- restricts ingress to the service port
+
+All owned resources are garbage-collected when the MCPServer CR is deleted.
+
+== MCP Gateway (RHCL) reference
+
+=== HTTPRoute
+
+[source,yaml]
+----
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: <user-prefix>-stock-mcp
+spec:
+  parentRefs:
+    - name: mcp-gateway
+      namespace: mcp-system
+      kind: Gateway
+  hostnames:
+    - <gateway-hostname>
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /mcp/<user-prefix>-stock
+      backendRefs:
+        - name: <user-prefix>-stock-mcp
+          port: 8080
+----
+
+=== MCPServerRegistration
+
+[source,yaml]
+----
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: <user-prefix>-stock-mcp
+spec:
+  prefix: <user-prefix>_stock    # <-- field is 'prefix', NOT 'toolPrefix'
+  mcpServerRef:
+    name: <user-prefix>-stock-mcp
+    namespace: <user-namespace>
+----
+
+IMPORTANT: The field is `prefix`, not `toolPrefix`. Using `toolPrefix` is silently pruned and has no effect.
+
+=== Gateway class
+
+The MCP Gateway uses `data-science-gateway-class` (Istio-backed), part of RHCL (Red Hat Connectivity Link) 1.4+.
+
+== Python SDK v2 patterns
+
+=== Server setup
+
+[source,python]
+----
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP(
+    "stock-market-mcp",
+    host="0.0.0.0",
+    port=8080,
+    path="/mcp",
+)
+----
+
+=== Tool definition
+
+[source,python]
+----
+@mcp.tool()
+def get_stock_price(ticker: str) -> dict:
+    """Get the current stock price for a given ticker symbol.
+
+    Args:
+        ticker: Stock ticker symbol (e.g., AAPL, MSFT, GOOGL)
+
+    Returns:
+        Dictionary with price, change, percent change, and volume.
+    """
+    import yfinance as yf
+    stock = yf.Ticker(ticker)
+    info = stock.info
+    return {
+        "ticker": ticker.upper(),
+        "price": info.get("currentPrice"),
+        "change": info.get("regularMarketChange"),
+        "percent_change": info.get("regularMarketChangePercent"),
+        "volume": info.get("volume"),
+    }
+----
+
+Key patterns:
+
+* Type hints on all parameters -- the SDK uses them to generate JSON Schema
+* Docstring is the tool description the LLM reads
+* Return a dict (not a string) for structured data
+* Handle errors gracefully (try/except around API calls)
+
+=== Running the server
+
+[source,python]
+----
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+----
+
+== Useful `oc` commands
+
+[source,bash]
+----
+# Check MCPServer status
+oc get mcpserver
+
+# Describe for events and conditions
+oc describe mcpserver <name>
+
+# Check build logs
+oc logs bc/<name>
+
+# Check server pod logs
+oc logs deployment/<name>
+
+# Check MCP Gateway registration
+oc get mcpserverregistration
+
+# Check HTTPRoute attachment
+oc describe httproute <name>
+
+# Quick MCP health check (from within the cluster)
+curl -s http://<service-name>:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}},"id":1}'
+----
+
+== External references
+
+* https://modelcontextprotocol.io/[MCP specification]
+* https://github.com/modelcontextprotocol/python-sdk[MCP Python SDK]
+* https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.19[Red Hat OpenShift AI documentation]
+* https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.0[Red Hat Connectivity Link documentation]

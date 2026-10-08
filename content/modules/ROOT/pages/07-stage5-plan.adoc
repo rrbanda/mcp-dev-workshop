@@ -1,0 +1,39 @@
+= Stage 5: Plan
+:navtitle: Stage 5: Plan
+
+*Duration:* ~3 minutes +
+*What happens:* AgentSherpa presents its build plan so you can review and approve before any code is generated.
+
+== The build plan
+
+After you approve the design, AgentSherpa creates a step-by-step plan:
+
+. *Create the project structure* -- `server.py`, `requirements.txt`, `Dockerfile`
+. *Implement tools* -- one function per tool with type hints and docstrings
+. *Add error handling* -- graceful failures for invalid tickers and API timeouts
+. *Test each tool* -- live calls against the Yahoo Finance API
+. *Verify the full server* -- start the server, list tools, invoke one
+
+The agent explains each step before executing it. You can ask questions, suggest changes, or approve the plan.
+
+== Why plan before build?
+
+In agentic development, the *plan* is your last checkpoint before code generation begins. It ensures:
+
+* You and the agent agree on the approach
+* No unnecessary tools are built
+* The agent has a clear sequence to follow (reducing hallucination)
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| Approve build plan
+| 5
+|===
+
+== Next
+
+xref:08-stage6-build.adoc[Stage 6: Build + Test]

@@ -1,0 +1,69 @@
+= Stage 4: Design
+:navtitle: Stage 4: Design
+
+*Duration:* ~5 minutes +
+*What happens:* AgentSherpa proposes a tool design for your MCP server and asks you to approve it.
+
+== Design process
+
+Based on your stated intent (Stage 2), AgentSherpa presents:
+
+. A list of proposed *tools* with names, descriptions, and parameters
+. The *data source* and how each tool will access it
+. The *transport* (Streamable HTTP on port 8080, path `/mcp`)
+
+For the stock market server, the default design includes 9 tools:
+
+[cols="1,2",options="header"]
+|===
+| Tool | Purpose
+
+| `get_stock_price`
+| Current price, change, volume for a ticker
+
+| `get_stock_history`
+| Historical prices over a configurable period
+
+| `get_company_info`
+| Company profile (sector, employees, description)
+
+| `get_market_summary`
+| Major index performance (S&P 500, DJIA, NASDAQ)
+
+| `get_stock_comparison`
+| Side-by-side comparison of multiple tickers
+
+| `get_dividend_info`
+| Dividend yield, rate, payout ratio, ex-date
+
+| `get_stock_news`
+| Recent news headlines for a ticker
+
+| `get_analyst_recommendations`
+| Analyst consensus (buy/hold/sell counts)
+
+| `get_earnings_info`
+| Recent and upcoming earnings data
+|===
+
+== Your role
+
+* *Review* the tool list -- do you want all 9, or fewer?
+* *Suggest changes* -- rename tools, add parameters, remove tools
+* *Approve* the design before the agent starts building
+
+AgentSherpa will not write any code until you approve.
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| Approve tool design
+| 10
+|===
+
+== Next
+
+xref:07-stage5-plan.adoc[Stage 5: Plan]

@@ -1,0 +1,40 @@
+= Stage 2: Capture Intent
+:navtitle: Stage 2: Capture Intent
+
+*Duration:* ~3 minutes +
+*What happens:* You tell AgentSherpa what you want to build. The agent confirms its understanding before doing anything.
+
+== How it works
+
+AgentSherpa asks: _"What kind of MCP server do you want to build?"_
+
+You describe your idea in plain language. The default workshop project is a *stock market MCP server* that fetches live data from the Yahoo Finance API, but you can describe your own idea.
+
+AgentSherpa then *mirrors back* what it heard:
+
+* The server's purpose
+* The data source
+* The type of tools it will expose
+* Who will use it
+
+The agent asks you to confirm or correct before proceeding.
+
+== Why this matters
+
+In the agentic SDLC, *intent capture* replaces traditional requirements gathering. Instead of writing a spec document, you describe what you want in conversation. The AI agent confirms understanding and uses this intent as the foundation for every later stage.
+
+This is the "contract" between you and the agent -- it will reference your stated intent throughout the build.
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| Confirm project intent
+| 5
+|===
+
+== Next
+
+xref:05-stage3-skills.adoc[Stage 3: Skills & Knowledge]

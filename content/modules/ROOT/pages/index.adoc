@@ -1,152 +1,91 @@
-= Build and Deploy MCP Servers on Red Hat OpenShift AI
+= MCP Developer Workshop
 :navtitle: Introduction
 
-From idea to deployed MCP server -- on Red Hat OpenShift AI.
+Build, test, and deploy an MCP server on OpenShift -- guided by an AI agent.
 
-This hands-on workshop teaches developers to create, test, and deploy
-https://modelcontextprotocol.io/[Model Context Protocol (MCP)] servers
-inside a cloud workspace on OpenShift. Everything runs on a pre-configured
-cluster with Red Hat OpenShift AI -- participants do no platform setup.
-You log in, open your workspace, and start building.
+== What you will do
+
+In this hands-on workshop, you build a real stock market MCP server with 9 tools, deploy it using the full MCP Lifecycle on OpenShift, and use it from an AI chat -- all guided by *AgentSherpa*, your personal AI workshop facilitator.
+
+Everything runs inside a cloud workspace on a pre-configured OpenShift cluster. No local tooling required. You open a browser and start building.
+
+== The AI-native software development lifecycle
+
+This workshop demonstrates a new way of building software. Each stage maps to a phase of the *agentic SDLC*:
+
+[cols="1,2,3",options="header"]
+|===
+| Stage | SDLC Phase | What happens
+
+| 1. Welcome & Concepts
+| --
+| Meet AgentSherpa, learn MCP fundamentals
+
+| 2. Capture Intent
+| Intent
+| Describe what you want to build, agent confirms
+
+| 3. Skills & Knowledge
+| Knowledge
+| Agent loads domain skills, explains each one
+
+| 4. Design
+| Design
+| Pick tools, confirm the server design
+
+| 5. Plan
+| Plan
+| Review the build plan before any code is written
+
+| 6. Build + Test
+| Build
+| Agent generates code, tests each tool with real data
+
+| 7. Deploy
+| Deploy + Govern
+| Build image -> MCPServer CR -> AI Hub -> MCP Gateway
+
+| 8. Connect & Use
+| Feedback
+| Use your tools from AI chat, close the loop
+
+| 9. Wrap-up
+| --
+| Score, certificate, final quiz, cleanup
+|===
 
 == Your environment
 
-Each participant gets a personal cloud workspace powered by
-*Red Hat OpenShift DevSpaces*. Inside that workspace you have:
+Each participant gets a personal cloud workspace powered by *Red Hat OpenShift DevSpaces*. Inside that workspace you have:
 
-* A *VS Code editor in the browser* -- file tree, syntax highlighting,
-  integrated terminal. This is your IDE for the entire workshop.
-* A *terminal* with `oc`, `python`, `pip`, `curl`, and `make` pre-installed
-  and pre-authenticated.
+* *OpenCode Web* -- an AI-native IDE with AgentSherpa pre-configured
+* A *terminal* with `oc`, `python`, `pip`, and `curl` pre-installed and pre-authenticated
+* *17 Agent Skills* that give AgentSherpa domain knowledge about MCP, yfinance, and OpenShift deployment
 
-All you need is a web browser and the credentials card your facilitator
-provides. No local tooling required.
+All you need is a web browser and the credentials your facilitator provides.
 
-== Choose your track
+== How the workshop works
 
-The workshop has *two separate tracks*. Pick one and follow it from start
-to finish. Both produce the same outcome: a working stock market MCP server
-deployed on OpenShift with 9 tools, reachable over streamable-http.
+You interact with *AgentSherpa* in OpenCode's chat. The agent:
 
-=== Agentic Track (~90 min)
+* Explains concepts before running commands (with analogies when helpful)
+* Generates code and tests it with real stock data
+* Deploys using MCPServer CRs (not manual Deployments)
+* Asks for your input at every step -- you approve designs, plans, and actions
+* Scores your progress (100 points) and generates a certificate at the end
 
-You use the *AgentSherpa* alongside the VS Code editor.
-AgentSherpa has pre-loaded *Agent Skills* that teach it MCP Python SDK v2
-patterns, the yfinance library API, and the exact specification for a stock
-market data server. You describe what tools you want; the agent generates
-well-structured, deployable code. You review, customize, and deploy.
-
-_Best for: developers who want to experience AI-assisted development and
-learn how Agent Skills work._
-
-=== Manual Track (~90 min)
-
-You use the *VS Code editor and terminal* for everything. You read the
-reference MCP server code, understand the SDK v2 patterns yourself, edit the
-scaffold files, and run `oc` and `curl` commands to build, deploy, and test.
-The same Makefile, the same Containerfile, the same deployment.yaml -- you
-drive everything from the editor and terminal.
-
-_Best for: developers who prefer to understand every line before running it,
-or environments where the LLM is not available._
+The agent guides the pace. If you know MCP well, it moves faster. If you are new, it slows down and explains more.
 
 == Learning objectives
 
 By the end of the workshop you will be able to:
 
-* Explain how MCP separates tool definitions from agent reasoning.
-* Build an MCP server using the Python SDK v2 with proper tool definitions,
-  type hints, and transport configuration.
-* _(Agentic track)_ Explain how Agent Skills extend an AI coding agent's knowledge.
-* Test an MCP server locally using stdio transport.
-* Build a container image and deploy the server to OpenShift with `oc apply`.
-* Wire a client (AI agent or `curl`) to a deployed remote MCP server and
-  call tools.
-
-== How to use this guide
-
-The left navigation has two track sections -- *Agentic Track* and *Manual Track*.
-Pick one and follow the modules in order. Both tracks share the same
-Prerequisites, Architecture, Deploy, and Cleanup pages.
-
-Each exercise identifies the action to take, the evidence to inspect, and the
-result that must be verified. *Do not treat command completion as proof.* Compare
-the observed output with the stated pass condition before continuing.
-
-Facilitators provisioning environments ahead of class: see
-xref:13-facilitator-guide.adoc[Facilitator Guide].
-
-== Workshop map
-
-.Agentic Track (~90 minutes)
-[cols="1,3,1",options="header"]
-|===
-| Module | Outcome | Time
-
-| 1. Launch Your Workspace
-| Open AgentSherpa, explore project, discover agent skills.
-| 10 min
-
-| 2. Agent Skills
-| Understand lazy loading, skill discovery, three knowledge layers.
-| 10 min
-
-| 3. Build with the Agent
-| Tell the agent to build a stock market MCP server; it generates 4 files.
-| 20 min
-
-| 4. Test with Your Agent
-| Install deps, wire AgentSherpa to local server via stdio, call tools.
-| 15 min
-
-| 5. Deploy to OpenShift
-| Build container image, `oc apply`, verify pod running.
-| 20 min
-
-| 6. Close the Feedback Loop
-| Wire the agent to the deployed server. Agent uses what it built.
-| 15 min
-|===
-
-.Manual Track (~90 minutes)
-[cols="1,3,1",options="header"]
-|===
-| Module | Outcome | Time
-
-| 1. Launch Your Workspace
-| Explore VS Code IDE and terminal, read a skill file, check Makefile.
-| 10 min
-
-| 2. Understand MCP Patterns
-| Read SDK patterns from skill files, understand the three knowledge layers.
-| 10 min
-
-| 3. Build from Reference
-| Copy reference server, review code patterns, add a custom tool.
-| 20 min
-
-| 4. Test Your Server
-| Install deps, inspect tools via Python, call tools directly.
-| 15 min
-
-| 5. Deploy to OpenShift
-| Build container image, `oc apply`, verify pod running.
-| 20 min
-
-| 6. Call Tools with curl
-| Use JSON-RPC to initialize, list tools, and call tools via curl.
-| 15 min
-|===
-
-== Technical model
-
-MCP separates *what a client can do* (tools exposed by servers) from *how the
-agent reasons* (the LLM). The MCP server is a standalone process -- a container
-on OpenShift -- that exposes tools over a standard JSON-RPC protocol. Any client
-(an AI agent or a `curl` command) can discover tools at connection time and call
-them by name with typed arguments.
+* Explain how MCP separates tool definitions from agent reasoning
+* Build an MCP server using the Python SDK v2 with proper tool definitions and type hints
+* Deploy an MCP server using the MCPServer CR and the MCP Lifecycle Operator
+* Register a server with the MCP Gateway for federated tool discovery
+* Use deployed MCP tools from an AI chat session
 
 == Start here
 
-Read xref:01-architecture.adoc[Architecture and Inference Flow], then verify
-your environment in xref:02-prerequisites.adoc[Prerequisites and Environment].
+Read xref:01-architecture.adoc[Architecture] to understand the MCP Lifecycle, then verify your environment in xref:02-prerequisites.adoc[Prerequisites].

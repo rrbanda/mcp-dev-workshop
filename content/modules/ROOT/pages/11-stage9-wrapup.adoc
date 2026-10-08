@@ -1,0 +1,87 @@
+= Stage 9: Wrap-up
+:navtitle: Stage 9: Wrap-up
+
+*Duration:* ~10 minutes +
+*What happens:* Final quiz, score review, certificate, and optional cleanup.
+
+== Step 9a: Score review
+
+AgentSherpa presents your progress score across all stages:
+
+[cols="1,1,1",options="header"]
+|===
+| Stage | Max Points | What was scored
+
+| 1. Welcome
+| 5
+| Complete welcome conversation
+
+| 2. Intent
+| 5
+| Confirm project intent
+
+| 3. Skills
+| 5
+| Review skills
+
+| 4. Design
+| 10
+| Approve tool design
+
+| 5. Plan
+| 5
+| Approve build plan
+
+| 6. Build
+| 25
+| All tools tested (20) + challenge (5)
+
+| 7. Deploy
+| 30
+| MCPServer Ready (15) + Gateway registered (10) + challenge (5)
+
+| 8. Connect
+| 15
+| Gateway verified (5) + Tools used in chat (10)
+
+| *Total*
+| *100*
+|
+|===
+
+== Step 9b: Knowledge check
+
+AgentSherpa presents the final quiz with 8 questions covering:
+
+* *Concepts (Q1-Q2):* MCP protocol fundamentals, lifecycle layers
+* *Build & Design (Q3-Q6):* Tool definitions, error handling, SDK patterns
+* *Deploy & Govern (Q7-Q8):* MCPServer CR, MCP Gateway registration
+
+You need *5 out of 8 correct* to pass. The agent explains incorrect answers.
+
+== Step 9c: Certificate
+
+If you pass the quiz, AgentSherpa generates a personalized workshop certificate showing:
+
+* Your name
+* Workshop title: "MCP Developer Workshop on OpenShift"
+* Date of completion
+* Final score
+
+== Step 9d: Cleanup (optional)
+
+AgentSherpa offers to clean up your deployed resources. Cleanup removes:
+
+. MCP server connection from OpenCode
+. MCPServerRegistration (gateway deregistration)
+. HTTPRoute
+. MCPServer CR (operator garbage-collects the Deployment, Service, NetworkPolicy)
+. BuildConfig and ImageStream
+
+The cleanup is optional -- your facilitator may clean up all namespaces after the workshop.
+
+See xref:12-cleanup.adoc[Cleanup] for the detailed cleanup procedure.
+
+== Next
+
+xref:12-cleanup.adoc[Cleanup] (manual reference) or xref:13-reference.adoc[Technical Reference] for deeper reading.

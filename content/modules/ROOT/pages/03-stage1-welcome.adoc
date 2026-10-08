@@ -1,0 +1,62 @@
+= Stage 1: Welcome & Concepts
+:navtitle: Stage 1: Welcome & Concepts
+
+*Duration:* ~5 minutes +
+*What happens:* AgentSherpa introduces itself, learns your name and experience level, and teaches the fundamentals of MCP.
+
+== How it starts
+
+When you type your first message, AgentSherpa:
+
+. Introduces itself with your name and the workshop overview
+. Asks about your experience level (beginner / intermediate / advanced) using clickable options
+. Adapts all future explanations to your level
+
+== What AgentSherpa teaches
+
+=== MCP fundamentals
+
+AgentSherpa explains MCP using a *concept card*:
+
+* MCP is an *open protocol* for connecting AI agents to tools -- like a USB standard for AI
+* *Three roles:* Host (the AI app), Client (built into the host), Server (your code)
+* *Tool definitions* include names, descriptions, and typed parameters so the LLM can decide when to use them
+* The protocol uses *JSON-RPC 2.0* over HTTP with SSE (Streamable HTTP transport)
+
+=== The three lifecycle layers
+
+If you are at beginner or intermediate level, the agent explains the OpenShift MCP lifecycle:
+
+[cols="1,2",options="header"]
+|===
+| Layer | Analogy
+
+| *Deploy* (MCPServer CR)
+| Like a "shipping manifest" -- you declare what you want, the operator builds and runs it
+
+| *Discover* (AI Hub)
+| Like an "app store" -- deployed servers appear for browsing
+
+| *Route & Govern* (MCP Gateway)
+| Like a "switchboard" -- one entry point, many servers, with auth and policies
+|===
+
+== Points
+
+[cols="1,1",options="header"]
+|===
+| Action | Points
+
+| Complete welcome conversation
+| 5
+|===
+
+== What to expect
+
+* AgentSherpa will *explain before executing* any command -- you always know why before it does something
+* You will be asked to confirm before moving to the next stage
+* If anything is unclear, just ask -- the agent adapts
+
+== Next
+
+xref:04-stage2-intent.adoc[Stage 2: Capture Intent]
