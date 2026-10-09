@@ -19,8 +19,8 @@ export USER_PREFIX=user1                          # your username
 export USER_NAMESPACE=$(oc project -q)            # your namespace
 export IMAGE_REF=$(oc get istag ${USER_PREFIX}-stock-mcp:latest \
   -o jsonpath='{.image.dockerImageReference}')    # image digest
-export GATEWAY_HOSTNAME=$(oc get route -n mcp-system \
-  -o jsonpath='{.items[0].spec.host}')            # gateway hostname
+export GATEWAY_HOSTNAME=$(oc get gateway mcp-gateway -n mcp-system \
+  -o jsonpath='{.spec.listeners[0].hostname}')            # gateway hostname
 ```
 
 ## Apply in order
@@ -35,7 +35,7 @@ oc get mcpserver ${USER_PREFIX}-stock-mcp -w
 sed "s|USER_PREFIX|$USER_PREFIX|g; s|GATEWAY_HOSTNAME|$GATEWAY_HOSTNAME|g" \
   deploy/02-httproute.yaml | oc apply -f -
 
-sed "s|USER_PREFIX|$USER_PREFIX|g; s|USER_NAMESPACE|$USER_NAMESPACE|g" \
+sed "s|USER_PREFIX|$USER_PREFIX|g" \
   deploy/03-mcpserverregistration.yaml | oc apply -f -
 ```
 

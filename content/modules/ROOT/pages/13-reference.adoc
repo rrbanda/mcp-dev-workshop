@@ -110,12 +110,15 @@ metadata:
   name: <user-prefix>-stock-mcp
 spec:
   prefix: <user-prefix>_stock    # <-- field is 'prefix', NOT 'toolPrefix'
-  mcpServerRef:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
     name: <user-prefix>-stock-mcp
-    namespace: <user-namespace>
 ----
 
 IMPORTANT: The field is `prefix`, not `toolPrefix`. Using `toolPrefix` is silently pruned and has no effect.
+
+The `targetRef` references the HTTPRoute (not the MCPServer directly). The gateway controller discovers the backend service from the route.
 
 === Gateway class
 

@@ -29,7 +29,7 @@ spec:
       kind: Gateway
   hostnames:
     # The gateway's external hostname — all MCP servers share this.
-    # Derive it: oc get route -n mcp-system -o jsonpath='{.items[0].spec.host}'
+    # Derive it: oc get gateway mcp-gateway -n mcp-system -o jsonpath='{.spec.listeners[0].hostname}'
     - GATEWAY_HOSTNAME
   rules:
     - matches:

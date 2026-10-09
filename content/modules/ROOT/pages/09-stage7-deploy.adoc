@@ -128,12 +128,15 @@ metadata:
   name: ${USER_PREFIX}-stock-mcp
 spec:
   prefix: ${USER_PREFIX}_stock
-  mcpServerRef:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
     name: ${USER_PREFIX}-stock-mcp
-    namespace: ${USER_NAMESPACE}
 ----
 
 With `prefix: user1_stock`, your tool `get_stock_price` becomes `user1_stock_get_stock_price` on the gateway -- ensuring no collisions with other participants.
+
+The `targetRef` points to the HTTPRoute. The gateway discovers the backend service from the route.
 
 == Troubleshooting
 

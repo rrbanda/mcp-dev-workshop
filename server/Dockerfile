@@ -1,7 +1,7 @@
 # ═══════════════════════════════════════════════════════════════════════
 # MCP Server Container Image
 # ═══════════════════════════════════════════════════════════════════════
-# This Containerfile builds a minimal image for running the MCP server.
+# This Dockerfile builds a minimal image for running the MCP server.
 # It uses Red Hat's Universal Base Image (UBI) 9 with Python 3.12,
 # which is certified for OpenShift (runs as non-root by default).
 #

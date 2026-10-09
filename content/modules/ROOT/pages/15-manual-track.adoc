@@ -167,15 +167,15 @@ The MCP Gateway provides a single, governed entry point for all MCP servers. You
 
 [source,bash]
 ----
-export GATEWAY_HOSTNAME=$(oc get route -n mcp-system \
-  -o jsonpath='{.items[0].spec.host}')
+export GATEWAY_HOSTNAME=$(oc get gateway mcp-gateway -n mcp-system \
+  -o jsonpath='{.spec.listeners[0].hostname}')
 
 echo "Gateway: $GATEWAY_HOSTNAME"
 ----
 
 Expected output:
 ----
-Gateway: mcp-gateway-mcp-system.apps.ocp.example.com
+Gateway: mcp-gateway.apps.ocp.example.com
 ----
 
 == Step 7: Create the HTTPRoute
@@ -202,11 +202,13 @@ The *MCPServerRegistration* tells the gateway about your tools and adds a *prefi
 
 [source,bash]
 ----
-sed "s|USER_PREFIX|$USER_PREFIX|g; s|USER_NAMESPACE|$USER_NAMESPACE|g" \
+sed "s|USER_PREFIX|$USER_PREFIX|g" \
   deploy/03-mcpserverregistration.yaml | oc apply -f -
 ----
 
 IMPORTANT: The field is `prefix`, NOT `toolPrefix`. Using `toolPrefix` is silently ignored — your tools won't be prefixed and may collide.
+
+The `targetRef` points to your HTTPRoute — the gateway discovers your backend service from the route.
 
 Verify:
 [source,bash]
