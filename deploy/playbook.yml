@@ -211,7 +211,58 @@
         user_name: "{{ user_prefix }}{{ user_idx }}"
         skip_first: "{{ first_user_deployed | bool and user_idx == 1 }}"
 
-    # ---- Phase 5: Generate credentials ----
+    # ---- Phase 5: Start workspaces (login as user → patch creator → start) ----
+    - name: "Login as {{ user_prefix }}{{ item }} to create User object"
+      ansible.builtin.command: >
+        oc login {{ lookup('pipe', 'oc whoami --show-server') }}
+        -u {{ user_prefix }}{{ item }} -p {{ user_password }}
+        --insecure-skip-tls-verify=true
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      changed_when: false
+      no_log: true
+      when: user_password is defined and user_password | length > 0
+
+    - name: Switch back to admin
+      ansible.builtin.command: >
+        oc login {{ lookup('pipe', 'oc whoami --show-server') }}
+        -u {{ admin_user | default('admin') }}
+        -p {{ admin_password | default(omit) }}
+        --insecure-skip-tls-verify=true
+      changed_when: false
+      no_log: true
+      when: user_password is defined and user_password | length > 0
+
+    - name: "Get UID for {{ user_prefix }}{{ item }}"
+      ansible.builtin.command: >
+        oc get user {{ user_prefix }}{{ item }}
+        -o jsonpath='{.metadata.uid}'
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      register: user_uids
+      changed_when: false
+      when: user_password is defined and user_password | length > 0
+
+    - name: "Patch creator label for {{ user_prefix }}{{ item.item }}"
+      ansible.builtin.command: >
+        oc label dw code-workspace-1
+        -n {{ user_prefix }}{{ item.item }}-devspaces
+        controller.devfile.io/creator={{ item.stdout }}
+        --overwrite
+      loop: "{{ user_uids.results }}"
+      loop_control:
+        label: "{{ user_prefix }}{{ item.item }}"
+      changed_when: true
+      when: user_password is defined and user_password | length > 0
+
+    - name: "Start workspace for {{ user_prefix }}{{ item }}"
+      ansible.builtin.command: >
+        oc patch dw code-workspace-1
+        -n {{ user_prefix }}{{ item }}-devspaces
+        --type=merge -p '{"spec":{"started":true}}'
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      changed_when: true
+      when: user_password is defined and user_password | length > 0
+
+    # ---- Phase 6: Generate credentials ----
     - name: Generate credentials cards
       ansible.builtin.shell: |
         echo "================================================================"

@@ -1,0 +1,148 @@
+---
+# MCP Workshop — start all user workspaces.
+#
+# Run AFTER the main playbook (deploy/playbook.yml) or workshop-deploy.sh
+# has created namespaces, RBAC, and DevWorkspaces.
+#
+# This playbook:
+#   1. Logs in as each user to create their OpenShift User object (UID)
+#   2. Patches the DevWorkspace creator label to match the user's UID
+#      (so each user can see/access their workspace in the DevSpaces dashboard)
+#   3. Starts all workspaces
+#   4. Waits for all workspaces to reach Running state
+#
+# Usage:
+#   ansible-playbook deploy/start-workspaces.yml \
+#     -e ocp_api=https://api.cluster.example.com:6443 \
+#     -e user_password=SharedPassword123 \
+#     -e admin_user=admin \
+#     -e admin_password=AdminPass123
+#
+# Optional:
+#   -e user_prefix=user      (default: user)
+#   -e user_count=30          (default: 30)
+#   -e workspace_name=code-workspace-1  (default: code-workspace-1)
+#
+# Requires: oc (in PATH)
+
+- name: Start MCP Workshop Workspaces
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    ocp_api: ""
+    admin_user: "admin"
+    admin_password: ""
+    user_password: ""
+    user_prefix: "user"
+    user_count: 30
+    workspace_name: "code-workspace-1"
+    startup_timeout_retries: 60
+    startup_timeout_delay: 10
+
+  pre_tasks:
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - ocp_api | length > 0
+          - admin_password | length > 0
+          - user_password | length > 0
+        fail_msg: >-
+          Required: ocp_api, admin_password, user_password.
+          Example: -e ocp_api=https://api.cluster.example.com:6443
+          -e admin_password=xxx -e user_password=yyy
+
+    - name: Verify admin login
+      ansible.builtin.command: >
+        oc login {{ ocp_api }}
+        -u {{ admin_user }} -p {{ admin_password }}
+        --insecure-skip-tls-verify=true
+      register: admin_login
+      changed_when: false
+      no_log: true
+
+    - name: Confirm cluster-admin
+      ansible.builtin.command: oc auth can-i create namespaces
+      register: is_admin
+      changed_when: false
+      failed_when: is_admin.stdout != "yes"
+
+  tasks:
+    # ---- Phase 1: Login as each user to create User objects ----
+    - name: "Login as {{ user_prefix }}{{ item }} to create User object"
+      ansible.builtin.command: >
+        oc login {{ ocp_api }}
+        -u {{ user_prefix }}{{ item }} -p {{ user_password }}
+        --insecure-skip-tls-verify=true
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      register: user_logins
+      changed_when: false
+      no_log: true
+
+    - name: Switch back to admin
+      ansible.builtin.command: >
+        oc login {{ ocp_api }}
+        -u {{ admin_user }} -p {{ admin_password }}
+        --insecure-skip-tls-verify=true
+      changed_when: false
+      no_log: true
+
+    # ---- Phase 2: Get UIDs and patch creator labels ----
+    - name: "Get UID for {{ user_prefix }}{{ item }}"
+      ansible.builtin.command: >
+        oc get user {{ user_prefix }}{{ item }}
+        -o jsonpath='{.metadata.uid}'
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      register: user_uids
+      changed_when: false
+
+    - name: "Patch creator label for {{ user_prefix }}{{ item.item }}"
+      ansible.builtin.command: >
+        oc label dw {{ workspace_name }}
+        -n {{ user_prefix }}{{ item.item }}-devspaces
+        controller.devfile.io/creator={{ item.stdout }}
+        --overwrite
+      loop: "{{ user_uids.results }}"
+      loop_control:
+        label: "{{ user_prefix }}{{ item.item }}"
+      changed_when: true
+
+    # ---- Phase 3: Start all workspaces ----
+    - name: "Start workspace for {{ user_prefix }}{{ item }}"
+      ansible.builtin.command: >
+        oc patch dw {{ workspace_name }}
+        -n {{ user_prefix }}{{ item }}-devspaces
+        --type=merge -p '{"spec":{"started":true}}'
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      register: start_results
+      changed_when: "'patched' in start_results.stdout | default('')"
+
+    # ---- Phase 4: Wait for workspaces to reach Running ----
+    - name: "Wait for {{ user_prefix }}{{ item }} workspace to be Running"
+      ansible.builtin.command: >
+        oc get dw {{ workspace_name }}
+        -n {{ user_prefix }}{{ item }}-devspaces
+        -o jsonpath='{.status.phase}'
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      register: dw_status
+      until: dw_status.stdout == "Running"
+      retries: "{{ startup_timeout_retries }}"
+      delay: "{{ startup_timeout_delay }}"
+      changed_when: false
+
+    # ---- Summary ----
+    - name: Show workspace status
+      ansible.builtin.command: >
+        oc get dw {{ workspace_name }}
+        -n {{ user_prefix }}{{ item }}-devspaces --no-headers
+      loop: "{{ range(1, user_count | int + 1) | list }}"
+      register: final_status
+      changed_when: false
+
+    - name: Summary
+      ansible.builtin.debug:
+        msg: "{{ item.stdout }}"
+      loop: "{{ final_status.results }}"
+      loop_control:
+        label: "{{ user_prefix }}{{ item.item }}"

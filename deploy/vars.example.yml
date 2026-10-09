@@ -43,3 +43,10 @@ workshop_branch: "main"
 
 # OpenCode
 opencode_version: "1.15.13"
+
+# Workspace startup (Phase 5)
+# Set these to auto-start workspaces with correct creator labels.
+# If omitted, users must start their own workspace from the DevSpaces dashboard.
+user_password: ""              # Shared password for all participants (RHPDS default)
+admin_user: "admin"            # Cluster admin username
+admin_password: ""             # Cluster admin password
