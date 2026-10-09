@@ -1,0 +1,45 @@
+# ═══════════════════════════════════════════════════════════════════════
+# HTTPRoute — expose your MCP server through the MCP Gateway
+# ═══════════════════════════════════════════════════════════════════════
+# The MCP Gateway is a single entry point for ALL MCP servers on the
+# cluster. This HTTPRoute tells the gateway: "when someone requests
+# /mcp/USER_PREFIX-stock, send the traffic to my MCPServer's Service."
+#
+# Think of it like adding your app to a shared load balancer — the
+# gateway handles TLS, auth, and routing; you just register your path.
+#
+# BEFORE APPLYING: Replace these placeholders:
+#   USER_PREFIX        — your username prefix (e.g., user1)
+#   GATEWAY_HOSTNAME   — the gateway's external hostname (step 6)
+#
+# One-liner:
+#   sed "s|USER_PREFIX|$USER_PREFIX|g; s|GATEWAY_HOSTNAME|$GATEWAY_HOSTNAME|g" \
+#     deploy/02-httproute.yaml | oc apply -f -
+# ═══════════════════════════════════════════════════════════════════════
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: USER_PREFIX-stock-mcp
+spec:
+  parentRefs:
+    # The MCP Gateway lives in the mcp-system namespace.
+    # This reference attaches your route to that shared gateway.
+    - name: mcp-gateway
+      namespace: mcp-system
+      kind: Gateway
+  hostnames:
+    # The gateway's external hostname — all MCP servers share this.
+    # Derive it: oc get route -n mcp-system -o jsonpath='{.items[0].spec.host}'
+    - GATEWAY_HOSTNAME
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            # YOUR unique path on the gateway. Each participant gets their own.
+            # user1 -> /mcp/user1-stock, user2 -> /mcp/user2-stock, etc.
+            value: /mcp/USER_PREFIX-stock
+      backendRefs:
+        # The Service created by the MCP Lifecycle Operator.
+        # Name matches your MCPServer CR name.
+        - name: USER_PREFIX-stock-mcp
+          port: 8080

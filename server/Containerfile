@@ -1,0 +1,36 @@
+# ═══════════════════════════════════════════════════════════════════════
+# MCP Server Container Image
+# ═══════════════════════════════════════════════════════════════════════
+# This Containerfile builds a minimal image for running the MCP server.
+# It uses Red Hat's Universal Base Image (UBI) 9 with Python 3.12,
+# which is certified for OpenShift (runs as non-root by default).
+#
+# The OpenShift BuildConfig uses this file to produce an image in the
+# internal registry. The MCPServer CR then references that image.
+# ═══════════════════════════════════════════════════════════════════════
+
+# --- Base image: Red Hat UBI 9 + Python 3.12 ---
+# Pre-configured to run as non-root (UID 1001), which satisfies
+# OpenShift's default SecurityContextConstraints.
+FROM registry.access.redhat.com/ubi9/python-312:latest
+
+# --- Install dependencies first (Docker layer caching) ---
+# If requirements.txt hasn't changed, this layer is cached.
+WORKDIR /opt/app-root/src
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# --- Copy the server code ---
+COPY server.py .
+
+# --- Runtime configuration ---
+# MCP_TRANSPORT=streamable-http tells the server to listen on HTTP
+# instead of stdio (which is for local/subprocess use).
+ENV MCP_TRANSPORT=streamable-http
+
+# --- Port 8080: matches the MCPServer CR spec.config.port ---
+# The MCP Lifecycle Operator will probe this port during handshake.
+EXPOSE 8080
+
+# --- Start the server ---
+CMD ["python", "server.py"]

@@ -1,0 +1,290 @@
+= Manual Track: Build & Deploy with oc
+:navtitle: Manual Track
+
+Step-by-step guide to build, deploy, and use an MCP server on OpenShift using only `oc` commands. No AI agent required.
+
+The server code is pre-built and ready in `server/`. You read it, build it, deploy it, and use it.
+
+*Duration:* ~45 minutes
+
+== Before you start
+
+You need:
+
+* A terminal in your DevSpaces workspace (or any terminal logged into the cluster)
+* The pre-built server code in `server/` (cloned with the workshop repo)
+
+== Step 0: Read the code
+
+Open and read `server/server.py`. It has section comments explaining every concept:
+
+[source,bash]
+----
+cat server/server.py | head -50
+----
+
+Key things to notice:
+
+* `MCPServer("stock-market")` — creates the server instance
+* `@server.tool(name=..., description=...)` — each decorated function becomes an MCP tool
+* Type hints on parameters → JSON Schema for the LLM
+* Docstrings → tool descriptions the LLM reads
+* `server.run(transport="streamable-http", host="0.0.0.0", port=8080)` → HTTP listener
+
+The server has 9 tools that fetch live data from Yahoo Finance. No API key needed.
+
+== Step 1: Set your variables
+
+[source,bash]
+----
+# Your username prefix (ask your facilitator — usually user1, user2, etc.)
+export USER_PREFIX=user1
+
+# Your namespace (auto-detected from current project)
+export USER_NAMESPACE=$(oc project -q)
+
+echo "Prefix:    $USER_PREFIX"
+echo "Namespace: $USER_NAMESPACE"
+----
+
+Expected output:
+----
+Prefix:    user1
+Namespace: user1-devspaces
+----
+
+== Step 2: Build the container image
+
+An OpenShift *BuildConfig* compiles your code into a container image inside the cluster — no local Docker or Podman needed.
+
+[source,bash]
+----
+# Create the BuildConfig (one-time setup)
+oc new-build --name=${USER_PREFIX}-stock-mcp \
+  --strategy=docker \
+  --binary \
+  --to=${USER_PREFIX}-stock-mcp:latest
+
+# Start the build from the server/ directory
+oc start-build ${USER_PREFIX}-stock-mcp \
+  --from-dir=server/ \
+  --follow
+----
+
+The `--follow` flag streams build logs. You should see pip installing `mcp[cli]` and `yfinance`, then a "Push successful" message.
+
+If the build fails, check:
+[source,bash]
+----
+oc logs bc/${USER_PREFIX}-stock-mcp
+----
+
+== Step 3: Get the image digest
+
+The MCPServer CR needs the *exact* image reference (with sha256 digest), not a mutable `:latest` tag.
+
+[source,bash]
+----
+export IMAGE_REF=$(oc get istag ${USER_PREFIX}-stock-mcp:latest \
+  -o jsonpath='{.image.dockerImageReference}')
+
+echo "Image: $IMAGE_REF"
+----
+
+Expected output (your digest will differ):
+----
+Image: image-registry.openshift-image-registry.svc:5000/user1-devspaces/user1-stock-mcp@sha256:abc123...
+----
+
+== Step 4: Deploy the MCPServer CR
+
+This is the key step. Instead of manually creating Deployments and Services, you create a single `MCPServer` custom resource. The *MCP Lifecycle Operator* then:
+
+* Creates a security-hardened *Deployment* (non-root, drop ALL capabilities, read-only filesystem)
+* Creates a *Service* (ClusterIP on port 8080)
+* Creates a *NetworkPolicy* for network segmentation
+* Performs an *MCP protocol handshake* — it sends an `initialize` JSON-RPC call to verify your server responds correctly
+
+[source,bash]
+----
+sed "s|USER_PREFIX|$USER_PREFIX|g; s|IMAGE_REF|$IMAGE_REF|g" \
+  deploy/01-mcpserver.yaml | oc apply -f -
+----
+
+Wait for it to become Ready:
+
+[source,bash]
+----
+# Watch until READY shows True (Ctrl+C to stop watching)
+oc get mcpserver ${USER_PREFIX}-stock-mcp -w
+----
+
+Expected output:
+----
+NAME               READY   AGE
+user1-stock-mcp    True    45s
+----
+
+If it stays not-ready for more than 2 minutes:
+[source,bash]
+----
+# Check events and conditions
+oc describe mcpserver ${USER_PREFIX}-stock-mcp
+
+# Check the server pod logs
+oc logs deployment/${USER_PREFIX}-stock-mcp
+----
+
+Common issues:
+
+[cols="1,2",options="header"]
+|===
+| Symptom | Fix
+
+| `HandshakeFailed`
+| Server isn't responding on port 8080 at `/mcp`. Check that `server.py` uses `host="0.0.0.0"` and `port=8080`.
+
+| `DeploymentUnavailable`
+| Pod is crashing. Check `oc logs deployment/${USER_PREFIX}-stock-mcp` for Python import errors.
+
+| `ImagePullBackOff`
+| Image reference is wrong. Re-run Step 3 to get the correct digest.
+|===
+
+== Step 5: Verify in AI Hub
+
+Open the *OpenShift AI dashboard* in your browser:
+
+. Navigate to *AI Hub → MCP servers → Deployments*
+. Your `${USER_PREFIX}-stock-mcp` should appear with a *Ready* badge
+. Click it to see the 9 tools the operator discovered during the handshake
+
+This confirms Layer 1 (Deploy) and Layer 2 (Discover) of the MCP Lifecycle are working.
+
+== Step 6: Get the MCP Gateway hostname
+
+The MCP Gateway provides a single, governed entry point for all MCP servers. You need its external hostname:
+
+[source,bash]
+----
+export GATEWAY_HOSTNAME=$(oc get route -n mcp-system \
+  -o jsonpath='{.items[0].spec.host}')
+
+echo "Gateway: $GATEWAY_HOSTNAME"
+----
+
+Expected output:
+----
+Gateway: mcp-gateway-mcp-system.apps.ocp.example.com
+----
+
+== Step 7: Create the HTTPRoute
+
+The HTTPRoute tells the gateway: "route traffic at `/mcp/${USER_PREFIX}-stock` to my MCPServer's Service."
+
+[source,bash]
+----
+sed "s|USER_PREFIX|$USER_PREFIX|g; s|GATEWAY_HOSTNAME|$GATEWAY_HOSTNAME|g" \
+  deploy/02-httproute.yaml | oc apply -f -
+----
+
+Verify:
+[source,bash]
+----
+oc get httproute ${USER_PREFIX}-stock-mcp
+----
+
+Expected: the route shows as `Accepted` with the gateway as parent.
+
+== Step 8: Register with the MCP Gateway
+
+The *MCPServerRegistration* tells the gateway about your tools and adds a *prefix* to avoid name collisions. With 30 participants, each having a `get_stock_info` tool, the prefix ensures they don't clash (e.g., `user1_stock_get_stock_info`).
+
+[source,bash]
+----
+sed "s|USER_PREFIX|$USER_PREFIX|g; s|USER_NAMESPACE|$USER_NAMESPACE|g" \
+  deploy/03-mcpserverregistration.yaml | oc apply -f -
+----
+
+IMPORTANT: The field is `prefix`, NOT `toolPrefix`. Using `toolPrefix` is silently ignored — your tools won't be prefixed and may collide.
+
+Verify:
+[source,bash]
+----
+oc get mcpserverregistration ${USER_PREFIX}-stock-mcp
+----
+
+== Step 9: Connect from OpenCode
+
+Your MCP server is now deployed and registered. Connect to it from the AI chat:
+
+The server URL for OpenCode is:
+----
+https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp
+----
+
+Add this as an MCP server in OpenCode's settings. After connecting, you should see 9 tools appear in the sidebar.
+
+== Step 10: Test with real queries
+
+Ask the AI questions that will trigger your tools:
+
+* _"What's the current price of AAPL?"_ → calls `get_stock_info`
+* _"Show me TSLA news"_ → calls `get_stock_news`
+* _"Get Apple's balance sheet"_ → calls `get_financial_statement`
+* _"What options expire next for NVDA?"_ → calls `get_option_expiration_dates`
+
+Watch how the LLM picks the right tool based on the descriptions you read in `server.py`.
+
+== Cleanup
+
+Remove resources in reverse dependency order:
+
+[source,bash]
+----
+# 1. Remove from OpenCode (via UI)
+
+# 2. Gateway registration
+oc delete mcpserverregistration ${USER_PREFIX}-stock-mcp
+
+# 3. Gateway route
+oc delete httproute ${USER_PREFIX}-stock-mcp
+
+# 4. MCPServer CR (operator auto-deletes Deployment, Service, NetworkPolicy)
+oc delete mcpserver ${USER_PREFIX}-stock-mcp
+
+# 5. Build artifacts
+oc delete bc/${USER_PREFIX}-stock-mcp
+oc delete is/${USER_PREFIX}-stock-mcp
+----
+
+Verify everything is gone:
+[source,bash]
+----
+oc get mcpserver,mcpserverregistration,httproute,bc,is 2>/dev/null | grep stock-mcp
+----
+
+Expected: no output.
+
+== What you just did
+
+You completed the full *MCP Lifecycle* on OpenShift:
+
+[cols="1,2,2",options="header"]
+|===
+| Layer | What | Resource
+
+| *Deploy*
+| MCP Lifecycle Operator created and hardened your server
+| MCPServer CR → Deployment + Service + NetworkPolicy
+
+| *Discover*
+| AI Hub made your server browsable
+| AI Hub → MCP servers → Deployments
+
+| *Route & Govern*
+| MCP Gateway provides federated access with tool prefixing
+| HTTPRoute + MCPServerRegistration
+|===
+
+All from 3 YAML files and a handful of `oc` commands.

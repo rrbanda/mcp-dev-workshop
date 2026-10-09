@@ -1,0 +1,38 @@
+# ═══════════════════════════════════════════════════════════════════════
+# MCPServerRegistration — register tools with the MCP Gateway
+# ═══════════════════════════════════════════════════════════════════════
+# The HTTPRoute handles traffic routing. This resource handles TOOL
+# DISCOVERY — it tells the gateway what tools your server provides
+# and adds a prefix to avoid name collisions between participants.
+#
+# Without this, the gateway routes traffic but can't include your
+# tools in federated tools/list responses.
+#
+# Example: with prefix "user1_stock", your tool "get_stock_info"
+# becomes "user1_stock_get_stock_info" on the gateway. This way,
+# 30 participants can each have a get_stock_info without conflicts.
+#
+# IMPORTANT: The field is "prefix", NOT "toolPrefix".
+# Using "toolPrefix" is silently pruned by the API — it does nothing.
+#
+# BEFORE APPLYING: Replace these placeholders:
+#   USER_PREFIX        — your username prefix (e.g., user1)
+#   USER_NAMESPACE     — your namespace (e.g., user1-devspaces)
+#
+# One-liner:
+#   sed "s|USER_PREFIX|$USER_PREFIX|g; s|USER_NAMESPACE|$USER_NAMESPACE|g" \
+#     deploy/03-mcpserverregistration.yaml | oc apply -f -
+# ═══════════════════════════════════════════════════════════════════════
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPServerRegistration
+metadata:
+  name: USER_PREFIX-stock-mcp
+spec:
+  # CRITICAL: This field is "prefix", NOT "toolPrefix".
+  # "toolPrefix" gets silently pruned — your tools won't be prefixed.
+  prefix: USER_PREFIX_stock
+  mcpServerRef:
+    # Must match your MCPServer CR name
+    name: USER_PREFIX-stock-mcp
+    # Must be the namespace where the MCPServer lives
+    namespace: USER_NAMESPACE

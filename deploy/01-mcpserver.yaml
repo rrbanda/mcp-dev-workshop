@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════════════════
+# MCPServer Custom Resource
+# ═══════════════════════════════════════════════════════════════════════
+# This is the ONLY resource you need to deploy an MCP server on OpenShift.
+# The MCP Lifecycle Operator watches for MCPServer CRs and automatically
+# creates: Deployment + Service + NetworkPolicy + MCP handshake verification.
+#
+# Think of it like a "shipping manifest" — you declare what you want,
+# the operator builds and runs it with security best practices.
+#
+# BEFORE APPLYING: Replace these placeholders:
+#   USER_PREFIX    — your username prefix (e.g., user1)
+#   IMAGE_REF      — the full image digest from oc get istag (step 3)
+#
+# One-liner:
+#   sed "s|USER_PREFIX|$USER_PREFIX|g; s|IMAGE_REF|$IMAGE_REF|g" \
+#     deploy/01-mcpserver.yaml | oc apply -f -
+# ═══════════════════════════════════════════════════════════════════════
+apiVersion: mcp.x-k8s.io/v1alpha1
+kind: MCPServer
+metadata:
+  # User-scoped name — each participant gets their own MCPServer.
+  name: USER_PREFIX-stock-mcp
+spec:
+  source:
+    # ContainerImage means the operator pulls a pre-built image.
+    # (Alternative: GitRepository for source-to-image builds)
+    type: ContainerImage
+    containerImage:
+      # IMPORTANT: Use the sha256 digest, not :latest tag.
+      # Digests are immutable — the operator knows exactly what it's running.
+      # Get this from: oc get istag USER_PREFIX-stock-mcp:latest \
+      #   -o jsonpath='{.image.dockerImageReference}'
+      ref: IMAGE_REF
+  config:
+    # Port and path must match what server.py listens on.
+    # The operator connects to this during the MCP handshake.
+    port: 8080
+    path: /mcp

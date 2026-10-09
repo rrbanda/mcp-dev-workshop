@@ -13,6 +13,9 @@
 * xref:10-stage8-connect.adoc[Stage 8: Connect & Use]
 * xref:11-stage9-wrapup.adoc[Stage 9: Wrap-up]
 
+.Manual Track
+* xref:15-manual-track.adoc[Manual Track: Build & Deploy with oc]
+
 .Reference
 * xref:12-cleanup.adoc[Cleanup]
 * xref:13-reference.adoc[Technical Reference]

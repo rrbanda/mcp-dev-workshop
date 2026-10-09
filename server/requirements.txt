@@ -1,0 +1,7 @@
+# MCP Python SDK — provides the MCPServer class and @server.tool() decorator.
+# The [cli] extra includes uvicorn for the HTTP transport.
+mcp[cli]>=2.1.0,<3
+
+# Yahoo Finance data library — no API key needed.
+# Provides stock prices, financials, options, news, and more.
+yfinance>=1.6.0,<2

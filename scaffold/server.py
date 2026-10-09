@@ -1,9 +1,11 @@
-# Stock Market MCP Server
+# Stock Market MCP Server — scaffold for agent-guided track
 #
-# This file is where you build your MCP server in Module 3.
+# This is a placeholder file for the AGENT-GUIDED workshop track.
+# The agent (AgentSherpa) generates the server code during Stage 6.
 #
-# Agent mode:  Ask the agent to generate the server (see Module 3 instructions).
-# Manual mode: Copy the reference solution:
-#              cp solutions/lab-03/server.py scaffold/server.py
+# FOR THE MANUAL TRACK: Use the pre-built code in server/ instead.
+# The server/ directory has the complete, well-commented server ready to
+# build and deploy. See the manual track guide for step-by-step instructions.
 #
-# The completed server will have 9 stock market tools using yfinance.
+# FOR THE AGENT TRACK: Start the guided workshop in OpenCode and the
+# agent will generate a full server.py here based on your design choices.

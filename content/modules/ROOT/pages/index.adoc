@@ -1,17 +1,26 @@
 = MCP Developer Workshop
 :navtitle: Introduction
 
-Build, test, and deploy an MCP server on OpenShift -- guided by an AI agent.
+Build, test, and deploy an MCP server on OpenShift -- from code to production using the full MCP Lifecycle.
 
-== What you will do
+== Two tracks, one outcome
 
-In this hands-on workshop, you build a real stock market MCP server with 9 tools, deploy it using the full MCP Lifecycle on OpenShift, and use it from an AI chat -- all guided by *AgentSherpa*, your personal AI workshop facilitator.
+[cols="1,2",options="header"]
+|===
+| Track | How it works
 
-Everything runs inside a cloud workspace on a pre-configured OpenShift cluster. No local tooling required. You open a browser and start building.
+| *Agent-guided* (Stages 1–9)
+| AgentSherpa walks you through the entire SDLC: intent → design → build → deploy → use. The AI generates code, runs tests, and deploys — you approve each step.
 
-== The AI-native software development lifecycle
+| *xref:15-manual-track.adoc[Manual track]*
+| Pre-built server code with rich comments. You read the code, then build and deploy using `oc` commands. ~45 minutes, no AI agent involved.
+|===
 
-This workshop demonstrates a new way of building software. Each stage maps to a phase of the *agentic SDLC*:
+Both tracks deploy the same stock market MCP server through the same MCP Lifecycle: *MCPServer CR → AI Hub → MCP Gateway*.
+
+== The agent-guided track
+
+This track demonstrates a new way of building software. Each stage maps to a phase of the *agentic SDLC*:
 
 [cols="1,2,3",options="header"]
 |===
@@ -89,3 +98,6 @@ By the end of the workshop you will be able to:
 == Start here
 
 Read xref:01-architecture.adoc[Architecture] to understand the MCP Lifecycle, then verify your environment in xref:02-prerequisites.adoc[Prerequisites].
+
+* *Agent track:* Continue to xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts]
+* *Manual track:* Jump to xref:15-manual-track.adoc[Manual Track: Build & Deploy with oc]
