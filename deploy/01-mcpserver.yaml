@@ -37,3 +37,28 @@ spec:
     # The operator connects to this during the MCP handshake.
     port: 8080
     path: /mcp
+    # Writable directories — the operator enforces a read-only root filesystem.
+    # yfinance writes to /.cache and Python writes to /tmp; without these
+    # EmptyDir mounts the pod will crash with "Read-only file system".
+    storage:
+      - path: /tmp
+        permissions: ReadWrite
+        source:
+          type: EmptyDir
+          emptyDir: {}
+      - path: /.cache
+        permissions: ReadWrite
+        source:
+          type: EmptyDir
+          emptyDir: {}
+  mcp:
+    # Stateless means the operator can freely restart/reschedule the pod.
+    stateless: true
+  runtime:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "512Mi"

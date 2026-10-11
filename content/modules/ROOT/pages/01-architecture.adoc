@@ -103,4 +103,4 @@ MCP tool calls go directly from the OpenCode MCP client to your MCPServer pod --
 
 == Next
 
-Verify your environment: xref:02-prerequisites.adoc[Prerequisites].
+Verify your environment: xref:02-prerequisites.adoc[Prerequisites]. Then start the xref:15-manual-track.adoc[hands-on track].

@@ -7,12 +7,225 @@ This guide covers workshop deployment, configuration, and facilitation.
 
 Before the workshop, ensure the cluster has:
 
-* *Red Hat OpenShift* 4.17+ with GPU nodes
+* *Red Hat OpenShift* 4.22+ with GPU nodes
 * *Red Hat OpenShift AI (RHOAI)* 3.5+ with MCP Lifecycle Operator enabled
 * *Red Hat Connectivity Link (RHCL)* 1.4+ for the MCP Gateway
 * *OpenShift DevSpaces* 3.x for cloud workspaces
 * *NVIDIA GPU Operator* and *Node Feature Discovery* for GPU workloads
 * *LeaderWorkerSet (LWS)* controller for llm-d
+* *Gen AI Playground* enabled (see AI Playground Setup below)
+
+== Platform Setup (one-time, before the workshop)
+
+The MCP Lifecycle Operator, MCP Catalog, and MCP Gateway must be set up before participants can deploy MCPServer CRs or register with the gateway. These are cluster-admin tasks.
+
+IMPORTANT: The MCP Gateway Operator is a *separate* install from RHOAI. It is not automatically installed when you enable the MCP Lifecycle Operator.
+
+=== Option A: Automated setup (recommended)
+
+Run the platform setup script. It is idempotent (safe to re-run):
+
+[source,bash]
+----
+./scripts/setup-platform.sh
+----
+
+This script performs all 7 steps below automatically:
+
+. Enables the MCP Lifecycle Operator (`mcplifecycleoperator.managementState: Managed`)
+. Enables the MCP Catalog in the dashboard (`mcpCatalog: true`)
+. Installs the MCP Gateway Operator (Subscription + OperatorGroup in `mcp-system`)
+. Fixes kuadrant-operator memory limit (default 300Mi causes OOMKilled; patched to 1Gi)
+. Creates the MCP Gateway (Gateway CR with `data-science-gateway-class`)
+. Creates the MCPGatewayExtension (enables broker + EnvoyFilter)
+. Grants MCP CRD RBAC to participant namespaces (MCPServer, HTTPRoute, MCPServerRegistration)
+
+After the script completes, verify:
+
+[source,bash]
+----
+# MCP Lifecycle Operator pod running
+oc get pods -n redhat-ods-applications -l app.kubernetes.io/name=mcp-lifecycle-operator
+# Expected: 1/1 Running
+
+# MCPServer CRD exists
+oc get crd mcpservers.mcp.x-k8s.io
+# Expected: the CRD
+
+# MCP Gateway is programmed
+oc get gateway mcp-gateway -n mcp-system
+# Expected: PROGRAMMED=True
+
+# MCPGatewayExtension exists
+oc get mcpgatewayextension mcp-gateway-extension -n mcp-system
+# Expected: the resource
+----
+
+=== Option B: Manual setup
+
+If you prefer to run the commands individually:
+
+*Step A1: Enable the MCP Lifecycle Operator*
+
+[source,bash]
+----
+oc patch datasciencecluster default-dsc --type=merge \
+  -p '{"spec":{"components":{"mcplifecycleoperator":{"managementState":"Managed"}}}}'
+
+# Verify
+oc get pods -n redhat-ods-applications -l app.kubernetes.io/name=mcp-lifecycle-operator
+oc get crd mcpservers.mcp.x-k8s.io
+----
+
+*Step A2: Enable MCP Catalog*
+
+[source,bash]
+----
+oc patch odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  --type=merge -p '{"spec":{"dashboardConfig":{"mcpCatalog":true}}}'
+----
+
+*Step A3: Install MCP Gateway Operator*
+
+[source,bash]
+----
+oc create ns mcp-system
+
+cat <<EOF | oc apply -n mcp-system -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: mcp-gateway
+spec:
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  name: mcp-gateway
+  channel: preview
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: mcp-gateway
+spec:
+  targetNamespaces:
+  - mcp-system
+EOF
+
+# Wait for install (up to 5 min)
+oc wait csv -n mcp-system -l operators.coreos.com/mcp-gateway.mcp-system="" \
+  --for=jsonpath='{.status.phase}'=Succeeded --timeout=5m
+----
+
+*Step A4: Fix kuadrant-operator memory*
+
+The kuadrant-operator (installed as a dependency of the MCP Gateway) defaults to 300Mi which causes OOMKilled. Increase to 1Gi:
+
+[source,bash]
+----
+oc patch deployment kuadrant-operator-controller-manager -n mcp-system \
+  --type=json \
+  -p='[{"op":"replace","path":"/spec/template/spec/containers/0/resources/limits/memory","value":"1Gi"},{"op":"replace","path":"/spec/template/spec/containers/0/resources/requests/memory","value":"512Mi"}]'
+oc rollout status deployment/kuadrant-operator-controller-manager -n mcp-system --timeout=120s
+----
+
+*Step A5: Create the MCP Gateway*
+
+Replace `apps.ocp.example.com` with your cluster's apps domain (from `oc get ingresses.config cluster -o jsonpath='{.spec.domain}'`):
+
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: mcp-gateway
+  namespace: mcp-system
+  labels:
+    istio.io/rev: openshift-gateway
+spec:
+  gatewayClassName: data-science-gateway-class
+  listeners:
+    - name: http
+      hostname: mcp-gateway.apps.ocp.example.com
+      port: 80
+      protocol: HTTP
+      allowedRoutes:
+        namespaces:
+          from: All
+EOF
+
+# Verify
+oc get gateway mcp-gateway -n mcp-system
+# Expected: PROGRAMMED=True
+----
+
+*Step A6: Create the MCPGatewayExtension*
+
+[source,bash]
+----
+cat <<EOF | oc apply -f -
+apiVersion: mcp.kuadrant.io/v1alpha1
+kind: MCPGatewayExtension
+metadata:
+  name: mcp-gateway-extension
+  namespace: mcp-system
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: Gateway
+    name: mcp-gateway
+    namespace: mcp-system
+    sectionName: http
+EOF
+----
+
+*Step A7: Grant MCP CRD RBAC*
+
+NOTE: If you are using the Helm chart to deploy workspaces, the chart already creates these Roles and RoleBindings automatically. This step is only needed if you manage namespaces manually.
+
+The standard OpenShift `edit` ClusterRole does NOT include permissions for MCPServer, HTTPRoute, or MCPServerRegistration CRDs. Participants need these to deploy their MCP servers in the manual track.
+
+[source,bash]
+----
+# For each participant namespace:
+for i in $(seq 1 30); do
+  NS="user${i}-devspaces"
+  cat <<EOF | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: mcp-workshop-resources
+  namespace: ${NS}
+rules:
+  - apiGroups: ["mcp.x-k8s.io"]
+    resources: ["mcpservers"]
+    verbs: ["get","list","watch","create","update","patch","delete"]
+  - apiGroups: ["gateway.networking.k8s.io"]
+    resources: ["httproutes"]
+    verbs: ["get","list","watch","create","update","patch","delete"]
+  - apiGroups: ["mcp.kuadrant.io"]
+    resources: ["mcpserverregistrations"]
+    verbs: ["get","list","watch","create","update","patch","delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mcp-workshop-resources
+  namespace: ${NS}
+subjects:
+  - kind: User
+    name: user${i}
+    apiGroup: rbac.authorization.k8s.io
+  - kind: Group
+    name: system:serviceaccounts:${NS}
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: mcp-workshop-resources
+  apiGroup: rbac.authorization.k8s.io
+EOF
+done
+----
 
 == Deployment
 
@@ -78,6 +291,53 @@ done
 oc get gateway mcp-gateway -n mcp-system
 ----
 
+=== Step 5: Set up the AI Playground
+
+The Gen AI Playground lets manual-track participants test their deployed MCP servers from a browser chat UI. Run the setup script once before the workshop:
+
+NOTE: This step requires the MCP platform setup to be complete (the MCP Gateway must be deployed). If you have not run `./scripts/setup-platform.sh` yet, do that first.
+
+[source,bash]
+----
+./scripts/setup-playground.sh
+----
+
+This script is idempotent (safe to re-run) and performs the following:
+
+. *Enables Gen AI Studio* in the dashboard (`genAiStudio: true` in `OdhDashboardConfig`)
+. *Enables the OGX Operator* (`ogx.managementState: Managed` in `DataScienceCluster`)
+. *Enables Models-as-a-Service* (`modelAsService: true` in `OdhDashboardConfig`)
+. *Creates the `gen-ai-aa-mcp-servers` ConfigMap* in `redhat-ods-applications` with one entry pointing to the MCP Gateway URL
+
+The ConfigMap is the key piece -- the Playground discovers MCP servers from this ConfigMap, not from MCPServer CRs or the MCP Gateway directly. A single entry pointing to the gateway lets all participants' prefixed tools be discoverable.
+
+After the script completes, verify manually:
+
+[source,bash]
+----
+# Check the dashboard shows Gen AI Studio
+oc get odhdashboardconfig odh-dashboard-config -n redhat-ods-applications \
+  -o jsonpath='{.spec.dashboardConfig.genAiStudio}'
+# Expected: true
+
+# Check the ConfigMap exists
+oc get configmap gen-ai-aa-mcp-servers -n redhat-ods-applications
+# Expected: the ConfigMap with Stock-Market-MCP-Gateway key
+----
+
+IMPORTANT: The MaaS model used in the Playground (llama-32-3b) must have tool-calling enabled in its vLLM serving runtime. Verify that the runtime arguments include `--enable-auto-tool-choice` and a `--tool-call-parser` (e.g., `llama3_json` or `hermes`). Without these, the model will ignore MCP tools in the Playground.
+
+You can also apply the ConfigMap manually from the template:
+
+[source,bash]
+----
+export GATEWAY_HOSTNAME=$(oc get gateway mcp-gateway -n mcp-system \
+  -o jsonpath='{.spec.listeners[0].hostname}')
+
+sed "s|GATEWAY_HOSTNAME|$GATEWAY_HOSTNAME|g" \
+  deploy/04-playground-mcp-configmap.yaml | oc apply -f -
+----
+
 == Credentials distribution
 
 Each participant needs:
@@ -102,6 +362,53 @@ Each participant needs:
 TIP: Prepare a credentials card per participant before the workshop starts.
 
 == Workshop flow
+
+The *hands-on track* is the primary delivery method. The agent-guided track is available as an optional experience for participants who want to explore the AI-native SDLC.
+
+=== Hands-on track (primary, ~45 min)
+
+[cols="1,1,2",options="header"]
+|===
+| Step | Duration | Facilitator notes
+
+| 0. Read the code
+| 5 min
+| Participants read `server/server.py`. Encourage them to notice the decorators, type hints, and docstrings.
+
+| 1–3. Variables, build, image digest
+| 10 min
+| OpenShift binary build. Common issue: typo in `USER_PREFIX`. Circulate and verify builds complete.
+
+| 4. Deploy MCPServer CR
+| 5 min
+| The key concept step. Point out that one CR replaces six manual resources.
+
+| 5. Verify in AI Hub
+| 3 min
+| Have participants open the RHOAI dashboard and browse the MCP Catalog.
+
+| 6–8. Gateway registration
+| 10 min
+| HTTPRoute + MCPServerRegistration. Common issue: wrong `prefix` field name (`toolPrefix` is silently ignored).
+
+| 9. Test with curl
+| 10 min
+| The "wow moment" — participants speak MCP protocol by hand. Encourage trying different tickers.
+
+| 9b. Playground (optional)
+| 5 min
+| Test MCP tools in the AI Playground. Verify the MCP tab shows "Stock-Market-MCP-Gateway". Common issue: model ignores tools if `--enable-auto-tool-choice` is not set on the MaaS runtime.
+
+| Cleanup
+| 5 min
+| Optional — walk through resource deletion in reverse order.
+|===
+
+*Total:* ~45 minutes (allow 60 with buffer)
+
+=== Agent-guided track (optional, ~80 min)
+
+For participants who finish early or want to explore the agentic SDLC:
 
 [cols="1,1,2",options="header"]
 |===
@@ -144,7 +451,7 @@ TIP: Prepare a credentials card per participant before the workshop starts.
 | Quiz, certificate, optional cleanup. Gather feedback.
 |===
 
-*Total:* ~70 minutes (allow 90 with buffer)
+*Total:* ~80 minutes (allow 90 with buffer)
 
 == Common issues
 
@@ -166,6 +473,18 @@ TIP: Prepare a credentials card per participant before the workshop starts.
 
 | Gateway registration not accepted
 | Verify the MCPServerRegistration uses `prefix` (not `toolPrefix`) and the `mcpServerRef` namespace is correct.
+
+| Playground MCP tab is empty
+| The `gen-ai-aa-mcp-servers` ConfigMap is missing. Run `scripts/setup-playground.sh` or apply `deploy/04-playground-mcp-configmap.yaml` manually.
+
+| Playground model ignores MCP tools
+| The MaaS model runtime is missing `--enable-auto-tool-choice` and `--tool-call-parser`. Check the vLLM serving runtime arguments on the MaaS cluster.
+
+| Playground shows raw `<tool_call>` tags
+| The `--tool-call-parser` argument is missing or does not match the model family. For Llama models use `llama3_json`, for Qwen use `hermes`.
+
+| Gen AI Studio not visible in dashboard
+| Run `scripts/setup-playground.sh` to enable `genAiStudio: true` and the OGX Operator.
 |===
 
 == Cleanup
@@ -178,3 +497,12 @@ helm uninstall mcp-workshop -n mcp-system
 ----
 
 This deletes all user namespaces and workshop resources. The cluster operators and AI serving stack remain intact for the next workshop.
+
+Optionally, remove the Playground ConfigMap if no future workshops are planned:
+
+[source,bash]
+----
+oc delete configmap gen-ai-aa-mcp-servers -n redhat-ods-applications --ignore-not-found
+----
+
+NOTE: The `gen-ai-aa-mcp-servers` ConfigMap is shared across all participants and managed by the facilitator. Individual participants do not need to clean it up.

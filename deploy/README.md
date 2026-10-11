@@ -2,6 +2,15 @@
 
 YAML templates for deploying your MCP server on OpenShift using the MCP Lifecycle.
 
+## Prerequisites
+
+Before applying these templates, a cluster-admin must have completed the MCP platform setup:
+- MCP Lifecycle Operator enabled (`mcplifecycleoperator: Managed`)
+- MCP Gateway deployed in `mcp-system` with MCPGatewayExtension
+- MCP CRD RBAC granted to your namespace
+
+Run `scripts/setup-platform.sh` or follow the facilitator guide to set these up.
+
 ## Files
 
 | File | What it creates | Layer |
@@ -9,6 +18,7 @@ YAML templates for deploying your MCP server on OpenShift using the MCP Lifecycl
 | `01-mcpserver.yaml` | MCPServer CR — operator creates Deployment + Service + NetworkPolicy | Deploy |
 | `02-httproute.yaml` | HTTPRoute — gateway path for your server | Route |
 | `03-mcpserverregistration.yaml` | MCPServerRegistration — tool discovery + prefix | Govern |
+| `04-playground-mcp-configmap.yaml` | ConfigMap — registers the MCP Gateway with the Gen AI Playground | Test |
 
 ## Placeholders
 

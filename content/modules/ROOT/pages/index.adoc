@@ -1,26 +1,58 @@
 = MCP Developer Workshop
 :navtitle: Introduction
 
-Build, test, and deploy an MCP server on OpenShift -- from code to production using the full MCP Lifecycle.
+Build, deploy, and use an MCP server on OpenShift -- from code to production using the full MCP Lifecycle.
 
-== Two tracks, one outcome
+== What you will do
+
+In this workshop you will take a pre-built stock market MCP server, build a container image, deploy it through the MCP Lifecycle Operator, register it with the MCP Gateway, and test it by speaking the MCP protocol directly with `curl`. By the end you will have a working MCP server accessible through the governed MCP Gateway -- and you will understand every layer of the stack.
+
+== Two tracks
 
 [cols="1,2",options="header"]
 |===
 | Track | How it works
 
-| *Agent-guided* (Stages 1–9)
-| AgentSherpa walks you through the entire SDLC: intent → design → build → deploy → use. The AI generates code, runs tests, and deploys — you approve each step.
+| *xref:15-manual-track.adoc[Hands-on track]* (recommended)
+| Pre-built server code with rich comments. You read the code, then build and deploy using `oc` commands and test with `curl`. ~45 minutes.
 
-| *xref:15-manual-track.adoc[Manual track]*
-| Pre-built server code with rich comments. You read the code, then build and deploy using `oc` commands. ~45 minutes, no AI agent involved.
+| *Agent-guided track* (optional, Stages 1–9)
+| AgentSherpa, an AI coding agent, walks you through the entire SDLC: intent → design → build → deploy → use. The agent generates code, runs tests, and deploys — you approve each step.
 |===
 
 Both tracks deploy the same stock market MCP server through the same MCP Lifecycle: *MCPServer CR → AI Hub → MCP Gateway*.
 
-== The agent-guided track
+== Your environment
 
-This track demonstrates a new way of building software. Each stage maps to a phase of the *agentic SDLC*:
+Each participant gets a personal cloud workspace powered by *Red Hat OpenShift DevSpaces*. Inside that workspace you have:
+
+* A *terminal* with `oc`, `python`, `pip`, and `curl` pre-installed and pre-authenticated against the cluster
+* The *workshop repository* cloned at `/projects/mcp-dev-workshop` with the server code in `server/` and deploy manifests in `deploy/`
+* *OpenCode Web* (optional) -- an AI-native IDE with AgentSherpa pre-configured, for the agent-guided track
+
+All you need is a web browser and the credentials your facilitator provides.
+
+== Learning objectives
+
+By the end of the workshop you will be able to:
+
+* Explain how MCP separates tool definitions from agent reasoning
+* Read and understand an MCP server built with the Python SDK v2
+* Build a container image using OpenShift binary builds
+* Deploy an MCP server using the MCPServer CR and the MCP Lifecycle Operator
+* Register a server with the MCP Gateway for federated tool discovery
+* Speak the MCP protocol (JSON-RPC 2.0) using `curl`: `initialize`, `tools/list`, `tools/call`
+
+== Start here
+
+. Read xref:01-architecture.adoc[Architecture] to understand the MCP Lifecycle layers
+. Verify your environment in xref:02-prerequisites.adoc[Prerequisites]
+. *Hands-on track:* Continue to xref:15-manual-track.adoc[Build & Deploy an MCP Server]
+. *Agent-guided track (optional):* Go to xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts]
+
+== The agent-guided track (optional)
+
+If you choose the agent-guided track, AgentSherpa demonstrates a new way of building software. Each stage maps to a phase of the *agentic SDLC*:
 
 [cols="1,2,3",options="header"]
 |===
@@ -62,42 +94,3 @@ This track demonstrates a new way of building software. Each stage maps to a pha
 | --
 | Score, certificate, final quiz, cleanup
 |===
-
-== Your environment
-
-Each participant gets a personal cloud workspace powered by *Red Hat OpenShift DevSpaces*. Inside that workspace you have:
-
-* *OpenCode Web* -- an AI-native IDE with AgentSherpa pre-configured
-* A *terminal* with `oc`, `python`, `pip`, and `curl` pre-installed and pre-authenticated
-* *17 Agent Skills* that give AgentSherpa domain knowledge about MCP, yfinance, and OpenShift deployment
-
-All you need is a web browser and the credentials your facilitator provides.
-
-== How the workshop works
-
-You interact with *AgentSherpa* in OpenCode's chat. The agent:
-
-* Explains concepts before running commands (with analogies when helpful)
-* Generates code and tests it with real stock data
-* Deploys using MCPServer CRs (not manual Deployments)
-* Asks for your input at every step -- you approve designs, plans, and actions
-* Scores your progress (100 points) and generates a certificate at the end
-
-The agent guides the pace. If you know MCP well, it moves faster. If you are new, it slows down and explains more.
-
-== Learning objectives
-
-By the end of the workshop you will be able to:
-
-* Explain how MCP separates tool definitions from agent reasoning
-* Build an MCP server using the Python SDK v2 with proper tool definitions and type hints
-* Deploy an MCP server using the MCPServer CR and the MCP Lifecycle Operator
-* Register a server with the MCP Gateway for federated tool discovery
-* Use deployed MCP tools from an AI chat session
-
-== Start here
-
-Read xref:01-architecture.adoc[Architecture] to understand the MCP Lifecycle, then verify your environment in xref:02-prerequisites.adoc[Prerequisites].
-
-* *Agent track:* Continue to xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts]
-* *Manual track:* Jump to xref:15-manual-track.adoc[Manual Track: Build & Deploy with oc]

@@ -1,11 +1,13 @@
-= Manual Track: Build & Deploy with oc
-:navtitle: Manual Track
+= Build & Deploy an MCP Server
+:navtitle: Build & Deploy an MCP Server
 
-Step-by-step guide to build, deploy, and use an MCP server on OpenShift using only `oc` commands. No AI agent required.
+Step-by-step guide to build, deploy, and use an MCP server on OpenShift using `oc` commands and `curl`.
 
 The server code is pre-built and ready in `server/`. You read it, build it, deploy it, and use it.
 
 *Duration:* ~45 minutes
+
+TIP: This is the primary workshop track. If you prefer an AI agent to generate the code and walk you through each step interactively, see the optional xref:03-stage1-welcome.adoc[agent-guided track] (Stages 1–9).
 
 == Before you start
 
@@ -191,10 +193,10 @@ sed "s|USER_PREFIX|$USER_PREFIX|g; s|GATEWAY_HOSTNAME|$GATEWAY_HOSTNAME|g" \
 Verify:
 [source,bash]
 ----
-oc get httproute ${USER_PREFIX}-stock-mcp
+oc describe httproute ${USER_PREFIX}-stock-mcp | grep -A2 "Conditions:"
 ----
 
-Expected: the route shows as `Accepted` with the gateway as parent.
+Expected: you should see `Accepted: True` in the conditions. If not, check that the gateway hostname matches and the MCP Gateway is programmed (`oc get gateway mcp-gateway -n mcp-system`).
 
 == Step 8: Register with the MCP Gateway
 
@@ -216,27 +218,135 @@ Verify:
 oc get mcpserverregistration ${USER_PREFIX}-stock-mcp
 ----
 
-== Step 9: Connect from OpenCode
+== Step 9: Test your MCP server with curl
 
-Your MCP server is now deployed and registered. Connect to it from the AI chat:
+Now the payoff — you'll talk the *MCP protocol* directly to your server through the gateway. MCP uses JSON-RPC 2.0 over HTTP, so three `curl` commands prove the entire stack works.
 
-The server URL for OpenCode is:
+=== 9a. Initialize (MCP handshake)
+
+Every MCP session starts with an `initialize` call. The client and server exchange capabilities and agree on a protocol version.
+
+[source,bash]
 ----
-https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp
+curl -s -D /tmp/mcp-headers.txt -X POST \
+  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2025-03-26",
+      "capabilities": {},
+      "clientInfo": {"name": "manual-test", "version": "1.0"}
+    }
+  }' | python3 -m json.tool
 ----
 
-Add this as an MCP server in OpenCode's settings. After connecting, you should see 9 tools appear in the sidebar.
+Expected: a JSON response with `"result"` containing server info and capabilities. The server also returns an `Mcp-Session-Id` header that you need for subsequent calls.
 
-== Step 10: Test with real queries
+Save the session ID:
+[source,bash]
+----
+export MCP_SESSION=$(grep -i mcp-session-id /tmp/mcp-headers.txt | tr -d '\r' | awk '{print $2}')
+echo "Session: $MCP_SESSION"
+----
 
-Ask the AI questions that will trigger your tools:
+=== 9b. List tools (tool discovery)
 
-* _"What's the current price of AAPL?"_ → calls `get_stock_info`
-* _"Show me TSLA news"_ → calls `get_stock_news`
-* _"Get Apple's balance sheet"_ → calls `get_financial_statement`
-* _"What options expire next for NVDA?"_ → calls `get_option_expiration_dates`
+This is what an AI agent calls to find out what your server can do. The response is the same tool list you saw in the AI Hub.
 
-Watch how the LLM picks the right tool based on the descriptions you read in `server.py`.
+[source,bash]
+----
+curl -s -X POST \
+  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $MCP_SESSION" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list",
+    "params": {}
+  }' | python3 -m json.tool
+----
+
+Expected: a `"result"` object with a `"tools"` array listing all 9 tools. Each tool has a `name`, `description`, and `inputSchema` — the same metadata you defined with decorators and docstrings in `server.py`.
+
+=== 9c. Call a tool (live data)
+
+Now call a tool and get real stock data. This is exactly what an LLM does when it decides to use a tool.
+
+[source,bash]
+----
+curl -s -X POST \
+  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $MCP_SESSION" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "get_stock_info",
+      "arguments": {"ticker": "AAPL"}
+    }
+  }' | python3 -m json.tool
+----
+
+Expected: live Apple stock data — current price, volume, market cap, 52-week range. This data came from Yahoo Finance, processed by YOUR server, routed through the MCP Gateway.
+
+Try more tools:
+
+[source,bash]
+----
+# Get latest news for Tesla
+curl -s -X POST \
+  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $MCP_SESSION" \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_stock_news","arguments":{"ticker":"TSLA"}}}' \
+  | python3 -m json.tool
+
+# Get analyst recommendations for NVIDIA
+curl -s -X POST \
+  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: $MCP_SESSION" \
+  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_recommendations","arguments":{"ticker":"NVDA"}}}' \
+  | python3 -m json.tool
+----
+
+=== What just happened
+
+You spoke the MCP protocol directly:
+
+. *Initialize* — handshake, establish session
+. *tools/list* — discover available tools (this is what AI agents call to learn your capabilities)
+. *tools/call* — invoke a tool with arguments and get results (this is what happens when an LLM decides to use a tool)
+
+The same three calls happen behind the scenes when any MCP client (OpenCode, Claude, Cursor, etc.) connects to your server. You just did it by hand.
+
+=== Troubleshooting
+
+[cols="1,2",options="header"]
+|===
+| Symptom | Fix
+
+| `Connection refused` or timeout
+| The MCP Gateway may not be reachable. Verify: `oc get gateway mcp-gateway -n mcp-system` shows `PROGRAMMED=True`.
+
+| `404 Not Found`
+| The HTTPRoute path does not match. Check: `oc describe httproute ${USER_PREFIX}-stock-mcp`. The path should be `/mcp/${USER_PREFIX}-stock`.
+
+| `initialize` returns an error
+| Your MCPServer pod may not be running. Check: `oc get mcpserver ${USER_PREFIX}-stock-mcp` shows `READY=True`. Check logs: `oc logs deployment/${USER_PREFIX}-stock-mcp`.
+
+| `tools/list` returns empty
+| The MCPServerRegistration may not be ready. Check: `oc get mcpserverregistration ${USER_PREFIX}-stock-mcp`.
+
+| `tools/call` returns an error
+| Check your MCPServer pod logs: `oc logs deployment/${USER_PREFIX}-stock-mcp`. Yahoo Finance may have rate-limited the request — wait a moment and try again.
+|===
 
 == Cleanup
 
@@ -244,18 +354,16 @@ Remove resources in reverse dependency order:
 
 [source,bash]
 ----
-# 1. Remove from OpenCode (via UI)
-
-# 2. Gateway registration
+# 1. Gateway registration
 oc delete mcpserverregistration ${USER_PREFIX}-stock-mcp
 
-# 3. Gateway route
+# 2. Gateway route
 oc delete httproute ${USER_PREFIX}-stock-mcp
 
-# 4. MCPServer CR (operator auto-deletes Deployment, Service, NetworkPolicy)
+# 3. MCPServer CR (operator auto-deletes Deployment, Service, NetworkPolicy)
 oc delete mcpserver ${USER_PREFIX}-stock-mcp
 
-# 5. Build artifacts
+# 4. Build artifacts
 oc delete bc/${USER_PREFIX}-stock-mcp
 oc delete is/${USER_PREFIX}-stock-mcp
 ----
@@ -276,6 +384,10 @@ You completed the full *MCP Lifecycle* on OpenShift:
 |===
 | Layer | What | Resource
 
+| *Build*
+| OpenShift binary build compiled your code into a container image
+| BuildConfig + ImageStream
+
 | *Deploy*
 | MCP Lifecycle Operator created and hardened your server
 | MCPServer CR → Deployment + Service + NetworkPolicy
@@ -287,6 +399,10 @@ You completed the full *MCP Lifecycle* on OpenShift:
 | *Route & Govern*
 | MCP Gateway provides federated access with tool prefixing
 | HTTPRoute + MCPServerRegistration
+
+| *Test*
+| You spoke the MCP protocol directly via curl
+| `initialize` → `tools/list` → `tools/call`
 |===
 
-All from 3 YAML files and a handful of `oc` commands.
+All from 3 YAML files, 3 curl commands, and a handful of `oc` commands. Any MCP client — OpenCode, Claude, Cursor, or your own code — can now connect to your server at `https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp` and use the same protocol you just tested by hand.

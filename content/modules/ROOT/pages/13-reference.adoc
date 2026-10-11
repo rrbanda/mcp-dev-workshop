@@ -45,7 +45,30 @@ spec:
   config:
     port: 8080
     path: /mcp
+    storage:
+      - path: /tmp
+        permissions: ReadWrite
+        source:
+          type: EmptyDir
+          emptyDir: {}
+      - path: /.cache
+        permissions: ReadWrite
+        source:
+          type: EmptyDir
+          emptyDir: {}
+  mcp:
+    stateless: true
+  runtime:
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "256Mi"
+      limits:
+        cpu: "1"
+        memory: "512Mi"
 ----
+
+IMPORTANT: The `config.storage` entries are required. The operator enforces a read-only root filesystem, so yfinance (writes to `/.cache`) and Python (writes to `/tmp`) need writable EmptyDir mounts. Without them, the pod crashes with `Read-only file system`.
 
 === Status conditions
 

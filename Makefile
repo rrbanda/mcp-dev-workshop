@@ -1,4 +1,4 @@
-.PHONY: help test-local validate build-image deploy expose connect-mcp test-mcp verify verify-mcp clean antora operator preflight dry-run workshop-deploy workshop-deploy-checluster credentials workshop-undeploy ansible-deploy ansible-dry-run
+.PHONY: help test-local validate build-image deploy expose connect-mcp test-mcp verify verify-mcp clean antora operator preflight dry-run workshop-deploy workshop-deploy-checluster credentials workshop-undeploy ansible-deploy ansible-dry-run setup-platform setup-playground
 
 NAMESPACE ?= $(shell oc project -q 2>/dev/null || echo "my-namespace")
 SERVER_NAME ?= stock-market-mcp
@@ -111,6 +111,13 @@ antora: ## Build the workshop site locally
 	@echo "Site built in ./www — open www/modules/index.html"
 
 # ==== Facilitator: Workshop Infrastructure ====
+
+setup-platform: ## Set up MCP platform (MCP Lifecycle Operator, Gateway, RBAC) — cluster-admin
+	scripts/setup-platform.sh \
+		--user-prefix $(USER_PREFIX) --user-count $(USER_COUNT)
+
+setup-playground: ## Set up AI Playground (Gen AI Studio, OGX, MaaS, ConfigMap) — cluster-admin
+	scripts/setup-playground.sh
 
 operator: ## Install DevSpaces operator (cluster-admin required)
 	oc apply -f deploy/operator.yaml

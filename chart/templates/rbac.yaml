@@ -44,6 +44,9 @@ subjects:
   - kind: Group
     name: system:serviceaccounts:{{ $ns }}
     apiGroup: rbac.authorization.k8s.io
+  - kind: User
+    name: {{ .Values.user.name }}
+    apiGroup: rbac.authorization.k8s.io
 roleRef:
   kind: Role
   name: mcp-workshop-resources

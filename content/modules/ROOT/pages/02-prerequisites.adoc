@@ -4,51 +4,51 @@
 == What you need
 
 * A web browser (Chrome, Firefox, or Edge)
-* Workshop credentials from your facilitator: *OpenShift console URL*, *username*, *password*, and *AgentSherpa password*
+* Workshop credentials from your facilitator: *OpenShift console URL*, *username*, *password*
 
 No local tools, no IDE installation, no Docker or Podman.
 
-== Step 1: Open OpenCode Web
+== Step 1: Open your workspace
 
-Your facilitator will provide a direct URL to your OpenCode Web workspace, for example:
+Your facilitator will provide a direct URL to your DevSpaces workspace. Open it in your browser and log in with your workshop credentials.
 
-----
-https://user1-code-workspace-1-opencode-web.apps.<cluster-domain>
-----
+Once the workspace loads, open a *Terminal* (Terminal → New Terminal, or use the existing one).
 
-Open this URL in your browser. Log in with:
+== Step 2: Verify cluster connectivity
 
-* *Username:* `opencode`
-* *Password:* the AgentSherpa password from your credentials card
-
-== Step 2: Verify the workspace
-
-Once OpenCode loads, you should see:
-
-* A chat interface with an input box at the bottom
-* A sidebar showing sessions and tools
-
-Type anything (e.g., "hello") and press Enter. AgentSherpa should respond with its welcome message and present four options via clickable buttons.
-
-If you see the welcome message, your workspace is ready.
-
-== Step 3: Verify cluster connectivity
-
-Open the terminal in OpenCode (or use the bash tool in chat) and run:
+In the terminal, run:
 
 [source,bash]
 ----
 oc whoami
 ----
 
-Expected: your service account name (e.g., `system:serviceaccount:user1-devspaces:...`).
+Expected: your username (e.g., `user1`) or service account.
 
 [source,bash]
 ----
-echo $OPENAI_BASE_URL
+oc project
 ----
 
-Expected: the MaaS gateway URL for the LLM.
+Expected: your namespace (e.g., `user1-devspaces`).
+
+== Step 3: Verify the workshop repo
+
+[source,bash]
+----
+ls /projects/mcp-dev-workshop/server/server.py
+----
+
+Expected: the file exists. This is the pre-built MCP server you will deploy.
+
+== Step 4 (optional): Verify OpenCode Web
+
+If you plan to follow the *agent-guided track*, your facilitator will provide a separate OpenCode Web URL. Open it and log in with:
+
+* *Username:* `opencode`
+* *Password:* the AgentSherpa password from your credentials card
+
+Type anything (e.g., "hello") and press Enter. AgentSherpa should respond with a welcome message.
 
 == Troubleshooting
 
@@ -59,16 +59,20 @@ Expected: the MaaS gateway URL for the LLM.
 | Blank screen after login
 | Clear browser cache and reload. If the workspace is stopped, ask the facilitator to start it.
 
-| "401 Unauthorized" on login
-| Double-check the AgentSherpa password from your credentials card. Username is always `opencode`.
-
 | `oc whoami` fails
-| The workspace service account token is injected automatically. If missing, the workspace may need a restart.
+| The workspace credentials are injected automatically. If missing, the workspace may need a restart — ask the facilitator.
+
+| Workshop repo missing
+| Run `cd /projects && git clone <repo-url>` (ask your facilitator for the URL).
+
+| "401 Unauthorized" on OpenCode Web
+| Double-check the AgentSherpa password. Username is always `opencode`.
 
 | No response from AgentSherpa
-| Check that `OPENAI_BASE_URL` is set. The LLM may still be loading -- wait 1-2 minutes and try again.
+| Check that `OPENAI_BASE_URL` is set in the OpenCode terminal. The LLM may still be loading — wait 1-2 minutes and try again.
 |===
 
 == Ready?
 
-Proceed to xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts].
+* *Hands-on track:* Proceed to xref:15-manual-track.adoc[Build & Deploy an MCP Server]
+* *Agent-guided track:* Proceed to xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts]

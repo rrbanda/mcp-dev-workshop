@@ -2,7 +2,10 @@
 * xref:01-architecture.adoc[Architecture]
 * xref:02-prerequisites.adoc[Prerequisites]
 
-.Workshop Stages
+.Workshop (Hands-on Track)
+* xref:15-manual-track.adoc[Build & Deploy an MCP Server]
+
+.Agent-guided Track (Optional)
 * xref:03-stage1-welcome.adoc[Stage 1: Welcome & Concepts]
 * xref:04-stage2-intent.adoc[Stage 2: Capture Intent]
 * xref:05-stage3-skills.adoc[Stage 3: Skills & Knowledge]
@@ -12,9 +15,6 @@
 * xref:09-stage7-deploy.adoc[Stage 7: Deploy]
 * xref:10-stage8-connect.adoc[Stage 8: Connect & Use]
 * xref:11-stage9-wrapup.adoc[Stage 9: Wrap-up]
-
-.Manual Track
-* xref:15-manual-track.adoc[Manual Track: Build & Deploy with oc]
 
 .Reference
 * xref:12-cleanup.adoc[Cleanup]

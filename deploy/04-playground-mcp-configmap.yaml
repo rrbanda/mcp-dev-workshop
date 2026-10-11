@@ -1,0 +1,41 @@
+# ═══════════════════════════════════════════════════════════════════════
+# Gen AI Playground MCP ConfigMap — register MCP servers for Playground
+# ═══════════════════════════════════════════════════════════════════════
+# The RHOAI 3.5 Gen AI Playground discovers MCP servers from this
+# ConfigMap, NOT from MCPServer CRs or the MCP Gateway directly.
+#
+# This template registers the MCP Gateway as a single entry. Because
+# the gateway federates all registered MCPServerRegistrations, every
+# participant's prefixed tools appear through one URL.
+#
+# For example, if user1 registered with prefix "user1_stock_", the
+# Playground will see tools like:
+#   user1_stock_get_stock_info
+#   user1_stock_get_stock_news
+#   user1_stock_get_historical_stock_prices
+#
+# BEFORE APPLYING: Replace this placeholder:
+#   GATEWAY_HOSTNAME — the MCP Gateway's external hostname
+#
+# Get it with:
+#   oc get gateway mcp-gateway -n mcp-system \
+#     -o jsonpath='{.spec.listeners[0].hostname}'
+#
+# One-liner:
+#   sed "s|GATEWAY_HOSTNAME|$GATEWAY_HOSTNAME|g" \
+#     deploy/04-playground-mcp-configmap.yaml | oc apply -f -
+#
+# NOTE: This ConfigMap lives in redhat-ods-applications (admin namespace).
+#       You need cluster-admin privileges to apply it.
+# ═══════════════════════════════════════════════════════════════════════
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: gen-ai-aa-mcp-servers
+  namespace: redhat-ods-applications
+data:
+  Stock-Market-MCP-Gateway: |
+    {
+      "url": "http://GATEWAY_HOSTNAME/mcp",
+      "description": "MCP Gateway — federated access to all workshop participants stock market MCP servers. Each participants tools are prefixed with their username (e.g. user1_stock_get_stock_info). Deploy your own server and register it with the gateway to see your tools here."
+    }
