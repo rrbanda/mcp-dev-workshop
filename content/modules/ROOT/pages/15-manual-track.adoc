@@ -5,7 +5,7 @@ Step-by-step guide to build, deploy, and use an MCP server on OpenShift using `o
 
 The server code is pre-built and ready in `server/`. You read it, build it, deploy it, and use it.
 
-*Duration:* ~45 minutes
+*Duration:* ~50 minutes
 
 TIP: This is the primary workshop track. If you prefer an AI agent to generate the code and walk you through each step interactively, see the optional xref:03-stage1-welcome.adoc[agent-guided track] (Stages 1–9).
 
@@ -18,22 +18,87 @@ You need:
 
 == Step 0: Read the code
 
-Open and read `server/server.py`. It has section comments explaining every concept:
+Before building anything, read the server code. Understanding *what* an MCP server is and *how* it works is the foundation for everything that follows.
 
 [source,bash]
 ----
-cat server/server.py | head -50
+cat server/server.py
 ----
 
-Key things to notice:
+Take 5 minutes to scroll through the file. Here are the key concepts to look for:
 
-* `MCPServer("stock-market")` — creates the server instance
-* `@server.tool(name=..., description=...)` — each decorated function becomes an MCP tool
-* Type hints on parameters → JSON Schema for the LLM
-* Docstrings → tool descriptions the LLM reads
-* `server.run(transport="streamable-http", host="0.0.0.0", port=8080)` → HTTP listener
+=== What is MCP?
 
-The server has 9 tools that fetch live data from Yahoo Finance. No API key needed.
+MCP (Model Context Protocol) is an *open standard* — like USB for AI. It defines a protocol for AI agents to *discover* and *call* tools provided by external servers. The protocol uses JSON-RPC 2.0 over HTTP.
+
+Without MCP, every AI integration requires custom code: different APIs, different auth, different data formats. MCP standardizes this — any MCP client (OpenCode, Cursor, Claude Desktop, VS Code) can connect to any MCP server using the same protocol.
+
+=== How tools are defined
+
+Look at how `server.py` defines tools:
+
+[source,python]
+----
+@server.tool(
+    name="get_stock_info",
+    description="Get comprehensive stock information including price, metrics, and company details.",
+)
+async def get_stock_info(ticker: str) -> str:
+----
+
+Three things happen automatically from this code:
+
+. The *`@server.tool()` decorator* registers the function as an MCP tool — the server includes it in `tools/list` responses
+. *Type hints* (`ticker: str`) become *JSON Schema* — the LLM knows it needs to pass a string argument called `ticker`
+. The *description* is what the LLM reads to decide *when* to use the tool — it never sees the function body
+
+This is a key MCP design principle: *the LLM chooses tools by reading metadata (name + description + parameter schema), not by reading code.*
+
+=== Enums for constrained choices
+
+Notice the `FinancialType`, `HolderType`, and `RecommendationType` enums:
+
+[source,python]
+----
+class FinancialType(str, Enum):
+    income_stmt = "income_stmt"
+    quarterly_income_stmt = "quarterly_income_stmt"
+    ...
+----
+
+When a parameter uses an Enum type, the MCP SDK generates a JSON Schema `enum` field. The LLM sees the allowed values and picks one — preventing invalid inputs like `"quarterly_magic_sheet"`.
+
+=== Transport: Streamable HTTP
+
+At the bottom of `server.py`:
+
+[source,python]
+----
+server.run(transport="streamable-http", host="0.0.0.0", port=8080)
+----
+
+MCP supports multiple transports (stdio, SSE, streamable HTTP). For remote servers on OpenShift, *streamable HTTP* is the right choice — the server listens on a port for JSON-RPC requests and returns responses as Server-Sent Events (SSE). This is what the MCP Lifecycle Operator connects to during the handshake.
+
+=== The 9 tools
+
+The server provides 9 tools covering different financial data domains:
+
+[cols="1,2",options="header"]
+|===
+| Tool | What it does
+
+| `get_stock_info` | Current price, P/E, market cap, 52-week range, company profile
+| `get_historical_stock_prices` | OHLCV data with configurable period and interval
+| `get_stock_news` | Latest news articles from Yahoo Finance
+| `get_stock_actions` | Dividends and stock splits history
+| `get_financial_statement` | Income statement, balance sheet, cash flow (annual or quarterly)
+| `get_holder_info` | Institutional holders, insider transactions, major holders
+| `get_option_expiration_dates` | Available option expiration dates
+| `get_option_chain` | Calls/puts with optional strike filtering and field projection
+| `get_recommendations` | Analyst recommendations and upgrades/downgrades
+|===
+
+All data comes from Yahoo Finance via the `yfinance` library. No API key required.
 
 == Step 1: Set your variables
 
@@ -57,7 +122,7 @@ Namespace: user1-devspaces
 
 == Step 2: Build the container image
 
-An OpenShift *BuildConfig* compiles your code into a container image inside the cluster — no local Docker or Podman needed.
+An OpenShift *BuildConfig* compiles your code into a container image inside the cluster — no local Docker or Podman needed. The build happens on the cluster using the `Dockerfile` in `server/`.
 
 [source,bash]
 ----
@@ -73,7 +138,7 @@ oc start-build ${USER_PREFIX}-stock-mcp \
   --follow
 ----
 
-The `--follow` flag streams build logs. You should see pip installing `mcp[cli]` and `yfinance`, then a "Push successful" message.
+The `--follow` flag streams build logs. You should see pip installing `mcp[cli]` and `yfinance`, then a "Push successful" message. The image is stored in the cluster's internal registry.
 
 If the build fails, check:
 [source,bash]
@@ -83,7 +148,7 @@ oc logs bc/${USER_PREFIX}-stock-mcp
 
 == Step 3: Get the image digest
 
-The MCPServer CR needs the *exact* image reference (with sha256 digest), not a mutable `:latest` tag.
+The MCPServer CR needs the *exact* image reference (with sha256 digest), not a mutable `:latest` tag. Digests are immutable — the operator knows exactly what version it is running.
 
 [source,bash]
 ----
@@ -100,12 +165,54 @@ Image: image-registry.openshift-image-registry.svc:5000/user1-devspaces/user1-st
 
 == Step 4: Deploy the MCPServer CR
 
-This is the key step. Instead of manually creating Deployments and Services, you create a single `MCPServer` custom resource. The *MCP Lifecycle Operator* then:
+This is the most important step in the workshop. It demonstrates the core value proposition of the *MCP Lifecycle* in *Red Hat OpenShift AI 3.5*.
 
-* Creates a security-hardened *Deployment* (non-root, drop ALL capabilities, read-only filesystem)
+=== The problem: deploying MCP servers manually is hard
+
+Without the MCP Lifecycle, deploying an MCP server on Kubernetes requires creating *at least 5 resources manually*:
+
+* A *Deployment* with security contexts (non-root UID, drop ALL Linux capabilities, read-only root filesystem, seccomp profile)
+* A *Service* (ClusterIP) to expose the port
+* A *NetworkPolicy* to restrict which pods can reach your server
+* *Liveness/readiness probes* to verify the server is healthy
+* *EmptyDir volumes* for writable directories (`/tmp`, `/.cache`)
+
+You also need to verify the server actually speaks MCP — manually sending an `initialize` request to check.
+
+=== The solution: one CR does it all
+
+With *Red Hat OpenShift AI 3.5*, you create a single `MCPServer` custom resource. The *MCP Lifecycle Operator* watches for these CRs and automatically:
+
+* Creates a *security-hardened Deployment* — non-root, drop ALL capabilities, read-only filesystem, seccomp RuntimeDefault
 * Creates a *Service* (ClusterIP on port 8080)
 * Creates a *NetworkPolicy* for network segmentation
-* Performs an *MCP protocol handshake* — it sends an `initialize` JSON-RPC call to verify your server responds correctly
+* Performs an *MCP protocol handshake* — sends an `initialize` JSON-RPC call to verify your server responds correctly before marking it Ready
+
+=== Read the YAML first
+
+Before applying, read the MCPServer manifest to understand each field:
+
+[source,bash]
+----
+cat deploy/01-mcpserver.yaml
+----
+
+Key fields explained:
+
+[cols="1,2",options="header"]
+|===
+| Field | Purpose
+
+| `spec.source.type: ContainerImage` | Tells the operator to pull a pre-built image (vs. building from source)
+| `spec.source.containerImage.ref` | The immutable image digest — the operator knows exactly what it runs
+| `spec.config.port: 8080` | Must match what `server.py` listens on — the operator connects here during the handshake
+| `spec.config.path: /mcp` | The HTTP path for MCP requests — must match `server.py`
+| `spec.config.storage` | Writable directories. The operator enforces a *read-only root filesystem*, so yfinance (`/.cache`) and Python (`/tmp`) need EmptyDir mounts. Without them, the pod crashes with `Read-only file system`
+| `spec.mcp.stateless: true` | Tells the operator this server holds no session state — it can freely restart or reschedule the pod
+| `spec.runtime.resources` | CPU and memory requests/limits for the pod
+|===
+
+=== Apply it
 
 [source,bash]
 ----
@@ -126,6 +233,24 @@ Expected output:
 NAME               READY   AGE
 user1-stock-mcp    True    45s
 ----
+
+=== What happened behind the scenes
+
+When READY becomes True, the operator has:
+
+. Pulled your container image
+. Created a Deployment with security hardening (check: `oc get deploy ${USER_PREFIX}-stock-mcp -o yaml | grep -A10 securityContext`)
+. Created a Service (check: `oc get svc ${USER_PREFIX}-stock-mcp`)
+. Sent an MCP `initialize` handshake to port 8080 at `/mcp` and received a valid response
+. Recorded your server's capabilities (tools, resources, prompts) in the CR status
+
+To see the handshake result:
+[source,bash]
+----
+oc get mcpserver ${USER_PREFIX}-stock-mcp -o jsonpath='{.status.serverInfo}' | python3 -m json.tool
+----
+
+You should see `"tools": true` — confirming the operator discovered your 9 tools.
 
 If it stays not-ready for more than 2 minutes:
 [source,bash]
@@ -153,19 +278,39 @@ Common issues:
 | Image reference is wrong. Re-run Step 3 to get the correct digest.
 |===
 
-== Step 5: Verify in AI Hub
+== Step 5: Explore in AI Hub
+
+*AI Hub* is a new feature in Red Hat OpenShift AI 3.5 that provides a centralized catalog for MCP servers. When the MCP Lifecycle Operator deploys your server, it automatically appears in the AI Hub — no manual registration needed.
 
 Open the *OpenShift AI dashboard* in your browser:
 
 . Navigate to *AI Hub → MCP servers → Deployments*
-. Your `${USER_PREFIX}-stock-mcp` should appear with a *Ready* badge
-. Click it to see the 9 tools the operator discovered during the handshake
+. Find your `${USER_PREFIX}-stock-mcp` — it should show a *Ready* badge
+. Click on it to see details
 
-This confirms Layer 1 (Deploy) and Layer 2 (Discover) of the MCP Lifecycle are working.
+=== What to explore in the AI Hub
+
+* *Tools tab* — the operator discovered all 9 tools during the handshake. Click any tool to see its name, description, and input schema. This is the same metadata the LLM reads when deciding which tool to call.
+* *Status* — shows the server's health, replica count, and address
+* *Capabilities* — shows what MCP features your server supports (tools, resources, prompts)
+
+The AI Hub also hosts *pre-built MCP servers* from Red Hat, partners, and the community. Browse the catalog to see what's available for one-click deployment.
+
+This confirms *Layer 1 (Deploy)* and *Layer 2 (Discover)* of the MCP Lifecycle are working.
 
 == Step 6: Get the MCP Gateway hostname
 
-The MCP Gateway provides a single, governed entry point for all MCP servers. You need its external hostname:
+The *MCP Gateway* is the third layer of the MCP Lifecycle — it provides *federated tool discovery* and *governance* across all MCP servers on the cluster.
+
+=== What is the MCP Gateway?
+
+The MCP Gateway is powered by *Red Hat Connectivity Link (RHCL)*. It acts as a single entry point that:
+
+* *Federates* tools from all registered MCP servers into one `tools/list` response — an AI agent connects to one URL and discovers tools from every server
+* *Prefixes* tool names to prevent collisions — when 30 participants each have `get_stock_info`, the gateway namespaces them as `user1_stock_get_stock_info`, `user2_stock_get_stock_info`, etc.
+* Provides *auth, rate limiting, and observability* at the gateway layer — without modifying individual servers
+
+Get the gateway's external hostname:
 
 [source,bash]
 ----
@@ -182,7 +327,30 @@ Gateway: mcp-gateway.apps.ocp.example.com
 
 == Step 7: Create the HTTPRoute
 
-The HTTPRoute tells the gateway: "route traffic at `/mcp/${USER_PREFIX}-stock` to my MCPServer's Service."
+The HTTPRoute tells the gateway how to route traffic to your server. It maps a unique path (`/mcp/${USER_PREFIX}-stock`) to your MCPServer's Service.
+
+=== Read the YAML first
+
+[source,bash]
+----
+cat deploy/02-httproute.yaml
+----
+
+Key fields:
+
+[cols="1,2",options="header"]
+|===
+| Field | Purpose
+
+| `spec.parentRefs` | Attaches this route to the shared `mcp-gateway` in `mcp-system`
+| `spec.hostnames` | The gateway's external hostname — all MCP servers share this
+| `spec.rules[].matches[].path.value` | Your unique path: `/mcp/${USER_PREFIX}-stock`. Each participant gets their own
+| `spec.rules[].backendRefs` | Points to the Service the MCP Lifecycle Operator created for your MCPServer
+|===
+
+Think of it like adding a new route to a shared load balancer — the gateway handles TLS and routing; you just register your path.
+
+=== Apply it
 
 [source,bash]
 ----
@@ -200,7 +368,32 @@ Expected: you should see `Accepted: True` in the conditions. If not, check that 
 
 == Step 8: Register with the MCP Gateway
 
-The *MCPServerRegistration* tells the gateway about your tools and adds a *prefix* to avoid name collisions. With 30 participants, each having a `get_stock_info` tool, the prefix ensures they don't clash (e.g., `user1_stock_get_stock_info`).
+The HTTPRoute handles *traffic routing*. The MCPServerRegistration handles *tool discovery* — it tells the gateway what tools your server provides and adds a *prefix* to avoid name collisions.
+
+=== Why prefixes matter
+
+Without prefixes, there is a problem: 30 participants each deploy a server with a tool called `get_stock_info`. When an AI agent calls `tools/list` on the gateway, it gets 30 tools with the same name. Which one should it call?
+
+The MCPServerRegistration solves this with the `prefix` field. Your tool `get_stock_info` becomes `user1_stock_get_stock_info` on the gateway. Each participant's tools are namespaced — no collisions.
+
+=== Read the YAML first
+
+[source,bash]
+----
+cat deploy/03-mcpserverregistration.yaml
+----
+
+Key fields:
+
+[cols="1,2",options="header"]
+|===
+| Field | Purpose
+
+| `spec.prefix` | Your tool namespace. `user1_stock` means `get_stock_info` becomes `user1_stock_get_stock_info` on the gateway
+| `spec.targetRef` | Points to your *HTTPRoute* (not directly to the MCPServer). The gateway controller discovers the backend service from the route
+|===
+
+=== Apply it
 
 [source,bash]
 ----
@@ -210,17 +403,37 @@ sed "s|USER_PREFIX|$USER_PREFIX|g" \
 
 IMPORTANT: The field is `prefix`, NOT `toolPrefix`. Using `toolPrefix` is silently ignored — your tools won't be prefixed and may collide.
 
-The `targetRef` points to your HTTPRoute — the gateway discovers your backend service from the route.
-
 Verify:
 [source,bash]
 ----
 oc get mcpserverregistration ${USER_PREFIX}-stock-mcp
 ----
 
+The gateway now knows about your tools. It discovers them by connecting to your backend (via the HTTPRoute) and calling `tools/list`.
+
 == Step 9: Test your MCP server with curl
 
-Now the payoff — you'll talk the *MCP protocol* directly to your server. MCP uses JSON-RPC 2.0 over HTTP, so three `curl` commands prove the entire stack works.
+Now the payoff — you will speak the *MCP protocol* directly to your server. This is exactly what AI agents do behind the scenes. Understanding these three calls demystifies how every MCP integration works.
+
+=== The MCP protocol in 30 seconds
+
+MCP uses *JSON-RPC 2.0* over HTTP. Every interaction follows this pattern:
+
+. *Client → Server:* JSON request with `method` and `params`
+. *Server → Client:* JSON response with `result` (or `error`)
+
+There are three key methods:
+
+[cols="1,2",options="header"]
+|===
+| Method | What happens
+
+| `initialize` | Handshake — client and server exchange capabilities, agree on protocol version, start a session
+| `tools/list` | Discovery — client asks "what tools do you have?" and gets back names, descriptions, and parameter schemas
+| `tools/call` | Invocation — client calls a specific tool with arguments and gets results back
+|===
+
+When you connect OpenCode (or any MCP client) to your server, it calls these three methods automatically. You are about to do it by hand.
 
 First, set the MCP endpoint URL. Your MCPServer's Service is accessible within the cluster:
 
@@ -232,7 +445,7 @@ echo "MCP endpoint: $MCP_URL"
 
 === 9a. Initialize (MCP handshake)
 
-Every MCP session starts with an `initialize` call. The client and server exchange capabilities and agree on a protocol version.
+Every MCP session starts with an `initialize` call. The client sends its name and capabilities; the server responds with its name, protocol version, and what it supports (tools, resources, prompts). The server also returns an `Mcp-Session-Id` header for subsequent calls.
 
 [source,bash]
 ----
@@ -251,9 +464,9 @@ curl -s -D /tmp/mcp-headers.txt -X POST "$MCP_URL" \
   }'
 ----
 
-Expected: a JSON response with `"result"` containing server info and capabilities. The server also returns an `Mcp-Session-Id` header that you need for subsequent calls.
+Expected: a response containing `"result"` with server info and capabilities. Look for `"tools": {"listChanged": false}` — that confirms the server supports tool discovery.
 
-Save the session ID:
+Save the session ID for subsequent calls:
 [source,bash]
 ----
 export MCP_SESSION=$(grep -i mcp-session-id /tmp/mcp-headers.txt | tr -d '\r' | awk '{print $2}')
@@ -262,7 +475,7 @@ echo "Session: $MCP_SESSION"
 
 === 9b. List tools (tool discovery)
 
-This is what an AI agent calls to find out what your server can do. The response is the same tool list you saw in the AI Hub.
+This is the call an AI agent makes to find out what your server can do. The response is the same tool list you saw in the AI Hub.
 
 [source,bash]
 ----
@@ -278,11 +491,17 @@ curl -s -X POST "$MCP_URL" \
   }'
 ----
 
-Expected: a `"result"` object with a `"tools"` array listing all 9 tools. Each tool has a `name`, `description`, and `inputSchema` — the same metadata you defined with decorators and docstrings in `server.py`.
+Expected: a `"result"` object with a `"tools"` array listing all 9 tools. Each tool has:
+
+* *`name`* — the identifier the LLM uses to call the tool (e.g., `get_stock_info`)
+* *`description`* — natural language that the LLM reads to decide when to use it
+* *`inputSchema`* — JSON Schema defining required and optional parameters with types
+
+This is the same metadata you defined in `server.py` with `@server.tool()` decorators, type hints, and docstrings. The MCP SDK automatically converted your Python code into this schema.
 
 === 9c. Call a tool (live data)
 
-Now call a tool and get real stock data. This is exactly what an LLM does when it decides to use a tool.
+Now call a tool and get real stock data. This is exactly what an LLM does when it decides to use a tool — it sends a `tools/call` request with the tool name and arguments.
 
 [source,bash]
 ----
@@ -301,9 +520,9 @@ curl -s -X POST "$MCP_URL" \
   }'
 ----
 
-Expected: live Apple stock data — current price, volume, market cap, 52-week range. This data came from Yahoo Finance, processed by YOUR server, deployed on OpenShift.
+Expected: live Apple stock data — current price, volume, market cap, 52-week range, company profile. This data came from Yahoo Finance, processed by YOUR server, deployed on OpenShift, accessed via the MCP protocol.
 
-Try more tools:
+=== 9d. Try more tools
 
 [source,bash]
 ----
@@ -319,18 +538,18 @@ curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
-  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_recommendations","arguments":{"ticker":"NVDA"}}}'
+  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_recommendations","arguments":{"ticker":"NVDA","recommendation_type":"recommendations"}}}'
 ----
 
 === What just happened
 
 You spoke the MCP protocol directly:
 
-. *Initialize* — handshake, establish session
+. *Initialize* — handshake, establish session, exchange capabilities
 . *tools/list* — discover available tools (this is what AI agents call to learn your capabilities)
 . *tools/call* — invoke a tool with arguments and get results (this is what happens when an LLM decides to use a tool)
 
-The same three calls happen behind the scenes when any MCP client (OpenCode, Claude, Cursor, etc.) connects to your server. You just did it by hand.
+The same three calls happen behind the scenes when any MCP client (OpenCode, Claude, Cursor, etc.) connects to your server. You just did it by hand — now you understand exactly what the protocol does.
 
 === Troubleshooting
 
@@ -339,10 +558,13 @@ The same three calls happen behind the scenes when any MCP client (OpenCode, Cla
 | Symptom | Fix
 
 | `Connection refused` or timeout
-| The MCP Gateway may not be reachable. Verify: `oc get gateway mcp-gateway -n mcp-system` shows `PROGRAMMED=True`.
+| Your MCPServer pod may not be running. Verify: `oc get mcpserver ${USER_PREFIX}-stock-mcp` shows `READY=True`. Check: `oc get pods -l mcp-server=${USER_PREFIX}-stock-mcp`.
+
+| `Not Acceptable` error
+| The server requires both Accept types. Make sure your curl includes `-H "Accept: application/json, text/event-stream"`.
 
 | `404 Not Found`
-| The HTTPRoute path does not match. Check: `oc describe httproute ${USER_PREFIX}-stock-mcp`. The path should be `/mcp/${USER_PREFIX}-stock`.
+| The URL path may be wrong. Verify the MCP_URL is `http://${USER_PREFIX}-stock-mcp:8080/mcp`.
 
 | `initialize` returns an error
 | Your MCPServer pod may not be running. Check: `oc get mcpserver ${USER_PREFIX}-stock-mcp` shows `READY=True`. Check logs: `oc logs deployment/${USER_PREFIX}-stock-mcp`.
@@ -384,31 +606,39 @@ Expected: no output.
 
 == What you just did
 
-You completed the full *MCP Lifecycle* on OpenShift:
+You completed the full *MCP Lifecycle* on *Red Hat OpenShift AI 3.5*:
 
 [cols="1,2,2",options="header"]
 |===
-| Layer | What | Resource
+| Layer | What | RHOAI 3.5 Component
 
 | *Build*
 | OpenShift binary build compiled your code into a container image
 | BuildConfig + ImageStream
 
 | *Deploy*
-| MCP Lifecycle Operator created and hardened your server
-| MCPServer CR → Deployment + Service + NetworkPolicy
+| MCP Lifecycle Operator created a security-hardened server from a single CR, verified it speaks MCP via handshake
+| MCPServer CR → Deployment + Service + NetworkPolicy + handshake
 
 | *Discover*
-| AI Hub made your server browsable
+| AI Hub made your server and its 9 tools browsable in a centralized catalog
 | AI Hub → MCP servers → Deployments
 
 | *Route & Govern*
-| MCP Gateway provides federated access with tool prefixing
-| HTTPRoute + MCPServerRegistration
+| MCP Gateway provides federated tool discovery with per-server prefixing via a single governed endpoint
+| HTTPRoute + MCPServerRegistration (powered by Red Hat Connectivity Link)
 
 | *Test*
-| You spoke the MCP protocol directly via curl
+| You spoke the MCP protocol directly and got live stock data
 | `initialize` → `tools/list` → `tools/call`
 |===
 
-All from 3 YAML files, 3 curl commands, and a handful of `oc` commands. Any MCP client — OpenCode, Claude, Cursor, or your own code — can connect to the MCP Gateway at `https://${GATEWAY_HOSTNAME}/mcp` and discover your tools alongside every other participant's servers. The gateway federates all registered tools under one endpoint, with your prefix (`${USER_PREFIX}_stock`) preventing name collisions.
+=== Key takeaways
+
+* *One CR replaces five resources* — the MCPServer CR is all you need. The operator handles Deployment, Service, NetworkPolicy, security hardening, and protocol verification.
+* *Security by default* — the operator enforces non-root, drop ALL capabilities, read-only filesystem, and seccomp. You did not write any security config.
+* *AI Hub is automatic* — your server appeared in the catalog the moment the operator marked it Ready. No manual registration.
+* *The MCP Gateway federates* — 30 participants' servers are discoverable through a single URL, with tool prefixing to avoid collisions. An AI agent connecting to the gateway sees all tools from all servers.
+* *MCP is an open standard* — the same server you deployed works with OpenCode, Cursor, Claude Desktop, VS Code, or any MCP-compatible client. No vendor lock-in.
+
+All from 3 YAML files, 3 curl commands, and a handful of `oc` commands.
