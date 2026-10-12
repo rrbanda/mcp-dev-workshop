@@ -238,6 +238,7 @@ Every MCP session starts with an `initialize` call. The client and server exchan
 ----
 curl -s -D /tmp/mcp-headers.txt -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -d '{
     "jsonrpc": "2.0",
     "id": 1,
@@ -267,6 +268,7 @@ This is what an AI agent calls to find out what your server can do. The response
 ----
 curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
   -d '{
     "jsonrpc": "2.0",
@@ -286,6 +288,7 @@ Now call a tool and get real stock data. This is exactly what an LLM does when i
 ----
 curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
   -d '{
     "jsonrpc": "2.0",
@@ -307,12 +310,14 @@ Try more tools:
 # Get latest news for Tesla
 curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
   -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_stock_news","arguments":{"ticker":"TSLA"}}}'
 
 # Get analyst recommendations for NVIDIA
 curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
   -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_recommendations","arguments":{"ticker":"NVDA"}}}'
 ----
