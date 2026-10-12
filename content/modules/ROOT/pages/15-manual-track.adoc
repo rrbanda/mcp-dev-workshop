@@ -16,6 +16,13 @@ You need:
 * A terminal in your DevSpaces workspace — open one with *F1 → type `terminal select` → pick `dev-tools`*
 * The pre-built server code in `server/` (cloned with the workshop repo)
 
+First, change into the workshop directory. All commands in this guide use relative paths from here:
+
+[source,bash]
+----
+cd /projects/mcp-dev-workshop
+----
+
 == Step 0: Read the code
 
 Before building anything, read the server code. Understanding *what* an MCP server is and *how* it works is the foundation for everything that follows.
@@ -107,8 +114,11 @@ All data comes from Yahoo Finance via the `yfinance` library. No API key require
 # Your username prefix (ask your facilitator — usually user1, user2, etc.)
 export USER_PREFIX=user1
 
-# Your namespace (auto-detected from current project)
-export USER_NAMESPACE=$(oc project -q)
+# Your namespace (auto-set by DevSpaces)
+export USER_NAMESPACE=$DEVWORKSPACE_NAMESPACE
+
+# Set the active project so oc commands target your namespace
+oc project $USER_NAMESPACE
 
 echo "Prefix:    $USER_PREFIX"
 echo "Namespace: $USER_NAMESPACE"
@@ -116,6 +126,7 @@ echo "Namespace: $USER_NAMESPACE"
 
 Expected output:
 ----
+Now using project "user1-devspaces" on server "https://...".
 Prefix:    user1
 Namespace: user1-devspaces
 ----
