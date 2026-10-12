@@ -289,23 +289,55 @@ Common issues:
 | Image reference is wrong. Re-run Step 3 to get the correct digest.
 |===
 
-== Step 5: Explore in AI Hub
+== Step 5: Verify your server in the AI Hub MCP Catalog
 
-*AI Hub* is a new feature in Red Hat OpenShift AI 3.5 that provides a centralized catalog for MCP servers. When the MCP Lifecycle Operator deploys your server, it automatically appears in the AI Hub — no manual registration needed.
+Your MCP server is now live — and the MCP Lifecycle Operator has *automatically imported it into the AI Hub MCP Catalog*. You did not need to register it anywhere. The operator detected your server's tools during the handshake and published them to the catalog. This is the "Discover" layer of the MCP Lifecycle.
 
-Open the *OpenShift AI dashboard* in your browser:
+Now open the RHOAI dashboard to see it.
 
-. Navigate to *AI Hub → MCP servers → Deployments*
-. Find your `${USER_PREFIX}-stock-mcp` — it should show a *Ready* badge
-. Click on it to see details
+=== 5a. Get the dashboard URL
 
-=== What to explore in the AI Hub
+Run this command to get the OpenShift AI dashboard URL:
+
+[source,bash]
+----
+echo "https://$(oc get route rhods-dashboard -n redhat-ods-applications -o jsonpath='{.spec.host}')"
+----
+
+Copy the URL and open it in a new browser tab.
+
+=== 5b. Log in
+
+Log in with your *workshop credentials* — the same username and password you used for DevSpaces:
+
+* *Username:* your assigned user (e.g., `user1`)
+* *Password:* the password from your facilitator's credentials card
+
+After login, you land on the OpenShift AI dashboard home page.
+
+=== 5c. Navigate to the MCP Catalog
+
+. In the left sidebar, click *AI Hub*
+. Click *MCP servers*
+. Click the *Deployments* tab
+
+You should see your `${USER_PREFIX}-stock-mcp` server listed with a *Ready* badge.
+
+. Click on your server name to open the details page
+
+=== 5d. What to explore
 
 * *Tools tab* — the operator discovered all 9 tools during the handshake. Click any tool to see its name, description, and input schema. This is the same metadata the LLM reads when deciding which tool to call.
-* *Status* — shows the server's health, replica count, and address
+* *Status* — shows the server's health, replica count, and internal address
 * *Capabilities* — shows what MCP features your server supports (tools, resources, prompts)
 
-The AI Hub also hosts *pre-built MCP servers* from Red Hat, partners, and the community. Browse the catalog to see what's available for one-click deployment.
+NOTE: You may also see MCP servers from other participants in the catalog. The AI Hub shows all MCPServer CRs that the operator has deployed across namespaces you have access to.
+
+Browse the catalog — the AI Hub also lists *pre-built MCP servers* from Red Hat, partners, and the community that can be deployed with one click.
+
+=== What just happened
+
+You did *not* manually import your server into the catalog. The MCP Lifecycle Operator did it automatically when your MCPServer CR became Ready. This is a key difference from traditional deployments — the operator handles both the infrastructure (Deployment, Service, NetworkPolicy) and the catalog registration in one step.
 
 This confirms *Layer 1 (Deploy)* and *Layer 2 (Discover)* of the MCP Lifecycle are working.
 
