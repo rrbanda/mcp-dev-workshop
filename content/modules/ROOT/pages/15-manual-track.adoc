@@ -13,7 +13,7 @@ TIP: This is the primary workshop track. If you prefer an AI agent to generate t
 
 You need:
 
-* A terminal in your DevSpaces workspace (or any terminal logged into the cluster)
+* A terminal in your DevSpaces workspace — open one with *F1 → type `terminal select` → pick `dev-tools`*
 * The pre-built server code in `server/` (cloned with the workshop repo)
 
 == Step 0: Read the code

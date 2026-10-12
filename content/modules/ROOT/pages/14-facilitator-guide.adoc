@@ -459,6 +459,9 @@ For participants who finish early or want to explore the agentic SDLC:
 |===
 | Issue | Resolution
 
+| Terminal is blank / clicking `+` does nothing
+| This is a known DevSpaces behavior. Tell participants: press *F1*, type `terminal select`, click "Terminal: Create New Terminal (Select a Container)", and pick *dev-tools*. This is documented in the Prerequisites page.
+
 | Workspace stuck in "Starting"
 | Check DevWorkspace events: `oc describe dw -n user<N>-devspaces`. May need to delete and recreate.
 

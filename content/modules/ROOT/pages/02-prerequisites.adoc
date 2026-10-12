@@ -12,7 +12,16 @@ No local tools, no IDE installation, no Docker or Podman.
 
 Your facilitator will provide a direct URL to your DevSpaces workspace. Open it in your browser and log in with your workshop credentials.
 
-Once the workspace loads, open a *Terminal* (Terminal → New Terminal, or use the existing one).
+Once the workspace loads, open a terminal using these steps:
+
+. Press *F1* to open the command palette
+. Type *`terminal select`*
+. Click *"Terminal: Create New Terminal (Select a Container)"*
+. Pick *`dev-tools`* from the list
+
+You should see a bash prompt. This is where you will run all workshop commands.
+
+TIP: The regular `+` button in the Terminal panel may show a blank terminal. Always use the *F1 → Select a Container → dev-tools* method above.
 
 == Step 2: Verify cluster connectivity
 
@@ -55,6 +64,9 @@ Type anything (e.g., "hello") and press Enter. AgentSherpa should respond with a
 [cols="1,2",options="header"]
 |===
 | Issue | Resolution
+
+| Terminal is blank / clicking `+` does nothing
+| Press *F1*, type `terminal select`, click "Terminal: Create New Terminal (Select a Container)", and pick *dev-tools*.
 
 | Blank screen after login
 | Clear browser cache and reload. If the workspace is stopped, ask the facilitator to start it.
