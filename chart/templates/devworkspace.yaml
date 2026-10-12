@@ -66,31 +66,17 @@ spec:
               exposure: public
               protocol: https
     commands:
-      - id: workspace-init
+      - id: update-workshop-repo
         exec:
-          label: "Initialize workspace"
+          label: "Pull latest workshop content"
           component: dev-tools
           commandLine: |
-            (
-              # 1. Pull latest workshop content
-              cd /projects/mcp-dev-workshop && git pull origin {{ .Values.workshop.branch | quote }} || true
-
-              # 2. Create kubeconfig from service account token
-              mkdir -p /home/user/.kube
-              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-              CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-              NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-              oc config set-cluster in-cluster --server=https://kubernetes.default.svc --certificate-authority=$CA --kubeconfig=/home/user/.kube/config
-              oc config set-credentials sa --token=$TOKEN --kubeconfig=/home/user/.kube/config
-              oc config set-context default --cluster=in-cluster --user=sa --namespace=$NS --kubeconfig=/home/user/.kube/config
-              oc config use-context default --kubeconfig=/home/user/.kube/config
-            ) > /tmp/workspace-init.log 2>&1 &
+            cd /projects/mcp-dev-workshop && git pull origin {{ .Values.workshop.branch | quote }} || true
       - id: write-opencode-config
         exec:
           label: "Write OpenCode Config"
           component: dev-tools
           commandLine: |
-            wait
 {{ include "mcp-workshop.opencodeWriteConfigScript" . | indent 12 }}
       - id: write-opencode-skills
         exec:
@@ -115,7 +101,7 @@ spec:
             echo "{{ include "mcp-workshop.appName" . }} Web UI started on port 4096 (password-protected)"
     events:
       postStart:
-        - workspace-init
+        - update-workshop-repo
         - write-opencode-config
         - write-opencode-skills
         - start-opencode-web
