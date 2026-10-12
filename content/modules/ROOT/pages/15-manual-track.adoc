@@ -220,7 +220,15 @@ oc get mcpserverregistration ${USER_PREFIX}-stock-mcp
 
 == Step 9: Test your MCP server with curl
 
-Now the payoff — you'll talk the *MCP protocol* directly to your server through the gateway. MCP uses JSON-RPC 2.0 over HTTP, so three `curl` commands prove the entire stack works.
+Now the payoff — you'll talk the *MCP protocol* directly to your server. MCP uses JSON-RPC 2.0 over HTTP, so three `curl` commands prove the entire stack works.
+
+First, set the MCP endpoint URL. Your MCPServer's Service is accessible within the cluster:
+
+[source,bash]
+----
+export MCP_URL="http://${USER_PREFIX}-stock-mcp:8080/mcp"
+echo "MCP endpoint: $MCP_URL"
+----
 
 === 9a. Initialize (MCP handshake)
 
@@ -228,8 +236,7 @@ Every MCP session starts with an `initialize` call. The client and server exchan
 
 [source,bash]
 ----
-curl -s -D /tmp/mcp-headers.txt -X POST \
-  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+curl -s -D /tmp/mcp-headers.txt -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -240,7 +247,7 @@ curl -s -D /tmp/mcp-headers.txt -X POST \
       "capabilities": {},
       "clientInfo": {"name": "manual-test", "version": "1.0"}
     }
-  }' | python3 -m json.tool
+  }'
 ----
 
 Expected: a JSON response with `"result"` containing server info and capabilities. The server also returns an `Mcp-Session-Id` header that you need for subsequent calls.
@@ -258,8 +265,7 @@ This is what an AI agent calls to find out what your server can do. The response
 
 [source,bash]
 ----
-curl -s -X POST \
-  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
   -d '{
@@ -267,7 +273,7 @@ curl -s -X POST \
     "id": 2,
     "method": "tools/list",
     "params": {}
-  }' | python3 -m json.tool
+  }'
 ----
 
 Expected: a `"result"` object with a `"tools"` array listing all 9 tools. Each tool has a `name`, `description`, and `inputSchema` — the same metadata you defined with decorators and docstrings in `server.py`.
@@ -278,8 +284,7 @@ Now call a tool and get real stock data. This is exactly what an LLM does when i
 
 [source,bash]
 ----
-curl -s -X POST \
-  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
   -d '{
@@ -290,30 +295,26 @@ curl -s -X POST \
       "name": "get_stock_info",
       "arguments": {"ticker": "AAPL"}
     }
-  }' | python3 -m json.tool
+  }'
 ----
 
-Expected: live Apple stock data — current price, volume, market cap, 52-week range. This data came from Yahoo Finance, processed by YOUR server, routed through the MCP Gateway.
+Expected: live Apple stock data — current price, volume, market cap, 52-week range. This data came from Yahoo Finance, processed by YOUR server, deployed on OpenShift.
 
 Try more tools:
 
 [source,bash]
 ----
 # Get latest news for Tesla
-curl -s -X POST \
-  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
-  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_stock_news","arguments":{"ticker":"TSLA"}}}' \
-  | python3 -m json.tool
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"get_stock_news","arguments":{"ticker":"TSLA"}}}'
 
 # Get analyst recommendations for NVIDIA
-curl -s -X POST \
-  "https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp" \
+curl -s -X POST "$MCP_URL" \
   -H "Content-Type: application/json" \
   -H "Mcp-Session-Id: $MCP_SESSION" \
-  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_recommendations","arguments":{"ticker":"NVDA"}}}' \
-  | python3 -m json.tool
+  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"get_recommendations","arguments":{"ticker":"NVDA"}}}'
 ----
 
 === What just happened
@@ -405,4 +406,4 @@ You completed the full *MCP Lifecycle* on OpenShift:
 | `initialize` → `tools/list` → `tools/call`
 |===
 
-All from 3 YAML files, 3 curl commands, and a handful of `oc` commands. Any MCP client — OpenCode, Claude, Cursor, or your own code — can now connect to your server at `https://${GATEWAY_HOSTNAME}/mcp/${USER_PREFIX}-stock/mcp` and use the same protocol you just tested by hand.
+All from 3 YAML files, 3 curl commands, and a handful of `oc` commands. Any MCP client — OpenCode, Claude, Cursor, or your own code — can connect to the MCP Gateway at `https://${GATEWAY_HOSTNAME}/mcp` and discover your tools alongside every other participant's servers. The gateway federates all registered tools under one endpoint, with your prefix (`${USER_PREFIX}_stock`) preventing name collisions.
