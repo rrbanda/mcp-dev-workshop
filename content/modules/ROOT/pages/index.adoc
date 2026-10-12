@@ -14,7 +14,7 @@ In this workshop you will take a pre-built stock market MCP server, build a cont
 | Track | How it works
 
 | *xref:15-manual-track.adoc[Hands-on track]* (recommended)
-| Pre-built server code with rich comments. You read the code, then build and deploy using `oc` commands and test with `curl`. ~45 minutes.
+| Pre-built server code with rich comments. You read the code, understand the RHOAI 3.5 MCP Lifecycle, then build and deploy using `oc` commands and test with `curl`. ~50 minutes.
 
 | *Agent-guided track* (optional, Stages 1–9)
 | AgentSherpa, an AI coding agent, walks you through the entire SDLC: intent → design → build → deploy → use. The agent generates code, runs tests, and deploys — you approve each step.
