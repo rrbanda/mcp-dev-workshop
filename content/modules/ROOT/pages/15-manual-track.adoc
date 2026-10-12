@@ -301,7 +301,7 @@ Run this command to get the OpenShift AI dashboard URL:
 
 [source,bash]
 ----
-echo "https://$(oc get route rhods-dashboard -n redhat-ods-applications -o jsonpath='{.spec.host}')"
+echo "$(oc whoami --show-console)" | sed 's|console-openshift-console|rhods-dashboard-redhat-ods-applications|'
 ----
 
 Copy the URL and open it in a new browser tab.
