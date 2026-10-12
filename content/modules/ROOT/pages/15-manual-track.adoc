@@ -315,25 +315,31 @@ Log in with your *workshop credentials* — the same username and password you u
 
 After login, you land on the OpenShift AI dashboard home page.
 
-=== 5c. Navigate to the MCP Catalog
+=== 5c. Navigate to the MCP servers page
 
 . In the left sidebar, click *AI Hub*
 . Click *MCP servers*
-. Click the *Deployments* tab
 
-You should see your `${USER_PREFIX}-stock-mcp` server listed with a *Ready* badge.
+You land on the *Catalog* tab — this shows pre-built MCP servers from Red Hat, partners, and the community. Browse it if you like, but your deployed server is on a different tab.
 
-. Click on your server name to open the details page
+=== 5d. Find your deployed server
 
-=== 5d. What to explore
+. Click the *Deployments* tab (next to Catalog)
+. If there is a *project selector* at the top of the page, select your project: *`${USER_PREFIX}-devspaces`*
+
+You should see your `${USER_PREFIX}-stock-mcp` server listed with a *Ready* status and the connection URL.
+
+. Click on your server name to open its details page
+
+=== 5e. What to explore
 
 * *Tools tab* — the operator discovered all 9 tools during the handshake. Click any tool to see its name, description, and input schema. This is the same metadata the LLM reads when deciding which tool to call.
 * *Status* — shows the server's health, replica count, and internal address
 * *Capabilities* — shows what MCP features your server supports (tools, resources, prompts)
 
-NOTE: You may also see MCP servers from other participants in the catalog. The AI Hub shows all MCPServer CRs that the operator has deployed across namespaces you have access to.
+NOTE: You may also see MCP servers from other participants if you have access to their namespaces.
 
-Browse the catalog — the AI Hub also lists *pre-built MCP servers* from Red Hat, partners, and the community that can be deployed with one click.
+Also browse the *Catalog* tab — it lists pre-built MCP servers from Red Hat, partners, and the community that can be deployed with one click.
 
 === What just happened
 
