@@ -32,6 +32,14 @@ Each participant gets a personal cloud workspace powered by *Red Hat OpenShift D
 
 All you need is a web browser and the credentials your facilitator provides.
 
+== Why this matters
+
+AI agents are only as useful as the tools they can reach. Today, connecting an agent to a database, an API, or a business system means writing custom glue code for every integration — different APIs, different auth, different data formats. *MCP changes that.*
+
+MCP (Model Context Protocol) is an *open standard* that is rapidly becoming the industry default for agent-to-tool communication. Major AI platforms — Claude, Cursor, VS Code, OpenCode, and others — already support it. Red Hat OpenShift AI 3.5 brings MCP to the enterprise with a full lifecycle: *deploy, discover, govern*.
+
+In this workshop you go from source code to a production-ready MCP server in under an hour — and you understand every layer of the stack. The skills transfer directly to deploying *any* MCP server for *any* domain: internal APIs, databases, monitoring systems, business workflows.
+
 == Learning objectives
 
 By the end of the workshop you will be able to:
@@ -42,6 +50,16 @@ By the end of the workshop you will be able to:
 * Deploy an MCP server using the MCPServer CR and the MCP Lifecycle Operator
 * Register a server with the MCP Gateway for federated tool discovery
 * Speak the MCP protocol (JSON-RPC 2.0) using `curl`: `initialize`, `tools/list`, `tools/call`
+
+== What you will walk away with
+
+By the end of the workshop, every participant will have:
+
+* A *deployed MCP server* on OpenShift — security-hardened, handshake-verified, and visible in the AI Hub catalog
+* *Hands-on experience* with the RHOAI 3.5 MCP Lifecycle — from `MCPServer` CR to MCP Gateway registration
+* The ability to *repeat this for any tool* — the same 3 YAMLs and workflow work for any MCP server you build
+* *Protocol-level understanding* of MCP — you will have spoken `initialize`, `tools/list`, and `tools/call` by hand, so you know exactly what happens when an AI agent uses a tool
+* Confidence to *evaluate MCP* for your own use cases — internal APIs, databases, monitoring, CI/CD, or any system an AI agent should reach
 
 == Start here
 

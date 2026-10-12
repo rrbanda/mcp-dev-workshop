@@ -653,3 +653,14 @@ You completed the full *MCP Lifecycle* on *Red Hat OpenShift AI 3.5*:
 * *MCP is an open standard* — the same server you deployed works with OpenCode, Cursor, Claude Desktop, VS Code, or any MCP-compatible client. No vendor lock-in.
 
 All from 3 YAML files, 3 curl commands, and a handful of `oc` commands.
+
+== Next steps
+
+Now that you have built, deployed, and tested an MCP server on OpenShift, here are ways to go further:
+
+* *Build your own MCP server* — pick an internal API, database, or system you work with. Use the same `@server.tool()` pattern from `server.py` to expose it as MCP tools. The same 3 YAMLs (`MCPServer`, `HTTPRoute`, `MCPServerRegistration`) will deploy it.
+* *Connect an AI agent* — instead of `curl`, point an MCP client (OpenCode, Cursor, Claude Desktop, VS Code) at your server's URL. The agent calls the same `initialize` → `tools/list` → `tools/call` flow you just did by hand.
+* *Explore the AI Hub catalog* — browse pre-built MCP servers from Red Hat, partners, and the community. Many can be deployed with one click.
+* *Try the agent-guided track* — if you have time, go back to xref:03-stage1-welcome.adoc[Stage 1] and let AgentSherpa walk you through the agentic SDLC — from intent capture to code generation to deployment.
+* *Read the MCP specification* — https://modelcontextprotocol.io/specification[modelcontextprotocol.io/specification] has the full protocol reference, including resources, prompts, sampling, and transport details.
+* *Review the reference page* — xref:13-reference.adoc[Reference] has MCPServer CR field details, troubleshooting, and additional examples.
