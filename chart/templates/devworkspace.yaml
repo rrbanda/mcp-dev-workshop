@@ -66,56 +66,42 @@ spec:
               exposure: public
               protocol: https
     commands:
-      - id: update-workshop-repo
+      - id: workspace-init
         exec:
-          label: "Pull latest workshop content"
+          label: "Initialize workspace"
           component: dev-tools
           commandLine: |
-            cd /projects/mcp-dev-workshop && git pull origin {{ .Values.workshop.branch | quote }} || true
-      - id: create-kubeconfig
-        exec:
-          label: "Create kubeconfig for IDE terminal"
-          component: dev-tools
-          commandLine: |
-            mkdir -p /home/user/.kube
-            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-            CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-            NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-            oc config set-cluster in-cluster --server=https://kubernetes.default.svc --certificate-authority=$CA --kubeconfig=/home/user/.kube/config
-            oc config set-credentials sa --token=$TOKEN --kubeconfig=/home/user/.kube/config
-            oc config set-context default --cluster=in-cluster --user=sa --namespace=$NS --kubeconfig=/home/user/.kube/config
-            oc config use-context default --kubeconfig=/home/user/.kube/config
-      - id: write-opencode-config
-        exec:
-          label: "Write OpenCode Config"
-          component: dev-tools
-          commandLine: |
-{{ include "mcp-workshop.opencodeWriteConfigScript" . | indent 12 }}
-      - id: write-opencode-skills
-        exec:
-          label: "Write OpenCode Skills"
-          component: dev-tools
-          commandLine: |
-{{ include "mcp-workshop.opencodeWriteSkillsScript" . | indent 12 }}
-      - id: start-opencode-web
-        exec:
-          label: "Start AgentSherpa Web UI"
-          component: dev-tools
-          commandLine: |
-            NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-            OPENCODE_SERVER_PASSWORD=$(oc get secret agentsherpa-password -n "$NS" \
-              -o jsonpath='{.data.password}' | base64 -d)
-            export OPENCODE_SERVER_PASSWORD
-            printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
-            export PATH="/tmp:$PATH"
-            cd /projects/mcp-dev-workshop
-            OPENCODE_APP_NAME={{ include "mcp-workshop.appName" . }} \
-              nohup opencode web --hostname 0.0.0.0 --port 4096 > /tmp/opencode-web.log 2>&1 &
-            echo "{{ include "mcp-workshop.appName" . }} Web UI started on port 4096 (password-protected)"
+            (
+              # 1. Pull latest workshop content
+              cd /projects/mcp-dev-workshop && git pull origin {{ .Values.workshop.branch | quote }} || true
+
+              # 2. Create kubeconfig from service account token
+              mkdir -p /home/user/.kube
+              TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+              CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+              NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+              oc config set-cluster in-cluster --server=https://kubernetes.default.svc --certificate-authority=$CA --kubeconfig=/home/user/.kube/config
+              oc config set-credentials sa --token=$TOKEN --kubeconfig=/home/user/.kube/config
+              oc config set-context default --cluster=in-cluster --user=sa --namespace=$NS --kubeconfig=/home/user/.kube/config
+              oc config use-context default --kubeconfig=/home/user/.kube/config
+
+              # 3. Write OpenCode config
+{{ include "mcp-workshop.opencodeWriteConfigScript" . | indent 14 }}
+
+              # 4. Write OpenCode skills
+{{ include "mcp-workshop.opencodeWriteSkillsScript" . | indent 14 }}
+
+              # 5. Start OpenCode web UI
+              OPENCODE_SERVER_PASSWORD=$(oc get secret agentsherpa-password -n "$NS" \
+                -o jsonpath='{.data.password}' | base64 -d)
+              export OPENCODE_SERVER_PASSWORD
+              printf '#!/bin/sh\nexit 0\n' > /tmp/xdg-open && chmod +x /tmp/xdg-open
+              export PATH="/tmp:$PATH"
+              cd /projects/mcp-dev-workshop
+              OPENCODE_APP_NAME={{ include "mcp-workshop.appName" . }} \
+                nohup opencode web --hostname 0.0.0.0 --port 4096 > /tmp/opencode-web.log 2>&1 &
+              echo "{{ include "mcp-workshop.appName" . }} Web UI started on port 4096 (password-protected)"
+            ) &
     events:
       postStart:
-        - update-workshop-repo
-        - create-kubeconfig
-        - write-opencode-config
-        - write-opencode-skills
-        - start-opencode-web
+        - workspace-init
