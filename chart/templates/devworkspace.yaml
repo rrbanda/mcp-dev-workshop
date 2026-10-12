@@ -72,6 +72,19 @@ spec:
           component: dev-tools
           commandLine: |
             cd /projects/mcp-dev-workshop && git pull origin {{ .Values.workshop.branch | quote }} || true
+      - id: create-kubeconfig
+        exec:
+          label: "Create kubeconfig for IDE terminal"
+          component: dev-tools
+          commandLine: |
+            mkdir -p /home/user/.kube
+            TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+            CA=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+            NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+            oc config set-cluster in-cluster --server=https://kubernetes.default.svc --certificate-authority=$CA --kubeconfig=/home/user/.kube/config
+            oc config set-credentials sa --token=$TOKEN --kubeconfig=/home/user/.kube/config
+            oc config set-context default --cluster=in-cluster --user=sa --namespace=$NS --kubeconfig=/home/user/.kube/config
+            oc config use-context default --kubeconfig=/home/user/.kube/config
       - id: write-opencode-config
         exec:
           label: "Write OpenCode Config"
@@ -102,6 +115,7 @@ spec:
     events:
       postStart:
         - update-workshop-repo
+        - create-kubeconfig
         - write-opencode-config
         - write-opencode-skills
         - start-opencode-web
