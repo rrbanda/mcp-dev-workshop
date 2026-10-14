@@ -15,3 +15,5 @@ my-*.yaml
 # Ansible vars with real cluster values — never commit
 deploy/vars.yml
 deploy/credentials-output.txt
+participant-guide.md
+presenter-script.md

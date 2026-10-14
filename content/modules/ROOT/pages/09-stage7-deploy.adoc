@@ -8,12 +8,11 @@ This is the most technical stage. AgentSherpa explains every command before runn
 
 == Step 7a: Build the container image
 
-AgentSherpa uses an OpenShift *BuildConfig* with the Source-to-Image (S2I) strategy:
+AgentSherpa uses an OpenShift *BuildConfig* with the Docker build strategy:
 
 [source,bash]
 ----
-oc new-build python:3.11-ubi9~. \
-  --name=${USER_PREFIX}-stock-mcp \
+oc new-build --name=${USER_PREFIX}-stock-mcp \
   --strategy=docker \
   --binary
 ----
@@ -134,7 +133,7 @@ spec:
     name: ${USER_PREFIX}-stock-mcp
 ----
 
-With `prefix: user1_stock`, your tool `get_stock_price` becomes `user1_stock_get_stock_price` on the gateway -- ensuring no collisions with other participants.
+With `prefix: user1_stock`, your tool `get_stock_info` becomes `user1_stock_get_stock_info` on the gateway -- ensuring no collisions with other participants.
 
 The `targetRef` points to the HTTPRoute. The gateway discovers the backend service from the route.
 

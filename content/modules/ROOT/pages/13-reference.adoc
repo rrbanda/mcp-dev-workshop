@@ -4,8 +4,8 @@
 == MCP protocol
 
 * *Specification:* https://modelcontextprotocol.io/specification
-* *Python SDK:* https://github.com/modelcontextprotocol/python-sdk (`mcp[cli]` v1.9+)
-* *Transport:* Streamable HTTP (HTTP + SSE) -- replaces the older stdio transport for remote servers
+* *Python SDK:* https://github.com/modelcontextprotocol/python-sdk (`mcp[cli]` v2.1+)
+* *Transport:* Streamable HTTP (HTTP POST + SSE responses) -- the production transport for remote servers. Stdio transport is used for local development.
 
 === Key protocol methods
 
@@ -145,7 +145,7 @@ The `targetRef` references the HTTPRoute (not the MCPServer directly). The gatew
 
 === Gateway class
 
-The MCP Gateway uses `data-science-gateway-class` (Istio-backed), part of RHCL (Red Hat Connectivity Link) 1.4+.
+The MCP Gateway uses `data-science-gateway-class` (Istio/Sail-backed), part of RHCL (Red Hat Connectivity Link) 1.4+. The MCPServerRegistration CRD is `mcp.kuadrant.io/v1alpha1`, distinct from the MCPServer CRD (`mcp.x-k8s.io/v1alpha1`) which comes from the RHOAI MCP Lifecycle Operator.
 
 == Python SDK v2 patterns
 
@@ -153,13 +153,11 @@ The MCP Gateway uses `data-science-gateway-class` (Istio-backed), part of RHCL (
 
 [source,python]
 ----
-from mcp.server.fastmcp import FastMCP
+from mcp.server import MCPServer
 
-mcp = FastMCP(
-    "stock-market-mcp",
-    host="0.0.0.0",
-    port=8080,
-    path="/mcp",
+server = MCPServer(
+    "stock-market",
+    instructions="Provides comprehensive financial data for stocks.",
 )
 ----
 
@@ -167,42 +165,54 @@ mcp = FastMCP(
 
 [source,python]
 ----
-@mcp.tool()
-def get_stock_price(ticker: str) -> dict:
-    """Get the current stock price for a given ticker symbol.
+@server.tool(
+    name="get_stock_info",
+    description="Get comprehensive stock information including price, metrics, and company details.",
+)
+async def get_stock_info(ticker: str) -> str:
+    """Get stock information for a given ticker symbol.
 
     Args:
         ticker: Stock ticker symbol (e.g., AAPL, MSFT, GOOGL)
-
-    Returns:
-        Dictionary with price, change, percent change, and volume.
     """
-    import yfinance as yf
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    return {
-        "ticker": ticker.upper(),
-        "price": info.get("currentPrice"),
-        "change": info.get("regularMarketChange"),
-        "percent_change": info.get("regularMarketChangePercent"),
-        "volume": info.get("volume"),
-    }
+    try:
+        import yfinance as yf
+        company = yf.Ticker(ticker)
+        info = company.info
+        if not info or "symbol" not in info:
+            return f"No stock info found for ticker {ticker}."
+        return json.dumps(info)
+    except Exception as e:
+        return f"Error: getting stock information for {ticker}: {e}"
 ----
 
 Key patterns:
 
-* Type hints on all parameters -- the SDK uses them to generate JSON Schema
-* Docstring is the tool description the LLM reads
-* Return a dict (not a string) for structured data
-* Handle errors gracefully (try/except around API calls)
+* `@server.tool(name=..., description=...)` -- explicit name and description for the LLM
+* Type hints on all parameters -- `str` → `"type": "string"`, `int` → `"type": "integer"`, `float | None` → optional number
+* Parameters without defaults become `required` in the JSON Schema
+* `async def` -- enables concurrent request handling via asyncio
+* Return type is always `str` -- tool results go into `result.content[0].text` in the MCP response
+* Wrap logic in try/except -- return error strings, never raise exceptions from tools
 
-=== Running the server
+=== Running the server (dual transport)
 
 [source,python]
 ----
+import os
+
+def main() -> None:
+    transport = os.environ.get("MCP_TRANSPORT", "stdio")
+    if transport == "streamable-http":
+        server.run(transport="streamable-http", host="0.0.0.0", port=8080)
+    else:
+        server.run(transport="stdio")
+
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    main()
 ----
+
+IMPORTANT: For container deployments, `host` must be `"0.0.0.0"` (not the default `"127.0.0.1"`), otherwise the server is unreachable from outside the pod. Set `MCP_TRANSPORT=streamable-http` in the Dockerfile via `ENV`.
 
 == Useful `oc` commands
 
@@ -236,5 +246,5 @@ curl -s http://<service-name>:8080/mcp \
 
 * https://modelcontextprotocol.io/[MCP specification]
 * https://github.com/modelcontextprotocol/python-sdk[MCP Python SDK]
-* https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.19[Red Hat OpenShift AI documentation]
-* https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.0[Red Hat Connectivity Link documentation]
+* https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/2.19[Red Hat OpenShift AI documentation] (3.5+)
+* https://docs.redhat.com/en/documentation/red_hat_connectivity_link/1.0[Red Hat Connectivity Link documentation] (1.4+)

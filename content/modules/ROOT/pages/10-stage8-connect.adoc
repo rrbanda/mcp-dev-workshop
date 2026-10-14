@@ -22,22 +22,22 @@ Both should show accepted/attached status.
 
 == Step 8b: Add the MCP server to OpenCode
 
-AgentSherpa adds the MCP server connection to OpenCode's configuration. The server URL is:
+AgentSherpa adds the MCP server connection to OpenCode's configuration using the direct service URL from the MCPServer status:
 
 ----
-https://<gateway-hostname>/mcp/${USER_PREFIX}-stock/mcp
+http://${USER_PREFIX}-stock-mcp.${USER_PREFIX}-devspaces.svc.cluster.local:8080/mcp
 ----
 
-OpenCode's MCP client connects, performs a `tools/list` call, and your tools appear in the sidebar.
+OpenCode's MCP client connects, sends an `initialize` handshake followed by `tools/list`, and your tools appear in the sidebar.
 
 == Step 8c: Test with real queries
 
 Now the magic -- use your tools through natural language:
 
-* _"What's the current price of AAPL?"_ → `get_stock_price`
-* _"Compare MSFT, GOOGL, and AMZN"_ → `get_stock_comparison`
+* _"What's the current price of AAPL?"_ → `get_stock_info`
+* _"Show me Apple's price history for the last month"_ → `get_historical_stock_prices`
 * _"Show me TSLA news"_ → `get_stock_news`
-* _"What do analysts think about NVDA?"_ → `get_analyst_recommendations`
+* _"What do analysts think about NVDA?"_ → `get_recommendations`
 
 Watch how the LLM decides *which tool to call* based on your question and the tool descriptions you wrote.
 

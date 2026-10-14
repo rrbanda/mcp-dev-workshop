@@ -10,30 +10,33 @@ AgentSherpa creates three files in your workspace:
 
 === `server.py`
 
-The MCP server using `mcp[cli]` (Python SDK v2):
+The MCP server using the Python SDK v2 (`mcp` package):
 
-* `FastMCP` server instance on port 8080, path `/mcp`
-* One `@mcp.tool()` function per approved tool
-* `yfinance` for data access
-* Proper type hints, docstrings, and error handling
+* `MCPServer` instance from `mcp.server` with dual-transport support (stdio + streamable HTTP)
+* One `@server.tool(name=..., description=...)` function per approved tool
+* `yfinance` library for Yahoo Finance data access
+* Python type hints that map to JSON Schema, docstrings, and try/except error handling
 
 === `requirements.txt`
 
 [source,text]
 ----
-mcp[cli]>=1.9.0
-yfinance>=0.2.40
-uvicorn>=0.30.0
+mcp[cli]>=2.1.0,<3
+yfinance>=1.6.0,<2
 ----
+
+NOTE: `uvicorn` and `starlette` are transitive dependencies pulled in by `mcp[cli]` — you do not need to list them separately.
 
 === `Dockerfile`
 
 [source,dockerfile]
 ----
-FROM registry.access.redhat.com/ubi9/python-311:latest
+FROM registry.access.redhat.com/ubi9/python-312:latest
+WORKDIR /opt/app-root/src
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY server.py .
+ENV MCP_TRANSPORT=streamable-http
 EXPOSE 8080
 CMD ["python", "server.py"]
 ----
